@@ -844,9 +844,18 @@ function serveStatic(req, res, url) {
       res.end("Not found");
       return;
     }
-    res.writeHead(200, { "Content-Type": contentType(filePath) });
+    res.writeHead(200, {
+      "Content-Type": contentType(filePath),
+      "Cache-Control": cacheControl(filePath),
+    });
     res.end(data);
   });
+}
+
+function cacheControl(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if ([".html", ".css", ".js"].includes(ext)) return "no-store";
+  return "public, max-age=86400";
 }
 
 function contentType(filePath) {
