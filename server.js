@@ -151,6 +151,7 @@ function startRoomGame(room) {
     environmentCycle: 0,
     naturalEnvironmentLevel: 1,
     currentEnvironment: null,
+    activationEvents: [],
     hostEnvironmentDeck: room.players.host.environmentDeck.slice(),
     guestEnvironmentDeck: room.players.guest.environmentDeck.slice(),
     finished: false,
@@ -262,6 +263,7 @@ function playFromHand(game, player, opponent, index, seat, preferredSlot = null)
   const card = cards[id];
   if (!card || !canPlayCard(player, card) || !payCost(player, card.cost)) return false;
   player.hand.splice(index, 1);
+  if (card.effect) addActivation(game, card, seat, "effect");
 
   if (!queueReactionChoice(game, opponent, player, card, "effect", (negated) => {
     resolvePlayedCard(game, player, opponent, card, negated, seat, preferredSlot);
@@ -360,6 +362,8 @@ function queueReactionChoice(game, reactor, opponent, sourceCard, trigger, conti
     message: `${sourceCard.name}に対応できます。発動するカードを選んでください。`,
     candidates: options,
     allowPass: true,
+    confirmLabel: "発動",
+    passLabel: "発動しない",
     resolve: (candidate) => {
       let negated = false;
       if (candidate) {
@@ -367,6 +371,7 @@ function queueReactionChoice(game, reactor, opponent, sourceCard, trigger, conti
         if (card && payCost(reactor, card.cost)) {
           reactor.reactions[candidate.index] = null;
           reactor.grave.push(candidate.id);
+          addActivation(game, card, seatOf(game, reactor), "reaction");
           log(game, `${card.name}を発動。`);
           applyReactionEffect(game, card, reactor, opponent);
           negated = true;
@@ -392,6 +397,7 @@ function autoReact(game, reactor, opponent, sourceCard, trigger) {
   if (!payCost(reactor, card.cost)) return false;
   reactor.reactions[option.index] = null;
   reactor.grave.push(option.id);
+  addActivation(game, card, seatOf(game, reactor), "reaction");
   log(game, `${card.name}を発動。`);
   applyReactionEffect(game, card, reactor, opponent);
   return true;
@@ -929,6 +935,7 @@ function roomSnapshot(room, seat) {
     environmentCycle: game.environmentCycle,
     pendingChoice: publicPendingChoice(game.pendingChoice, seat),
     waitingChoice: publicWaitingChoice(game.pendingChoice, seat),
+    activationEvents: publicActivationEvents(game.activationEvents, seat),
     player,
     enemy,
     logItems: game.logItems.slice(),
@@ -943,6 +950,8 @@ function publicPendingChoice(choice, seat) {
     title: choice.title,
     message: choice.message,
     allowPass: Boolean(choice.allowPass),
+    confirmLabel: choice.confirmLabel,
+    passLabel: choice.passLabel,
     candidates: choice.candidates.map((entry) => ({
       id: entry.id,
       index: entry.index,
@@ -956,6 +965,15 @@ function publicWaitingChoice(choice, seat) {
     id: choice.id,
     zone: choice.zone,
   };
+}
+
+function publicActivationEvents(events = [], seat) {
+  return events.map((event) => ({
+    eventId: event.eventId,
+    id: event.cardId,
+    kind: event.kind,
+    owner: event.seat === seat ? "player" : "enemy",
+  }));
 }
 
 function publicDuelist(player, includeHand) {
@@ -980,6 +998,18 @@ function publicReactions(reactions, includeHand) {
     if (includeHand || reactionRevealed(entry)) return { id, revealed: reactionRevealed(entry) };
     return { facedown: true };
   });
+}
+
+function addActivation(game, card, seat, kind) {
+  if (!game || !card?.id) return;
+  game.activationEvents = game.activationEvents || [];
+  game.activationEvents.push({
+    eventId: makeId(8),
+    cardId: card.id,
+    seat,
+    kind,
+  });
+  if (game.activationEvents.length > 40) game.activationEvents.shift();
 }
 
 function log(game, message) {

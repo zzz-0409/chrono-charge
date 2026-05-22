@@ -108,7 +108,6 @@
         if (closest(event.target, protectedSelector)) event.preventDefault();
       });
       document.addEventListener("dragstart", (event) => {
-        if (closest(event.target, ".draggable-hand-card")) return;
         if (closest(event.target, ".game-card, .tcg-card, img")) event.preventDefault();
       }, true);
     }

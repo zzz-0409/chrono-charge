@@ -27,9 +27,15 @@
       this.selectedContext = null;
       this.handSnapshot = null;
       this.handDrag = null;
+      this.pointerHandDrag = null;
+      this.suppressNextHandClick = false;
       this.boardSoundSnapshot = null;
+      this.activationOverlay = null;
       this.lastPlaceSoundAt = 0;
       this.lastDrawSoundAt = 0;
+      this.handleHandPointerMove = (event) => this.moveHandPointerDrag(event);
+      this.handleHandPointerUp = (event) => this.finishHandPointerDrag(event);
+      this.handleHandPointerCancel = () => this.cancelHandPointerDrag();
       this.bindEvents();
     }
 
@@ -70,11 +76,13 @@
         return;
       }
 
+      this.cancelHandPointerDrag();
       this.game?.dispose?.();
       this.restart = () => this.start(deckList, environmentDeck);
       this.selectedContext = null;
       this.handSnapshot = null;
       this.handDrag = null;
+      this.pointerHandDrag = null;
       this.boardSoundSnapshot = null;
       this.game = new DuelGame({
         playerDeck: deckList,
@@ -83,24 +91,28 @@
         cpuEnvironmentDeck: expandDeck(cpuEnvironmentDeck),
         onChange: () => this.render(),
         onResult: (won) => this.showResult(won),
-        requestReaction: (options, event) => this.requestReaction(options, event),
+        requestReaction: (options, event) => this.requestReactionChoice(options, event),
         requestCardChoice: (choice) => this.requestCardChoice(choice),
+        showActivation: (activation) => this.showActivation(activation),
       });
       this.game.start();
       this.setView("duel");
     }
 
     startOnline(game) {
+      this.cancelHandPointerDrag();
       this.game?.dispose?.();
       this.restart = null;
       this.selectedContext = null;
       this.handSnapshot = null;
       this.handDrag = null;
+      this.pointerHandDrag = null;
       this.boardSoundSnapshot = null;
       this.game = game;
       this.game.onChange = () => this.render();
       this.game.onResult = (won) => this.showResult(won);
       this.game.requestCardChoice = (choice) => this.requestCardChoice(choice);
+      this.game.showActivation = (activation) => this.showActivation(activation);
       this.game.start();
       this.setView("duel");
     }
@@ -325,12 +337,15 @@
         });
         if (index >= playerHandCount - playerDrawn) this.applyDrawAnimation(card, index - (playerHandCount - playerDrawn), "player");
         if (this.canDragHandCard(index)) {
-          card.draggable = true;
           card.classList.add("draggable-hand-card");
-          card.addEventListener("dragstart", (event) => this.handleHandDragStart(event, index, id));
-          card.addEventListener("dragend", () => this.clearHandDragState());
+          card.draggable = false;
+          card.addEventListener("dragstart", (event) => event.preventDefault());
+          card.addEventListener("pointerdown", (event) => this.handleHandPointerDown(event, index, id));
         }
-        card.addEventListener("click", () => this.selectCard(id, { zone: "hand", index, owner: "player" }));
+        card.addEventListener("click", (event) => {
+          if (this.consumeSuppressedHandClick(event)) return;
+          this.selectCard(id, { zone: "hand", index, owner: "player" });
+        });
         this.els.handZone.append(card);
       });
       this.handSnapshot = {
@@ -366,6 +381,135 @@
       this.markHandDropTargets(this.handDrag);
     }
 
+    handleHandPointerDown(event, index, id) {
+      if ((event.pointerType === "mouse" && event.button !== 0) || !this.canDragHandCard(index)) return;
+      this.cancelHandPointerDrag();
+      this.pointerHandDrag = {
+        payload: { index, id },
+        source: event.currentTarget,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        started: false,
+        ghost: null,
+        drop: null,
+      };
+      document.addEventListener("pointermove", this.handleHandPointerMove, { passive: false });
+      document.addEventListener("pointerup", this.handleHandPointerUp, { passive: false });
+      document.addEventListener("pointercancel", this.handleHandPointerCancel);
+    }
+
+    moveHandPointerDrag(event) {
+      const drag = this.pointerHandDrag;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+      if (!drag.started && distance < 8) return;
+      event.preventDefault();
+      if (!drag.started) this.beginHandPointerDrag(event);
+      this.positionHandDragGhost(event.clientX, event.clientY);
+      this.updateHandPointerDropTarget(event.clientX, event.clientY);
+    }
+
+    beginHandPointerDrag(event) {
+      const drag = this.pointerHandDrag;
+      if (!drag) return;
+      drag.started = true;
+      this.handDrag = drag.payload;
+      drag.source.classList.add("is-dragging");
+      drag.source.setAttribute("aria-grabbed", "true");
+      this.markHandDropTargets(drag.payload);
+      drag.ghost = this.createHandDragGhost(drag.source);
+      document.body.append(drag.ghost);
+      this.positionHandDragGhost(event.clientX, event.clientY);
+    }
+
+    createHandDragGhost(source) {
+      const rect = source.getBoundingClientRect();
+      const ghost = source.cloneNode(true);
+      ghost.classList.add("hand-drag-ghost");
+      ghost.classList.remove("selected");
+      ghost.setAttribute("aria-hidden", "true");
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
+      return ghost;
+    }
+
+    positionHandDragGhost(clientX, clientY) {
+      const ghost = this.pointerHandDrag?.ghost;
+      if (!ghost) return;
+      ghost.style.transform = `translate(${clientX}px, ${clientY}px) translate(-50%, -62%)`;
+    }
+
+    updateHandPointerDropTarget(clientX, clientY) {
+      const drag = this.pointerHandDrag;
+      if (!drag) return;
+      this.clearActiveDropTargetClasses();
+      drag.drop = null;
+      const target = this.findHandDropTarget(clientX, clientY);
+      if (!target) return;
+      const result = this.dropCheck(drag.payload, target.dropZone, target.slotIndex);
+      drag.drop = { ...target, result };
+      if (result.ok) {
+        target.target.classList.add("is-drop-target");
+        return;
+      }
+      if (this.isRelevantDropZone(target.dropZone, drag.payload)) {
+        target.target.classList.add("drop-blocked");
+      }
+    }
+
+    async finishHandPointerDrag(event) {
+      const drag = this.pointerHandDrag;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      this.removeHandPointerListeners();
+      if (!drag.started) {
+        this.pointerHandDrag = null;
+        return;
+      }
+
+      event.preventDefault();
+      this.suppressNextHandClick = true;
+      window.setTimeout(() => {
+        this.suppressNextHandClick = false;
+      }, 220);
+
+      const drop = drag.drop;
+      this.cleanupHandPointerDrag(false);
+      if (drop?.result?.ok) {
+        await this.performHandDrop(drag.payload, drop.dropZone, drop.slotIndex);
+      } else if (drop?.result && this.isRelevantDropZone(drop.dropZone, drag.payload)) {
+        this.toast(drop.result.message || "ここには置けません。");
+      }
+      this.clearHandDragState();
+    }
+
+    cancelHandPointerDrag() {
+      this.cleanupHandPointerDrag(true);
+    }
+
+    cleanupHandPointerDrag(clearState) {
+      const drag = this.pointerHandDrag;
+      this.removeHandPointerListeners();
+      drag?.ghost?.remove();
+      drag?.source?.classList.remove("is-dragging");
+      drag?.source?.removeAttribute("aria-grabbed");
+      this.pointerHandDrag = null;
+      if (clearState) this.clearHandDragState();
+    }
+
+    removeHandPointerListeners() {
+      document.removeEventListener("pointermove", this.handleHandPointerMove);
+      document.removeEventListener("pointerup", this.handleHandPointerUp);
+      document.removeEventListener("pointercancel", this.handleHandPointerCancel);
+    }
+
+    consumeSuppressedHandClick(event) {
+      if (!this.suppressNextHandClick) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    }
+
     clearHandDragState() {
       this.handDrag = null;
       this.els.handZone.querySelectorAll(".is-dragging").forEach((element) => element.classList.remove("is-dragging"));
@@ -376,6 +520,13 @@
       const root = this.els.duelView || document;
       root.querySelectorAll(".can-drop, .is-drop-target, .drop-blocked").forEach((element) => {
         element.classList.remove("can-drop", "is-drop-target", "drop-blocked");
+      });
+    }
+
+    clearActiveDropTargetClasses() {
+      const root = this.els.duelView || document;
+      root.querySelectorAll(".is-drop-target, .drop-blocked").forEach((element) => {
+        element.classList.remove("is-drop-target", "drop-blocked");
       });
     }
 
@@ -443,6 +594,11 @@
 
       event.preventDefault();
       event.stopPropagation();
+      await this.performHandDrop(payload, dropZone, slotIndex);
+      this.clearHandDragState();
+    }
+
+    async performHandDrop(payload, dropZone, slotIndex) {
       this.selectedContext = null;
       this.clearDropTargetClasses();
       let placed = false;
@@ -450,7 +606,7 @@
       else if (dropZone === "charge") placed = await this.game.chargeFromHand(payload.index);
       else placed = await this.game.playFromHand(payload.index, slotIndex);
       if (placed !== false) this.playPlaceSound();
-      this.clearHandDragState();
+      return placed;
     }
 
     currentHandDragPayload(event) {
@@ -479,6 +635,23 @@
       const slot = eventTarget?.closest(".zone-slot");
       if (!slot || !event.currentTarget.contains(slot)) return null;
       return slot;
+    }
+
+    findHandDropTarget(clientX, clientY) {
+      const element = document.elementFromPoint(clientX, clientY);
+      if (!(element instanceof Element)) return null;
+      const slot = element.closest(".zone-slot");
+      if (slot) {
+        const slotIndex = Number(slot.dataset.slotIndex);
+        if (this.els.playerUnitZones?.contains(slot)) return { dropZone: "playerUnit", slotIndex, target: slot };
+        if (this.els.playerCoreZones?.contains(slot)) return { dropZone: "playerCore", slotIndex, target: slot };
+        if (this.els.playerReactionZones?.contains(slot)) return { dropZone: "playerReaction", slotIndex, target: slot };
+      }
+      const charge = element.closest("#playerCharge");
+      if (charge && this.els.playerCharge?.contains(charge)) return { dropZone: "charge", slotIndex: null, target: this.els.playerCharge };
+      const playerSide = this.els.playerUnitZones?.closest(".player-side");
+      if (playerSide?.contains(element)) return { dropZone: "spell", slotIndex: null, target: playerSide };
+      return null;
     }
 
     isRelevantDropZone(dropZone, payload) {
@@ -702,6 +875,17 @@
       this.openModal(modal);
     }
 
+    requestReactionChoice(options, event) {
+      return this.requestCardChoice({
+        title: "リアクション",
+        message: `${event.source?.name || "相手の行動"}に対応できます。使うリアクションカードを選んでください。`,
+        candidates: options,
+        allowPass: true,
+        confirmLabel: "発動",
+        passLabel: "発動しない",
+      });
+    }
+
     requestReaction(options, event) {
       return new Promise((resolve) => {
         const modal = document.createElement("div");
@@ -761,6 +945,8 @@
         const list = modal.querySelector(".choice-list");
         const focus = modal.querySelector(".choice-focus");
         const decide = modal.querySelector(".primary-button");
+        decide.textContent = choice.confirmLabel || decide.textContent;
+        focus.addEventListener("click", (event) => CardZoom.openFromEvent(event));
         const buttons = [];
         const updateSelection = () => {
           buttons.forEach(({ entry, card }) => {
@@ -790,6 +976,7 @@
           pass.type = "button";
           pass.className = "ghost-button";
           pass.textContent = "発動しない";
+          if (choice.passLabel) pass.textContent = choice.passLabel;
           pass.addEventListener("click", () => {
             this.closeModal();
             resolve(null);
@@ -798,6 +985,47 @@
         }
         updateSelection();
         this.openModal(modal);
+      });
+    }
+
+    showActivation(activation = {}) {
+      const id = activation.id;
+      if (!id || !cards[id]) return Promise.resolve();
+
+      return new Promise((resolve) => {
+        this.activationOverlay?.remove();
+
+        const overlay = document.createElement("div");
+        overlay.className = "activation-overlay";
+        overlay.setAttribute("aria-hidden", "true");
+
+        const burst = document.createElement("div");
+        burst.className = `activation-burst ${activation.kind === "reaction" ? "is-reaction" : "is-effect"}`;
+
+        const label = document.createElement("div");
+        label.className = "activation-label";
+        label.textContent = activation.kind === "reaction" ? "リアクション発動" : "効果発動";
+
+        const cardSlot = document.createElement("div");
+        cardSlot.className = "activation-card-slot";
+        CardRenderer.preview(id, cardSlot);
+
+        burst.append(label, cardSlot);
+        overlay.append(burst);
+
+        const host = this.els.appShell || this.els.duelView || document.body;
+        host.append(overlay);
+        this.activationOverlay = overlay;
+
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          if (this.activationOverlay === overlay) this.activationOverlay = null;
+          overlay.remove();
+          resolve();
+        };
+        window.setTimeout(finish, 1500);
       });
     }
 

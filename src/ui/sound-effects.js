@@ -12,6 +12,8 @@
     constructor() {
       this.volume = 0.72;
       this.enabled = true;
+      this.lastPlayedAt = {};
+      this.minIntervalMs = 70;
       this.audio = Object.fromEntries(Object.entries(SOUND_FILES).map(([key, src]) => {
         const audio = new Audio(src);
         audio.preload = "auto";
@@ -54,7 +56,12 @@
 
     play(name, options = {}) {
       if (!this.enabled || !this.audio[name]) return;
-      const audio = this.audio[name].cloneNode(true);
+      const now = performance.now();
+      if (now - (this.lastPlayedAt[name] || 0) < this.minIntervalMs) return;
+      this.lastPlayedAt[name] = now;
+      const audio = this.audio[name];
+      audio.pause();
+      this.reset(audio);
       audio.volume = Math.max(0, Math.min(1, options.volume ?? this.volume));
       audio.play().catch(() => {
         // Browsers may block sound until the first user gesture.

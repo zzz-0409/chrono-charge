@@ -4,18 +4,22 @@
   const { cards, typeIcons, attrClass, typeClass } = window.Chrono;
 
   class CardRenderer {
+    static cardFace(content) {
+      return `<div class="card-face">${content}</div>`;
+    }
+
     static libraryCard(card, count, selected) {
       const limit = card.type === "環境" ? 1 : window.Chrono.MAX_COPIES;
       const button = document.createElement("button");
       button.type = "button";
       button.className = `library-card game-card ${typeClass[card.type]} ${attrClass[card.attr]}${selected ? " selected" : ""}`;
-      button.innerHTML = `
+      button.innerHTML = this.cardFace(`
         ${this.cardHeader(card)}
         ${this.cardArt(card)}
         ${this.rulesBox(card)}
         ${this.unitStats(card)}
         <div class="deck-row-sub">投入 ${count} / ${limit}</div>
-      `;
+      `);
       return button;
     }
 
@@ -27,10 +31,12 @@
       }
       target.innerHTML = `
         <div class="preview-card game-card zoomable-card ${typeClass[card.type]} ${attrClass[card.attr]}" data-zoom-card data-card-id="${card.id}">
-          ${this.cardHeader(card, "h3")}
-          ${this.cardArt(card, true)}
-          ${this.rulesBox(card)}
-          ${this.unitStats(card)}
+          ${this.cardFace(`
+            ${this.cardHeader(card, "h3")}
+            ${this.cardArt(card, true)}
+            ${this.rulesBox(card)}
+            ${this.unitStats(card)}
+          `)}
         </div>
       `;
     }
@@ -54,10 +60,12 @@
             <div class="focus-effect-text">${card.text}</div>
           </div>
           <div class="focus-mini-card game-card zoomable-card ${typeClass[card.type]} ${attrClass[card.attr]}" data-zoom-card data-card-id="${card.id}">
-            ${this.cardHeader(card)}
-            ${this.cardArt(card)}
-            ${this.rulesBox(card)}
-            ${this.unitStats(card, displayAtk || card.atk, atkMod)}
+            ${this.cardFace(`
+              ${this.cardHeader(card)}
+              ${this.cardArt(card)}
+              ${this.rulesBox(card)}
+              ${this.unitStats(card, displayAtk || card.atk, atkMod)}
+            `)}
           </div>
         </div>
       `;
@@ -90,13 +98,13 @@
 
       const atk = card.type === "ユニット" ? card.atk + (options.atkMod || 0) : 0;
       button.className = `tcg-card game-card ${typeClass[card.type]} ${attrClass[card.attr]} ${options.small ? "small" : ""} ${options.interactive ? "interactive" : ""} ${options.selected ? "selected" : ""}`;
-      button.innerHTML = `
+      button.innerHTML = this.cardFace(`
         ${this.cardHeader(card)}
         ${this.cardArt(card)}
         ${this.rulesBox(card)}
         ${this.unitStats(card, atk, options.atkMod || 0)}
         ${options.stateTag ? `<span class="state-tag">${options.stateTag}</span>` : ""}
-      `;
+      `);
       return button;
     }
 

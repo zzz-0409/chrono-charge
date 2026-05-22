@@ -68,6 +68,7 @@
       this.onChange = options.onChange || (() => {});
       this.onResult = options.onResult || (() => {});
       this.requestCardChoice = options.requestCardChoice || (async () => null);
+      this.showActivation = options.showActivation || (async () => {});
       this.isOnline = true;
       this.status = "waiting";
       this.turn = 1;
@@ -86,6 +87,8 @@
       this.pollTimer = 0;
       this.fetching = false;
       this.reportedResult = false;
+      this.seenActivationEvents = new Set();
+      this.activationQueue = Promise.resolve();
     }
 
     start() {
@@ -174,12 +177,34 @@
         this.logItems = snapshot.logItems || [];
       }
 
+      const animationReady = this.queueActivationEvents(snapshot.activationEvents || []);
       this.onChange(this);
-      if (this.pendingChoice) this.handlePendingChoice(this.pendingChoice);
+      if (this.pendingChoice) {
+        const pending = this.pendingChoice;
+        animationReady.then(() => {
+          if (this.pendingChoice?.id === pending.id) this.handlePendingChoice(pending);
+        });
+      }
       if (this.finished && !this.reportedResult) {
         this.reportedResult = true;
         this.onResult(this.won, this);
       }
+    }
+
+    queueActivationEvents(events) {
+      const freshEvents = events.filter((event) => {
+        if (!event?.eventId || this.seenActivationEvents.has(event.eventId)) return false;
+        this.seenActivationEvents.add(event.eventId);
+        return true;
+      });
+      if (freshEvents.length === 0) return this.activationQueue;
+
+      this.activationQueue = this.activationQueue.then(async () => {
+        for (const event of freshEvents) {
+          await this.showActivation({ id: event.id, owner: event.owner, kind: event.kind });
+        }
+      });
+      return this.activationQueue;
     }
 
     async handlePendingChoice(choice) {

@@ -21,6 +21,8 @@
   --stage-height: 768px;
   --ui-scale: 1;
   --card-ratio: 4 / 6;
+  --card-design-width: 244px;
+  --card-design-height: 366px;
   --card-base-width: 112px;
   --card-base-height: 168px;
   --card-list-width: 121px;
@@ -108,6 +110,7 @@ button {
 }
 
 .app-shell {
+  position: relative;
   width: var(--stage-width);
   height: var(--stage-height);
   padding: 8px;
@@ -462,6 +465,7 @@ select {
 .game-card {
   --card-width: var(--card-base-width);
   --card-height: var(--card-base-height);
+  --card-render-scale: 0.459016;
   --card-frame: var(--line);
   --card-glow: rgba(255, 255, 255, 0.08);
   --card-top: rgba(255, 255, 255, 0.06);
@@ -486,6 +490,17 @@ select {
 .game-card > * {
   position: relative;
   z-index: 1;
+}
+
+.game-card .card-face {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  z-index: 1;
+  width: var(--card-design-width);
+  height: var(--card-design-height);
+  transform: scale(var(--card-render-scale));
+  transform-origin: top left;
 }
 
 .type-unit {
@@ -1949,7 +1964,7 @@ select {
 
 .hand-zone .draggable-hand-card {
   cursor: grab;
-  -webkit-user-drag: auto;
+  -webkit-user-drag: none;
   touch-action: none;
 }
 
@@ -1967,6 +1982,17 @@ select {
   filter: saturate(0.8) brightness(1.08);
 }
 
+.hand-drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0.92;
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.46)) brightness(1.05);
+  will-change: transform;
+}
+
 .draw-card {
   animation-delay: var(--draw-delay, 0ms);
   animation-duration: 520ms;
@@ -1981,6 +2007,68 @@ select {
 
 .draw-card-enemy {
   animation-name: draw-to-enemy-hand;
+}
+
+.activation-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  background:
+    radial-gradient(circle at center, rgba(85, 199, 187, 0.16), rgba(5, 8, 11, 0.22) 42%, rgba(5, 8, 11, 0.5));
+}
+
+.activation-burst {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  animation: activation-pop 1500ms cubic-bezier(0.18, 0.88, 0.22, 1) both;
+}
+
+.activation-label {
+  min-width: 184px;
+  border: 1px solid rgba(85, 199, 187, 0.5);
+  border-radius: 999px;
+  padding: 8px 18px;
+  color: #effffc;
+  font-size: 1.15rem;
+  font-weight: 900;
+  text-align: center;
+  letter-spacing: 0;
+  background: rgba(9, 14, 20, 0.9);
+  box-shadow:
+    0 0 22px rgba(85, 199, 187, 0.24),
+    inset 0 0 14px rgba(85, 199, 187, 0.12);
+}
+
+.activation-burst.is-reaction .activation-label {
+  border-color: rgba(245, 191, 91, 0.65);
+  box-shadow:
+    0 0 24px rgba(245, 191, 91, 0.22),
+    inset 0 0 14px rgba(245, 191, 91, 0.12);
+}
+
+.activation-card-slot {
+  width: var(--card-preview-width);
+  height: var(--card-preview-height);
+}
+
+.activation-card-slot .preview-card {
+  margin: 0;
+  animation: activation-card-glow 1500ms ease both;
+  box-shadow:
+    0 0 0 2px rgba(85, 199, 187, 0.95),
+    0 0 34px rgba(85, 199, 187, 0.55),
+    0 26px 70px rgba(0, 0, 0, 0.64);
+}
+
+.activation-burst.is-reaction .preview-card {
+  box-shadow:
+    0 0 0 2px rgba(245, 191, 91, 0.95),
+    0 0 36px rgba(245, 191, 91, 0.55),
+    0 26px 70px rgba(0, 0, 0, 0.64);
 }
 
 @keyframes draw-to-player-hand {
@@ -2019,8 +2107,41 @@ select {
   }
 }
 
+@keyframes activation-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(34px) scale(0.74);
+  }
+  24% {
+    opacity: 1;
+    transform: translateY(0) scale(1.08);
+  }
+  68% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.94);
+  }
+}
+
+@keyframes activation-card-glow {
+  0% {
+    filter: brightness(1.18) saturate(1.08);
+  }
+  38% {
+    filter: brightness(1.52) saturate(1.28);
+  }
+  100% {
+    filter: brightness(1.05) saturate(1.04);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .draw-card {
+  .draw-card,
+  .activation-burst,
+  .activation-card-slot .preview-card {
     animation: none;
   }
 }
@@ -2432,7 +2553,7 @@ select {
 }
 
 .modal-root {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 10;
   display: grid;
@@ -2505,7 +2626,7 @@ select {
 
 .grave-dialog {
   width: min(760px, calc(100% - 24px));
-  max-height: min(620px, calc(100vh - 36px));
+  max-height: min(620px, calc(100% - 36px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
@@ -2538,9 +2659,140 @@ select {
   justify-self: center;
 }
 
+.library-card {
+  --card-render-scale: 0.495902;
+}
+
+.preview-card {
+  --card-render-scale: 1;
+}
+
+.selected-panel .preview-card {
+  --card-render-scale: 0.704918;
+}
+
+.focus-mini-card {
+  --card-render-scale: 0.352459;
+}
+
+.hand-zone .tcg-card,
+.grave-list-card {
+  --card-render-scale: 0.311475;
+}
+
+.tcg-card.small {
+  --card-render-scale: 0.229508;
+}
+
+.environment-card.tcg-card.small {
+  --card-render-scale: 0.196721;
+}
+
+.game-card .card-face .card-name {
+  font-size: 1.02rem;
+  line-height: 1;
+}
+
+.game-card .card-face .cost-chip {
+  width: auto;
+  height: 92%;
+  aspect-ratio: 1;
+  font-size: 1rem;
+  transform: translateX(-13%);
+}
+
+.game-card .card-face .type-line {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.game-card .card-face .card-effect {
+  display: block;
+  max-height: none;
+  font-size: 0.88rem;
+  line-height: 1.12;
+}
+
+.game-card .card-face .card-effect.effect-sm {
+  font-size: 0.78rem;
+  line-height: 1.08;
+}
+
+.game-card .card-face .card-effect.effect-xs {
+  font-size: 0.68rem;
+  line-height: 1.04;
+}
+
+.game-card .card-face .card-effect.effect-xxs {
+  font-size: 0.58rem;
+  line-height: 1;
+}
+
+.game-card .card-face .card-art {
+  display: grid;
+  width: 72%;
+  height: auto;
+  margin: 0;
+}
+
+.game-card .card-face .card-art svg {
+  width: 42%;
+  height: 42%;
+}
+
+.game-card .card-face .battle-stats {
+  display: flex;
+  left: 16%;
+  bottom: 1.5%;
+  width: 72%;
+  gap: 8%;
+  line-height: 1;
+}
+
+.game-card .card-face .battle-stats span {
+  padding: 0;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.game-card .card-face .battle-stats strong {
+  font-size: 0.76rem;
+  line-height: 1;
+}
+
+.game-card .card-face .battle-stats .stat-mod {
+  font-size: 0.56rem;
+}
+
+.core-row .tcg-card.small .card-face .card-art,
+.reaction-row .tcg-card.small .card-face .card-art {
+  display: grid;
+}
+
+.core-row .tcg-card.small .card-face .type-line,
+.reaction-row .tcg-card.small .card-face .type-line {
+  display: block;
+}
+
+.core-row .tcg-card.small .card-face .battle-stats,
+.reaction-row .tcg-card.small .card-face .battle-stats {
+  display: flex;
+}
+
+.core-row .tcg-card.small .card-face .card-mini-top,
+.reaction-row .tcg-card.small .card-face .card-mini-top {
+  height: 9.2%;
+}
+
+.core-row .tcg-card.small .card-face .card-name,
+.reaction-row .tcg-card.small .card-face .card-name {
+  align-self: auto;
+}
+
 .choice-dialog {
   width: min(980px, calc(100% - 24px));
-  max-height: min(650px, calc(100vh - 36px));
+  max-height: min(650px, calc(100% - 36px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
@@ -2571,6 +2823,10 @@ select {
 
 .choice-focus .focus-card-detail {
   min-height: 360px;
+}
+
+.choice-focus .focus-mini-card {
+  top: 0;
 }
 
 .choice-actions {

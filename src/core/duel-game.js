@@ -50,6 +50,7 @@
         onResult: () => {},
         requestReaction: async () => null,
         requestCardChoice: async () => null,
+        showActivation: async () => {},
         delayMs: 360,
         ...options,
       };
@@ -104,6 +105,8 @@
       if (!this.payCost(this.player, card.cost)) return false;
 
       this.player.hand.splice(index, 1);
+      this.notify();
+      if (card.effect) await this.showActivation(card, "player", "effect");
       const negated = card.effect ? await this.opponentMayReact({ trigger: "effect", source: card }) : false;
       await this.resolvePlayedCard(this.player, this.enemy, card, negated, "player", preferredSlot);
       this.checkGameEnd();
@@ -230,10 +233,17 @@
       if (!card || !this.canPlayCard(this.enemy, card) || !this.payCost(this.enemy, card.cost)) return;
       this.enemy.hand.splice(index, 1);
 
+      this.notify();
+      if (card.effect) await this.showActivation(card, "enemy", "effect");
       const negated = card.effect ? await this.playerMayReact({ trigger: "effect", source: card }) : false;
       await this.resolvePlayedCard(this.enemy, this.player, card, negated, "enemy");
       this.checkGameEnd();
       this.notify();
+    }
+
+    async showActivation(card, owner, kind) {
+      if (!card) return;
+      await this.options.showActivation?.({ id: card.id, owner, kind, card });
     }
 
     async resolvePlayedCard(player, opponent, card, negated, side, preferredSlot = null) {
@@ -281,6 +291,8 @@
       this.player.reactions[option.index] = null;
       this.player.grave.push(option.id);
       this.log(`${card.name}を発動。`);
+      this.notify();
+      await this.showActivation(card, "player", "reaction");
       this.applyReactionEffect(card, this.player, this.enemy);
       this.notify();
       return true;
@@ -295,6 +307,8 @@
       this.enemy.reactions[option.index] = null;
       this.enemy.grave.push(option.id);
       this.log(`相手は${card.name}を発動。`);
+      this.notify();
+      await this.showActivation(card, "enemy", "reaction");
       this.applyReactionEffect(card, this.enemy, this.player);
       this.notify();
       return true;
