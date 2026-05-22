@@ -9,6 +9,7 @@
     environmentPool,
     cards,
     CardRenderer,
+    CardZoom,
   } = window.Chrono;
 
   class DeckBuilderView {
@@ -74,6 +75,7 @@
       this.els.environmentLevel1Button.addEventListener("click", () => this.setEnvironmentLevel(1));
       this.els.environmentLevel2Button.addEventListener("click", () => this.setEnvironmentLevel(2));
       this.els.environmentLevel3Button.addEventListener("click", () => this.setEnvironmentLevel(3));
+      this.els.cardPreview.addEventListener("click", (event) => CardZoom.openFromEvent(event));
     }
 
     setDeckMode(mode) {

@@ -211,11 +211,11 @@ function applyAction(room, seat, action) {
   }
 
   if (action.type === "setReaction") {
-    setReaction(game, player, Number(action.index));
+    setReaction(game, player, Number(action.index), actionSlotIndex(action));
   }
 
   if (action.type === "playFromHand") {
-    playFromHand(game, player, opponent, Number(action.index), seat);
+    playFromHand(game, player, opponent, Number(action.index), seat, actionSlotIndex(action));
   }
 
   if (action.type === "attack") {
@@ -230,6 +230,12 @@ function applyAction(room, seat, action) {
   room.version += 1;
 }
 
+function actionSlotIndex(action) {
+  if (action.slotIndex === null || action.slotIndex === undefined) return null;
+  const slot = Number(action.slotIndex);
+  return Number.isInteger(slot) ? slot : null;
+}
+
 function chargeFromHand(game, player, index) {
   if (player.chargedThisTurn || !player.hand[index]) return false;
   const id = player.hand.splice(index, 1)[0];
@@ -240,10 +246,10 @@ function chargeFromHand(game, player, index) {
   return true;
 }
 
-function setReaction(game, player, index) {
+function setReaction(game, player, index, preferredSlot = null) {
   const id = player.hand[index];
   const card = cards[id];
-  const slot = player.reactions.findIndex((entry) => !entry);
+  const slot = preferredOpenSlot(player.reactions, preferredSlot);
   if (!card || card.type !== "リアクション" || slot === -1) return false;
   player.hand.splice(index, 1);
   player.reactions[slot] = { id, revealed: false };
@@ -251,24 +257,24 @@ function setReaction(game, player, index) {
   return true;
 }
 
-function playFromHand(game, player, opponent, index, seat) {
+function playFromHand(game, player, opponent, index, seat, preferredSlot = null) {
   const id = player.hand[index];
   const card = cards[id];
   if (!card || !canPlayCard(player, card) || !payCost(player, card.cost)) return false;
   player.hand.splice(index, 1);
 
   if (!queueReactionChoice(game, opponent, player, card, "effect", (negated) => {
-    resolvePlayedCard(game, player, opponent, card, negated, seat);
+    resolvePlayedCard(game, player, opponent, card, negated, seat, preferredSlot);
   })) {
-    resolvePlayedCard(game, player, opponent, card, false, seat);
+    resolvePlayedCard(game, player, opponent, card, false, seat, preferredSlot);
   }
   return true;
 }
 
-function resolvePlayedCard(game, player, opponent, card, negated, seat) {
+function resolvePlayedCard(game, player, opponent, card, negated, seat, preferredSlot = null) {
   const prefix = seat === "guest" ? "相手は" : "";
   if (card.type === "ユニット") {
-    summonUnit(player, card.id);
+    summonUnit(player, card.id, preferredSlot);
     log(game, `${prefix}${card.name}を召喚。`);
     if (!negated) {
       const pending = resolveEffect(game, card.effect, player, opponent, card);
@@ -281,7 +287,7 @@ function resolvePlayedCard(game, player, opponent, card, negated, seat) {
   }
 
   if (card.type === "コア") {
-    placeCore(player, card.id);
+    placeCore(player, card.id, preferredSlot);
     log(game, `${prefix}${card.name}を発動。`);
     if (!negated) resolveEffect(game, card.effect, player, opponent, card);
     if (negated) log(game, `${card.name}の効果は無効化された。`);
@@ -729,8 +735,8 @@ function drawCards(player, amount, game) {
   }
 }
 
-function summonUnit(player, id) {
-  const slot = player.units.findIndex((unit) => !unit);
+function summonUnit(player, id, preferredSlot = null) {
+  const slot = preferredOpenSlot(player.units, preferredSlot);
   if (slot === -1) return false;
   player.units[slot] = { id, exhausted: false, atkMod: 0 };
   return true;
@@ -748,8 +754,8 @@ function specialSummonFromHand(game, player, predicate) {
   return true;
 }
 
-function placeCore(player, id) {
-  const slot = player.cores.findIndex((core) => !core);
+function placeCore(player, id, preferredSlot = null) {
+  const slot = preferredOpenSlot(player.cores, preferredSlot);
   if (slot === -1) return false;
   player.cores[slot] = id;
   return true;
@@ -1087,6 +1093,10 @@ function contentType(filePath) {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".svg": "image/svg+xml",
+    ".mp3": "audio/mpeg",
+    ".ogg": "audio/ogg",
+    ".wav": "audio/wav",
+    ".m4a": "audio/mp4",
   }[ext] || "application/octet-stream";
 }
 
@@ -1112,4 +1122,10 @@ function reactionId(entry) {
 
 function reactionRevealed(entry) {
   return Boolean(entry && typeof entry === "object" && entry.revealed);
+}
+
+function preferredOpenSlot(list, preferredSlot) {
+  const slot = Number(preferredSlot);
+  if (Number.isInteger(slot) && slot >= 0 && slot < list.length && !list[slot]) return slot;
+  return list.findIndex((entry) => !entry);
 }

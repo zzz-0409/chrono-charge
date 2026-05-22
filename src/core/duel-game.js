@@ -96,18 +96,19 @@
       return this.active === "player" && !this.busy && !this.finished;
     }
 
-    async playFromHand(index) {
-      if (!this.canPlayerAct()) return;
+    async playFromHand(index, preferredSlot = null) {
+      if (!this.canPlayerAct()) return false;
       const id = this.player.hand[index];
       const card = cards[id];
-      if (!card || !this.canPlayCard(this.player, card)) return;
-      if (!this.payCost(this.player, card.cost)) return;
+      if (!card || !this.canPlayCard(this.player, card)) return false;
+      if (!this.payCost(this.player, card.cost)) return false;
 
       this.player.hand.splice(index, 1);
       const negated = card.effect ? await this.opponentMayReact({ trigger: "effect", source: card }) : false;
-      await this.resolvePlayedCard(this.player, this.enemy, card, negated, "player");
+      await this.resolvePlayedCard(this.player, this.enemy, card, negated, "player", preferredSlot);
       this.checkGameEnd();
       this.notify();
+      return true;
     }
 
     async chargeFromHand(index) {
@@ -121,10 +122,14 @@
       return true;
     }
 
-    setReaction(index) {
+    setReaction(index, preferredSlot = null) {
       if (!this.canPlayerAct() || !this.canSetReaction(this.player)) return false;
-      const id = this.player.hand.splice(index, 1)[0];
-      const slot = this.player.reactions.findIndex((card) => !card);
+      const id = this.player.hand[index];
+      const card = cards[id];
+      if (!card || card.type !== "リアクション") return false;
+      const slot = preferredOpenSlot(this.player.reactions, preferredSlot);
+      if (slot === -1) return false;
+      this.player.hand.splice(index, 1);
       this.player.reactions[slot] = { id, revealed: false };
       this.log(`${cards[id].name}をセット。`);
       this.notify();
@@ -231,10 +236,10 @@
       this.notify();
     }
 
-    async resolvePlayedCard(player, opponent, card, negated, side) {
+    async resolvePlayedCard(player, opponent, card, negated, side, preferredSlot = null) {
       const prefix = side === "enemy" ? "相手は" : "";
       if (card.type === "ユニット") {
-        this.summonUnit(player, card.id);
+        this.summonUnit(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}を召喚。`);
         if (!negated && card.effect) {
           await this.effects.resolve(card.effect, player, opponent, card);
@@ -248,7 +253,7 @@
       }
 
       if (card.type === "コア") {
-        this.placeCore(player, card.id);
+        this.placeCore(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}を発動。`);
         if (!negated && card.effect) await this.effects.resolve(card.effect, player, opponent, card);
         if (negated) this.log(`${card.name}の効果は無効化された。`);
@@ -345,8 +350,8 @@
       }
     }
 
-    summonUnit(player, id) {
-      const slot = player.units.findIndex((unit) => !unit);
+    summonUnit(player, id, preferredSlot = null) {
+      const slot = preferredOpenSlot(player.units, preferredSlot);
       if (slot === -1) return false;
       player.units[slot] = { id, exhausted: false, atkMod: 0 };
       return true;
@@ -367,8 +372,8 @@
       return true;
     }
 
-    placeCore(player, id) {
-      const slot = player.cores.findIndex((core) => !core);
+    placeCore(player, id, preferredSlot = null) {
+      const slot = preferredOpenSlot(player.cores, preferredSlot);
       if (slot === -1) return false;
       player.cores[slot] = id;
       return true;
@@ -711,6 +716,12 @@
 
   function reactionRevealed(entry) {
     return Boolean(entry && typeof entry === "object" && entry.revealed);
+  }
+
+  function preferredOpenSlot(list, preferredSlot) {
+    const slot = Number(preferredSlot);
+    if (Number.isInteger(slot) && slot >= 0 && slot < list.length && !list[slot]) return slot;
+    return list.findIndex((entry) => !entry);
   }
 
   function expandCounts(counts) {

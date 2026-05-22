@@ -102,16 +102,16 @@
       return this.status === "playing" && this.active === "player" && !this.pendingChoice && !this.waitingChoice && !this.busy && !this.finished;
     }
 
-    async playFromHand(index) {
-      return this.sendAction({ type: "playFromHand", index });
+    async playFromHand(index, slotIndex = null) {
+      return this.sendAction({ type: "playFromHand", index, slotIndex });
     }
 
     async chargeFromHand(index) {
       return this.sendAction({ type: "charge", index });
     }
 
-    async setReaction(index) {
-      return this.sendAction({ type: "setReaction", index });
+    async setReaction(index, slotIndex = null) {
+      return this.sendAction({ type: "setReaction", index, slotIndex });
     }
 
     async attackWithUnit(attackerIndex, targetIndex) {

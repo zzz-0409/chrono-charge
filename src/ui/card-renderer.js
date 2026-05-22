@@ -26,7 +26,7 @@
         return;
       }
       target.innerHTML = `
-        <div class="preview-card game-card ${typeClass[card.type]} ${attrClass[card.attr]}">
+        <div class="preview-card game-card zoomable-card ${typeClass[card.type]} ${attrClass[card.attr]}" data-zoom-card data-card-id="${card.id}">
           ${this.cardHeader(card, "h3")}
           ${this.cardArt(card, true)}
           ${this.rulesBox(card)}
@@ -53,7 +53,7 @@
             </div>
             <div class="focus-effect-text">${card.text}</div>
           </div>
-          <div class="focus-mini-card game-card ${typeClass[card.type]} ${attrClass[card.attr]}">
+          <div class="focus-mini-card game-card zoomable-card ${typeClass[card.type]} ${attrClass[card.attr]}" data-zoom-card data-card-id="${card.id}">
             ${this.cardHeader(card)}
             ${this.cardArt(card)}
             ${this.rulesBox(card)}
@@ -73,7 +73,7 @@
             </div>
             <div class="focus-effect-text">カード内容は公開されていません。</div>
           </div>
-          <div class="focus-mini-card tcg-card facedown" aria-hidden="true"></div>
+          <div class="focus-mini-card tcg-card facedown zoomable-card" data-zoom-facedown="true" aria-hidden="true"></div>
         </div>
       `;
     }
