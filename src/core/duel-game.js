@@ -88,6 +88,11 @@
       this.options.onChange(this);
     }
 
+    async afterEffectStep(delayMs = this.options.delayMs) {
+      this.notify();
+      await pause(delayMs);
+    }
+
     log(message) {
       this.logItems.push(message);
       if (this.logItems.length > 80) this.logItems.shift();
@@ -104,25 +109,38 @@
       if (!card || !this.canPlayCard(this.player, card)) return false;
       if (!this.payCost(this.player, card.cost)) return false;
 
-      this.player.hand.splice(index, 1);
-      this.notify();
-      if (card.effect) await this.showActivation(card, "player", "effect");
-      const negated = card.effect ? await this.opponentMayReact({ trigger: "effect", source: card }) : false;
-      await this.resolvePlayedCard(this.player, this.enemy, card, negated, "player", preferredSlot);
-      this.checkGameEnd();
-      this.notify();
-      return true;
+      this.busy = true;
+      try {
+        this.player.hand.splice(index, 1);
+        this.notify();
+        if (card.effect) await this.showActivation(card, "player", "effect");
+        const negated = card.effect ? await this.opponentMayReact({ trigger: "effect", source: card }) : false;
+        await this.resolvePlayedCard(this.player, this.enemy, card, negated, "player", preferredSlot);
+        this.checkGameEnd();
+        return true;
+      } finally {
+        this.busy = false;
+        this.notify();
+      }
     }
 
     async chargeFromHand(index) {
       if (!this.canPlayerAct() || this.player.chargedThisTurn) return false;
-      const id = this.player.hand.splice(index, 1)[0];
-      this.player.charge.push({ id, tapped: false });
-      this.player.chargedThisTurn = true;
-      this.log(`${cards[id].name}をチャージ。`);
-      await this.triggerChargeCore(this.player);
-      this.notify();
-      return true;
+      const id = this.player.hand[index];
+      if (!id) return false;
+      this.busy = true;
+      try {
+        this.player.hand.splice(index, 1);
+        this.player.charge.push({ id, tapped: false });
+        this.player.chargedThisTurn = true;
+        this.log(`${cards[id].name}をチャージ。`);
+        this.notify();
+        await this.triggerChargeCore(this.player);
+        return true;
+      } finally {
+        this.busy = false;
+        this.notify();
+      }
     }
 
     setReaction(index, preferredSlot = null) {
@@ -356,6 +374,7 @@
       if (this.hasCore(player, "generic_zero") && !player.shiftedThisTurn) {
         player.shiftedThisTurn = true;
         this.drawCards(player, 1);
+        await this.afterEffectStep(560);
         await this.discardFromHand(player, {
           title: "手札を1枚捨てる",
           message: "ゼロシフト装置で墓地に送るカードを選んでください。",

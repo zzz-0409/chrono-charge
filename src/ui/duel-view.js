@@ -31,6 +31,8 @@
       this.suppressNextHandClick = false;
       this.boardSoundSnapshot = null;
       this.activationOverlay = null;
+      this.modalPeekButton = null;
+      this.peekedModalContent = null;
       this.lastPlaceSoundAt = 0;
       this.lastDrawSoundAt = 0;
       this.handleHandPointerMove = (event) => this.moveHandPointerDrag(event);
@@ -383,6 +385,7 @@
 
     handleHandPointerDown(event, index, id) {
       if ((event.pointerType === "mouse" && event.button !== 0) || !this.canDragHandCard(index)) return;
+      event.preventDefault();
       this.cancelHandPointerDrag();
       this.pointerHandDrag = {
         payload: { index, id },
@@ -390,10 +393,16 @@
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
         started: false,
         ghost: null,
         drop: null,
+        dropFrame: 0,
+        lastDropCheckAt: 0,
       };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      document.addEventListener("pointerrawupdate", this.handleHandPointerMove, { passive: false });
       document.addEventListener("pointermove", this.handleHandPointerMove, { passive: false });
       document.addEventListener("pointerup", this.handleHandPointerUp, { passive: false });
       document.addEventListener("pointercancel", this.handleHandPointerCancel);
@@ -402,15 +411,24 @@
     moveHandPointerDrag(event) {
       const drag = this.pointerHandDrag;
       if (!drag || event.pointerId !== drag.pointerId) return;
-      const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
-      if (!drag.started && distance < 8) return;
+      const point = this.latestPointerPoint(event);
+      const distance = Math.hypot(point.clientX - drag.startX, point.clientY - drag.startY);
+      if (!drag.started && distance < 1) return;
       event.preventDefault();
-      if (!drag.started) this.beginHandPointerDrag(event);
-      this.positionHandDragGhost(event.clientX, event.clientY);
-      this.updateHandPointerDropTarget(event.clientX, event.clientY);
+      drag.lastX = point.clientX;
+      drag.lastY = point.clientY;
+      if (!drag.started) this.beginHandPointerDrag(point);
+      this.positionHandDragGhost(point.clientX, point.clientY);
+      this.scheduleHandDropTargetUpdate(point.clientX, point.clientY);
     }
 
-    beginHandPointerDrag(event) {
+    latestPointerPoint(event) {
+      const coalesced = typeof event.getCoalescedEvents === "function" ? event.getCoalescedEvents() : null;
+      const latest = coalesced?.length ? coalesced[coalesced.length - 1] : event;
+      return { clientX: latest.clientX, clientY: latest.clientY };
+    }
+
+    beginHandPointerDrag(point) {
       const drag = this.pointerHandDrag;
       if (!drag) return;
       drag.started = true;
@@ -418,26 +436,83 @@
       drag.source.classList.add("is-dragging");
       drag.source.setAttribute("aria-grabbed", "true");
       this.markHandDropTargets(drag.payload);
-      drag.ghost = this.createHandDragGhost(drag.source);
+      drag.ghost = this.createHandDragGhost(drag.source, drag.payload.id);
       document.body.append(drag.ghost);
-      this.positionHandDragGhost(event.clientX, event.clientY);
+      this.positionHandDragGhost(point.clientX, point.clientY);
     }
 
-    createHandDragGhost(source) {
+    createHandDragGhost(source, id) {
       const rect = source.getBoundingClientRect();
-      const ghost = source.cloneNode(true);
-      ghost.classList.add("hand-drag-ghost");
-      ghost.classList.remove("selected");
+      const card = cards[id];
+      const ghost = document.createElement("div");
+      ghost.className = `hand-drag-ghost ${card ? `${typeClass[card.type]} ${attrClass[card.attr]}` : ""}`;
       ghost.setAttribute("aria-hidden", "true");
       ghost.style.width = `${rect.width}px`;
       ghost.style.height = `${rect.height}px`;
+      if (!card) return ghost;
+
+      const top = document.createElement("div");
+      top.className = "hand-drag-ghost-top";
+      const name = document.createElement("div");
+      name.className = "hand-drag-ghost-name";
+      name.textContent = card.name;
+      const cost = document.createElement("div");
+      cost.className = "hand-drag-ghost-cost";
+      cost.textContent = card.level ? `Lv${card.level}` : card.cost;
+      top.append(name, cost);
+      ghost.append(top);
+
+      if (card?.art) {
+        const img = document.createElement("img");
+        img.className = "hand-drag-ghost-art";
+        img.src = card.art;
+        img.alt = "";
+        img.decoding = "async";
+        img.draggable = false;
+        ghost.append(img);
+      }
+
+      const rules = document.createElement("div");
+      rules.className = "hand-drag-ghost-rules";
+      const type = document.createElement("div");
+      type.className = "hand-drag-ghost-type";
+      type.textContent = CardRenderer.metaLine(card);
+      const effect = document.createElement("div");
+      effect.className = `hand-drag-ghost-effect ${CardRenderer.effectSizeClass(card.text)}`;
+      effect.textContent = card.text;
+      rules.append(type, effect);
+      ghost.append(rules);
+
+      if (Number.isFinite(card.atk)) {
+        const stats = document.createElement("div");
+        stats.className = "hand-drag-ghost-stats";
+        stats.textContent = `ATK ${card.atk}`;
+        ghost.append(stats);
+      }
       return ghost;
     }
 
     positionHandDragGhost(clientX, clientY) {
       const ghost = this.pointerHandDrag?.ghost;
       if (!ghost) return;
-      ghost.style.transform = `translate(${clientX}px, ${clientY}px) translate(-50%, -62%)`;
+      ghost.style.transform = `translate3d(${clientX}px, ${clientY}px, 0) translate(-50%, -50%)`;
+    }
+
+    scheduleHandDropTargetUpdate(clientX, clientY) {
+      const drag = this.pointerHandDrag;
+      if (!drag) return;
+      drag.lastX = clientX;
+      drag.lastY = clientY;
+      if (drag.dropFrame) return;
+      const now = performance.now();
+      const wait = Math.max(0, 70 - (now - drag.lastDropCheckAt));
+      drag.dropFrame = window.setTimeout(() => {
+        const current = this.pointerHandDrag;
+        if (!current) return;
+        current.dropFrame = 0;
+        current.lastDropCheckAt = performance.now();
+        this.updateHandPointerDropTarget(current.lastX, current.lastY);
+      }, wait);
     }
 
     updateHandPointerDropTarget(clientX, clientY) {
@@ -468,6 +543,9 @@
       }
 
       event.preventDefault();
+      const point = this.latestPointerPoint(event);
+      this.positionHandDragGhost(point.clientX, point.clientY);
+      this.updateHandPointerDropTarget(point.clientX, point.clientY);
       this.suppressNextHandClick = true;
       window.setTimeout(() => {
         this.suppressNextHandClick = false;
@@ -490,14 +568,19 @@
     cleanupHandPointerDrag(clearState) {
       const drag = this.pointerHandDrag;
       this.removeHandPointerListeners();
+      if (drag?.dropFrame) window.clearTimeout(drag.dropFrame);
       drag?.ghost?.remove();
       drag?.source?.classList.remove("is-dragging");
       drag?.source?.removeAttribute("aria-grabbed");
+      if (drag?.source?.hasPointerCapture?.(drag.pointerId)) {
+        drag.source.releasePointerCapture(drag.pointerId);
+      }
       this.pointerHandDrag = null;
       if (clearState) this.clearHandDragState();
     }
 
     removeHandPointerListeners() {
+      document.removeEventListener("pointerrawupdate", this.handleHandPointerMove);
       document.removeEventListener("pointermove", this.handleHandPointerMove);
       document.removeEventListener("pointerup", this.handleHandPointerUp);
       document.removeEventListener("pointercancel", this.handleHandPointerCancel);
@@ -939,13 +1022,16 @@
             <div class="choice-focus"></div>
           </div>
           <div class="choice-actions">
+            <button class="ghost-button peek-board-button" type="button">盤面を見る</button>
             <button class="primary-button" type="button">決定</button>
           </div>
         `;
         const list = modal.querySelector(".choice-list");
         const focus = modal.querySelector(".choice-focus");
         const decide = modal.querySelector(".primary-button");
+        const peekBoard = modal.querySelector(".peek-board-button");
         decide.textContent = choice.confirmLabel || decide.textContent;
+        peekBoard.addEventListener("click", () => this.peekModal());
         focus.addEventListener("click", (event) => CardZoom.openFromEvent(event));
         const buttons = [];
         const updateSelection = () => {
@@ -1054,13 +1140,58 @@
     }
 
     openModal(content) {
+      if (this.modalPeekButton && this.els.modalRoot.hidden && this.els.modalRoot.childNodes.length > 0) {
+        const fragment = document.createDocumentFragment();
+        fragment.append(...this.els.modalRoot.childNodes);
+        this.peekedModalContent = fragment;
+        this.removeModalPeekButton();
+      } else {
+        this.removeModalPeekButton();
+        this.peekedModalContent = null;
+      }
       this.els.modalRoot.replaceChildren(content);
       this.els.modalRoot.hidden = false;
     }
 
     closeModal() {
+      if (this.peekedModalContent) {
+        this.els.modalRoot.replaceChildren(this.peekedModalContent);
+        this.peekedModalContent = null;
+        this.els.modalRoot.hidden = true;
+        this.showModalPeekButton();
+        return;
+      }
+      this.removeModalPeekButton();
       this.els.modalRoot.hidden = true;
       this.els.modalRoot.replaceChildren();
+    }
+
+    peekModal() {
+      if (this.els.modalRoot.hidden) return;
+      this.els.modalRoot.hidden = true;
+      this.showModalPeekButton();
+    }
+
+    showModalPeekButton() {
+      this.removeModalPeekButton();
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "primary-button modal-peek-return";
+      button.textContent = "選択に戻る";
+      button.addEventListener("click", () => {
+        this.removeModalPeekButton();
+        this.els.modalRoot.hidden = false;
+      });
+
+      const host = this.els.appShell || document.body;
+      host.append(button);
+      this.modalPeekButton = button;
+    }
+
+    removeModalPeekButton() {
+      this.modalPeekButton?.remove();
+      this.modalPeekButton = null;
     }
   }
 

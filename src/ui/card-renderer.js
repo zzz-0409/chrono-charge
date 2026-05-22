@@ -55,7 +55,7 @@
             <div>
               <p class="focus-type">${this.metaLine(card)}</p>
               <h3>${card.name}</h3>
-              ${card.type === "ユニット" ? `<p class="focus-stats">ATK ${displayAtk}${this.statMod(atkMod, true)} / DEF ${card.def}</p>` : ""}
+              ${card.type === "ユニット" ? `<p class="focus-stats">ATK ${displayAtk}${this.statMod(atkMod, true)}</p>` : ""}
             </div>
             <div class="focus-effect-text">${card.text}</div>
           </div>
@@ -167,7 +167,6 @@
       return `
         <div class="battle-stats compact-stats">
           <span>ATK <strong>${atk}</strong>${this.statMod(atkMod)}</span>
-          <span>DEF <strong>${card.def}</strong></span>
         </div>
       `;
     }
@@ -177,7 +176,6 @@
       return `
         <div class="preview-stats">
           <span>ATK<strong>${card.atk}</strong></span>
-          <span>DEF<strong>${card.def}</strong></span>
         </div>
       `;
     }

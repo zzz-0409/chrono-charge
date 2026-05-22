@@ -211,6 +211,7 @@
       if (this.choiceInFlight === choice.id) return;
       this.choiceInFlight = choice.id;
       try {
+        if (choice.delayBeforeOpenMs) await pause(choice.delayBeforeOpenMs);
         const index = await this.requestCardChoice(choice);
         await this.client.action({
           type: "choice",
@@ -298,6 +299,10 @@
 
   function normalizeRoomId(roomId) {
     return String(roomId || "").trim().toUpperCase();
+  }
+
+  function pause(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
 
   async function requestJson(url, options = {}) {

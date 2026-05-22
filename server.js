@@ -460,6 +460,7 @@ function queueChoice(game, player, zone, list, predicate, choice, handler, empty
     zone,
     title: choice.title,
     message: choice.message,
+    delayBeforeOpenMs: choice.delayBeforeOpenMs || 0,
     candidates,
     resolve: handler,
     afterResolve: null,
@@ -610,6 +611,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("星導") && card.cost <= 1, {
           title: "星導ユニットを追加召喚",
           message: "手札から追加召喚するユニットを選んでください。",
+          delayBeforeOpenMs: 560,
         });
       }
       return false;
@@ -681,6 +683,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       return chooseDiscardFromHand(game, player, {
         title: "手札を1枚捨てる",
         message: "墓地に送るカードを選んでください。",
+        delayBeforeOpenMs: 560,
       });
     case "bindUnit":
       exhaustBestUnit(game, opponent);
@@ -817,6 +820,7 @@ function triggerChargeCore(game, player) {
     chooseDiscardFromHand(game, player, {
       title: "手札を1枚捨てる",
       message: "ゼロシフト装置で墓地に送るカードを選んでください。",
+      delayBeforeOpenMs: 560,
     });
     log(game, "ゼロシフト装置が起動。");
   }
@@ -952,6 +956,7 @@ function publicPendingChoice(choice, seat) {
     allowPass: Boolean(choice.allowPass),
     confirmLabel: choice.confirmLabel,
     passLabel: choice.passLabel,
+    delayBeforeOpenMs: choice.delayBeforeOpenMs || 0,
     candidates: choice.candidates.map((entry) => ({
       id: entry.id,
       index: entry.index,

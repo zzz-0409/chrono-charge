@@ -113,7 +113,7 @@ button {
   position: relative;
   width: var(--stage-width);
   height: var(--stage-height);
-  padding: 8px;
+  padding: 4px 4px 2px;
   overflow: hidden;
   transform: scale(var(--ui-scale));
   transform-origin: top left;
@@ -125,11 +125,11 @@ button {
   grid-template-columns: minmax(240px, 1fr) auto minmax(240px, 1fr);
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 main {
-  height: calc(100% - 56px);
+  height: calc(100% - 52px);
 }
 
 .brand {
@@ -804,7 +804,7 @@ select {
   margin: 0;
   display: flex;
   justify-content: flex-end;
-  gap: 8%;
+  gap: 0;
   color: #eef8f6;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.86);
 }
@@ -1987,10 +1987,120 @@ select {
   left: 0;
   top: 0;
   z-index: 50;
+  overflow: hidden;
   pointer-events: none;
   opacity: 0.92;
-  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.46)) brightness(1.05);
+  touch-action: none;
+  user-select: none;
+  border: 2px solid var(--card-frame);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, var(--card-top), transparent 38%),
+    #10151b;
+  box-shadow: 0 12px 18px rgba(0, 0, 0, 0.38);
+  backface-visibility: hidden;
+  contain: strict;
   will-change: transform;
+}
+
+.hand-drag-ghost-top {
+  position: absolute;
+  left: 8%;
+  top: 5%;
+  width: 84%;
+  height: 14%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 19%;
+  align-items: center;
+  gap: 4%;
+}
+
+.hand-drag-ghost-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.hand-drag-ghost-cost {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  color: #fff4b8;
+  background: rgba(0, 0, 0, 0.38);
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.hand-drag-ghost-art {
+  position: absolute;
+  left: 14%;
+  top: 22%;
+  width: 72%;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.hand-drag-ghost-rules {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 8%;
+  height: 27%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  padding: 2px;
+  color: #edf4f2;
+  background: rgba(0, 0, 0, 0.56);
+}
+
+.hand-drag-ghost-type {
+  overflow: hidden;
+  color: rgba(237, 244, 242, 0.72);
+  font-size: 5px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hand-drag-ghost-effect {
+  margin-top: 1px;
+  overflow: hidden;
+  font-size: 5.3px;
+  font-weight: 800;
+  line-height: 1.03;
+}
+
+.hand-drag-ghost-effect.effect-sm {
+  font-size: 4.8px;
+}
+
+.hand-drag-ghost-effect.effect-xs,
+.hand-drag-ghost-effect.effect-xxs {
+  font-size: 4.25px;
+  line-height: 0.98;
+}
+
+.hand-drag-ghost-stats {
+  position: absolute;
+  right: 9%;
+  bottom: 2.2%;
+  color: #fff;
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.92);
 }
 
 .draw-card {
@@ -2746,7 +2856,7 @@ select {
   left: 16%;
   bottom: 1.5%;
   width: 72%;
-  gap: 8%;
+  gap: 0;
   line-height: 1;
 }
 
@@ -2830,15 +2940,27 @@ select {
 }
 
 .choice-actions {
-  display: grid;
-  grid-template-columns: minmax(160px, 240px);
+  display: flex;
   justify-content: end;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .choice-actions .primary-button,
 .choice-actions .ghost-button {
-  width: 100%;
+  min-width: 150px;
+  width: auto;
+}
+
+.modal-peek-return {
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  z-index: 19;
+  min-width: 150px;
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.44),
+    0 0 24px rgba(245, 191, 91, 0.22);
 }
 
 .modal-dialog h2 {
