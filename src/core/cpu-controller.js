@@ -8,6 +8,21 @@
       this.game = game;
     }
 
+    shouldCharge() {
+      const enemy = this.game.enemy;
+      if (enemy.chargedThisTurn || enemy.hand.length === 0) return false;
+      if (enemy.hand.length === 1 && this.canUseOnlyHandCard(enemy.hand[0])) return false;
+      return true;
+    }
+
+    canUseOnlyHandCard(id) {
+      const enemy = this.game.enemy;
+      const card = cards[id];
+      if (!card) return false;
+      if (card.type === "リアクション") return this.game.canSetReaction(enemy);
+      return this.game.canPlayCard(enemy, card) && this.game.canPay(enemy, card.cost);
+    }
+
     chooseChargeIndex() {
       const enemy = this.game.enemy;
       const reactionIndex = enemy.hand.findIndex((id) => cards[id].type === "リアクション" && this.game.canSetReaction(enemy));
@@ -29,7 +44,7 @@
         if (index !== -1) {
           const id = enemy.hand.splice(index, 1)[0];
           const slot = enemy.reactions.findIndex((card) => !card);
-          enemy.reactions[slot] = id;
+          enemy.reactions[slot] = { id, revealed: false };
           this.game.log("相手はリアクションをセット。");
           moved = true;
         }

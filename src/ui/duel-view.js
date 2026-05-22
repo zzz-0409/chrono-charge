@@ -3,11 +3,13 @@
 
   const {
     DECK_SIZE,
+    ENVIRONMENT_DECK_PER_LEVEL,
     MAX_LP,
     cards,
     attrClass,
     typeClass,
     cpuDeck,
+    cpuEnvironmentDeck,
     DuelGame,
     CardRenderer,
   } = window.Chrono;
@@ -30,19 +32,26 @@
       this.els.enemyGravePile.addEventListener("click", () => this.openGraveList("enemy"));
     }
 
-    start(deckList) {
+    start(deckList, environmentDeck) {
       if (deckList.length !== DECK_SIZE) {
         this.toast("40枚デッキにすると対戦できます。");
         this.setView("builder");
         return;
       }
+      if (!environmentDeck || environmentDeck.length !== ENVIRONMENT_DECK_PER_LEVEL * 3) {
+        this.toast("環境カードをLv1/Lv2/Lv3それぞれ3枚にしてください。");
+        this.setView("builder");
+        return;
+      }
 
       this.game?.dispose?.();
-      this.restart = () => this.start(deckList);
+      this.restart = () => this.start(deckList, environmentDeck);
       this.selectedContext = null;
       this.game = new DuelGame({
         playerDeck: deckList,
         cpuDeck: expandDeck(cpuDeck),
+        playerEnvironmentDeck: environmentDeck,
+        cpuEnvironmentDeck: expandDeck(cpuEnvironmentDeck),
         onChange: () => this.render(),
         onResult: (won) => this.showResult(won),
         requestReaction: (options, event) => this.requestReaction(options, event),
@@ -95,6 +104,7 @@
     }
 
     renderZones() {
+      this.renderEnvironment();
       this.renderCharge(this.game.player, this.els.playerCharge, false);
       this.renderCharge(this.game.enemy, this.els.enemyCharge, false);
       this.renderCardZones(this.game.player.cores, this.els.playerCoreZones, "コア", "playerCore");
@@ -103,6 +113,28 @@
       this.renderCardZones(this.game.enemy.units, this.els.enemyUnitZones, "ユニット", "enemyUnit");
       this.renderCardZones(this.game.player.reactions, this.els.playerReactionZones, "リアクション", "playerReaction", false, true);
       this.renderCardZones(this.game.enemy.reactions, this.els.enemyReactionZones, "リアクション", "enemyReaction", true, true);
+    }
+
+    renderEnvironment() {
+      if (!this.els.environmentZone) return;
+      this.els.environmentZone.replaceChildren();
+      const id = this.game.currentEnvironment;
+      const card = cards[id];
+      if (!card) {
+        const empty = document.createElement("div");
+        empty.className = "environment-empty";
+        empty.textContent = "環境なし";
+        this.els.environmentZone.append(empty);
+        return;
+      }
+      const button = CardRenderer.tcgCard(id, {
+        small: true,
+        interactive: true,
+        selected: this.isSelected("environment", 0),
+      });
+      button.classList.add("environment-card");
+      button.addEventListener("click", () => this.selectCard(id, { zone: "environment", index: 0, owner: "shared" }));
+      this.els.environmentZone.append(button);
     }
 
     renderPiles() {
@@ -172,6 +204,21 @@
           const owner = contextZone.startsWith("player") ? "player" : "enemy";
           const player = owner === "player" ? this.game.player : this.game.enemy;
           const cardId = typeof value === "string" ? value : value.id;
+          const isHiddenReaction = value?.facedown || (facedown && owner === "enemy" && !value.revealed);
+          const isFacedown = isHiddenReaction;
+          if (isFacedown) {
+            const cardButton = CardRenderer.tcgCard(cardId, {
+              small: true,
+              interactive: true,
+              selected: this.isSelected(contextZone, i),
+              facedown: true,
+            });
+            cardButton.setAttribute("aria-label", `${label}のセットカード ${i + 1}`);
+            cardButton.addEventListener("click", () => this.selectFacedownCard({ zone: contextZone, index: i, owner }));
+            slot.append(cardButton);
+            element.append(slot);
+            continue;
+          }
           const card = cards[cardId];
           if (!card) {
             const empty = document.createElement("div");
@@ -186,7 +233,6 @@
             small: true,
             interactive: true,
             selected: this.isSelected(contextZone, i),
-            facedown: facedown && owner === "enemy",
             stateTag: value.exhausted ? "行動済み" : "",
             atkMod,
           });
@@ -228,12 +274,22 @@
       this.render();
     }
 
+    selectFacedownCard(context) {
+      this.selectedCardId = null;
+      this.selectedContext = { ...context, hidden: true };
+      this.render();
+    }
+
     isSelected(zone, index) {
       return this.selectedContext?.zone === zone && this.selectedContext.index === index;
     }
 
     renderSelection() {
-      CardRenderer.focus(this.selectedCardId, this.els.selectedCardPanel);
+      if (this.selectedContext?.hidden) {
+        CardRenderer.facedownFocus(this.els.selectedCardPanel);
+      } else {
+        CardRenderer.focus(this.selectedCardId, this.els.selectedCardPanel, this.selectedFocusStats());
+      }
       this.els.contextActions.replaceChildren();
       if (!this.game || !this.selectedContext || this.game.finished) return;
       if (this.selectedContext.owner !== "player" || !this.game.canPlayerAct()) return;
@@ -276,6 +332,16 @@
           });
         }
       }
+    }
+
+    selectedFocusStats() {
+      const context = this.selectedContext;
+      if (!context || !["playerUnit", "enemyUnit"].includes(context.zone)) return {};
+      const player = context.owner === "player" ? this.game.player : this.game.enemy;
+      const unit = player.units[context.index];
+      const card = cards[unit?.id];
+      if (!unit || !card || card.type !== "ユニット") return {};
+      return { atkMod: this.game.getUnitAtk(player, unit) - card.atk };
     }
 
     addAction(label, handler, enabled = true) {
@@ -412,6 +478,17 @@
           this.closeModal();
           resolve(selected.index);
         });
+        if (choice.allowPass) {
+          const pass = document.createElement("button");
+          pass.type = "button";
+          pass.className = "ghost-button";
+          pass.textContent = "発動しない";
+          pass.addEventListener("click", () => {
+            this.closeModal();
+            resolve(null);
+          });
+          modal.querySelector(".choice-actions").append(pass);
+        }
         updateSelection();
         this.openModal(modal);
       });

@@ -39,6 +39,7 @@
   --spell-frame: #4fbde2;
   --reaction-frame: #d7a84f;
   --core-frame: #8fce7a;
+  --environment-frame: #b9d7ff;
 }
 
 * {
@@ -416,6 +417,13 @@ select {
   --card-frame-image: url("assets/cards/frames/core-bg-new.png");
 }
 
+.type-environment {
+  --card-frame: var(--environment-frame);
+  --card-glow: rgba(185, 215, 255, 0.2);
+  --card-top: rgba(185, 215, 255, 0.16);
+  --card-frame-image: url("assets/cards/frames/environment-bg-new.png");
+}
+
 .library-card {
   --card-width: var(--card-list-width);
   --card-height: var(--card-list-height);
@@ -582,6 +590,31 @@ select {
   fill: var(--teal);
 }
 
+.attr-sun .card-art svg,
+.attr-sun .card-symbol {
+  fill: var(--gold);
+}
+
+.attr-rain .card-art svg,
+.attr-rain .card-symbol {
+  fill: var(--blue);
+}
+
+.attr-wind .card-art svg,
+.attr-wind .card-symbol {
+  fill: var(--teal);
+}
+
+.attr-snow .card-art svg,
+.attr-snow .card-symbol {
+  fill: #d9f3ff;
+}
+
+.attr-starfield .card-art svg,
+.attr-starfield .card-symbol {
+  fill: var(--violet);
+}
+
 .type-line,
 .card-effect,
 .deck-row-sub,
@@ -679,6 +712,10 @@ select {
   margin-left: 3px;
 }
 
+.game-card .battle-stats .stat-mod {
+  font-size: 0.56rem;
+}
+
 .game-card .deck-row-sub {
   position: absolute;
   left: 9%;
@@ -727,6 +764,68 @@ select {
   padding-right: 4px;
   display: grid;
   gap: 7px;
+}
+
+.deck-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+}
+
+.deck-panel > .deck-list {
+  height: auto;
+  min-height: 0;
+}
+
+.environment-deck-panel {
+  min-height: 0;
+  margin-top: 10px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 136px);
+  gap: 8px;
+}
+
+.compact-count {
+  font-size: 0.95rem;
+}
+
+.environment-levels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.environment-levels div {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.environment-levels strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--text);
+}
+
+.environment-deck-list {
+  height: 136px;
+}
+
+.level-chip {
+  min-width: 30px;
+  min-height: 24px;
+  border: 1px solid rgba(185, 215, 255, 0.46);
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  color: #e6f0ff;
+  background: rgba(185, 215, 255, 0.08);
+  font-size: 0.72rem;
+  font-weight: 900;
 }
 
 .deck-row {
@@ -942,6 +1041,13 @@ select {
   font-weight: 900;
 }
 
+.stat-mod {
+  margin-left: 3px;
+  color: var(--teal);
+  font-style: normal;
+  font-weight: 900;
+}
+
 .focus-effect-text {
   position: absolute;
   left: 0;
@@ -978,6 +1084,11 @@ select {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
 }
 
+.focus-mini-card.facedown {
+  --card-width: 86px;
+  --card-height: 129px;
+}
+
 .focus-mini-card .card-name {
   font-size: 0.4rem;
 }
@@ -998,6 +1109,11 @@ select {
 .focus-mini-card .battle-stats span,
 .focus-mini-card .battle-stats strong {
   font-size: 0.26rem;
+}
+
+.focus-mini-card .battle-stats .stat-mod,
+.tcg-card.small .battle-stats .stat-mod {
+  font-size: 0.24rem;
 }
 
 .selected-panel .preview-card {
@@ -1029,9 +1145,9 @@ select {
 }
 
 .battle-log {
-  height: 100%;
+  height: calc(100% - 32px);
   margin: 0;
-  padding: 0;
+  padding: 0 2px 8px 0;
   list-style: none;
   overflow: auto;
   display: flex;
@@ -1040,6 +1156,7 @@ select {
 }
 
 .battle-log li {
+  flex: 0 0 auto;
   border-left: 3px solid var(--line);
   padding: 8px 10px;
   color: var(--muted);
@@ -1049,7 +1166,7 @@ select {
 .board-area {
   min-height: 0;
   display: grid;
-  grid-template-rows: 218px 36px 218px 124px;
+  grid-template-rows: 208px 70px 208px 124px;
   gap: 6px;
   align-content: center;
   border: 1px solid rgba(85, 199, 187, 0.38);
@@ -1354,7 +1471,46 @@ select {
 
 .center-command {
   justify-content: center;
-  min-height: 34px;
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: minmax(86px, auto) auto auto;
+  align-items: center;
+  justify-items: center;
+}
+
+.environment-zone {
+  width: 96px;
+  min-height: 66px;
+  display: grid;
+  place-items: center;
+}
+
+.environment-empty {
+  min-width: 82px;
+  min-height: 42px;
+  border: 1px solid rgba(185, 215, 255, 0.3);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: rgba(4, 9, 13, 0.24);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.environment-card.tcg-card.small {
+  --card-width: 48px;
+  --card-height: 72px;
+  padding: 4px;
+  box-shadow: 0 0 18px rgba(185, 215, 255, 0.18), 0 10px 20px rgba(0, 0, 0, 0.28);
+}
+
+.environment-card.tcg-card.small .card-effect {
+  font-size: 0.2rem;
+}
+
+.environment-card.tcg-card.small .card-name {
+  font-size: 0.46rem;
 }
 
 .hand-zone {
@@ -1414,12 +1570,22 @@ select {
 }
 
 .tcg-card.facedown {
+  width: var(--card-width);
+  height: var(--card-height);
+  min-height: 0;
+  border: 2px solid rgba(112, 223, 230, 0.42);
+  border-radius: 8px;
+  padding: 0;
   display: grid;
   place-items: center;
   color: var(--muted);
   background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0 8px, transparent 8px 16px),
+    linear-gradient(180deg, rgba(5, 8, 12, 0.02), rgba(5, 8, 12, 0.18)),
+    url("assets/cards/card-back.png"),
     #141a22;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.28);
 }
 
 .tcg-card.small {
@@ -1867,9 +2033,11 @@ select {
   display: grid;
   grid-template-columns: minmax(160px, 240px);
   justify-content: end;
+  gap: 8px;
 }
 
-.choice-actions .primary-button {
+.choice-actions .primary-button,
+.choice-actions .ghost-button {
   width: 100%;
 }
 

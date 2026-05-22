@@ -5,6 +5,7 @@
 
   class CardRenderer {
     static libraryCard(card, count, selected) {
+      const limit = card.type === "環境" ? 1 : window.Chrono.MAX_COPIES;
       const button = document.createElement("button");
       button.type = "button";
       button.className = `library-card game-card ${typeClass[card.type]} ${attrClass[card.attr]}${selected ? " selected" : ""}`;
@@ -13,7 +14,7 @@
         ${this.cardArt(card)}
         ${this.rulesBox(card)}
         ${this.unitStats(card)}
-        <div class="deck-row-sub">投入 ${count} / ${window.Chrono.MAX_COPIES}</div>
+        <div class="deck-row-sub">投入 ${count} / ${limit}</div>
       `;
       return button;
     }
@@ -34,19 +35,21 @@
       `;
     }
 
-    static focus(id, target) {
+    static focus(id, target, options = {}) {
       const card = cards[id];
       if (!card) {
         target.innerHTML = `<div class="small-note">カード未選択</div>`;
         return;
       }
+      const atkMod = options.atkMod || 0;
+      const displayAtk = card.type === "ユニット" ? card.atk + atkMod : 0;
       target.innerHTML = `
         <div class="focus-card-detail ${typeClass[card.type]} ${attrClass[card.attr]}">
           <div class="focus-card-copy">
             <div>
-              <p class="focus-type">${card.type} / ${card.attr}</p>
+              <p class="focus-type">${this.metaLine(card)}</p>
               <h3>${card.name}</h3>
-              ${card.type === "ユニット" ? `<p class="focus-stats">ATK ${card.atk} / DEF ${card.def}</p>` : ""}
+              ${card.type === "ユニット" ? `<p class="focus-stats">ATK ${displayAtk}${this.statMod(atkMod, true)} / DEF ${card.def}</p>` : ""}
             </div>
             <div class="focus-effect-text">${card.text}</div>
           </div>
@@ -54,8 +57,23 @@
             ${this.cardHeader(card)}
             ${this.cardArt(card)}
             ${this.rulesBox(card)}
-            ${this.unitStats(card)}
+            ${this.unitStats(card, displayAtk || card.atk, atkMod)}
           </div>
+        </div>
+      `;
+    }
+
+    static facedownFocus(target, label = "相手のセットカード") {
+      target.innerHTML = `
+        <div class="focus-card-detail facedown-detail">
+          <div class="focus-card-copy">
+            <div>
+              <p class="focus-type">伏せカード</p>
+              <h3>${label}</h3>
+            </div>
+            <div class="focus-effect-text">カード内容は公開されていません。</div>
+          </div>
+          <div class="focus-mini-card tcg-card facedown" aria-hidden="true"></div>
         </div>
       `;
     }
@@ -65,7 +83,7 @@
       const button = document.createElement("button");
       button.type = "button";
       if (options.facedown) {
-        button.className = "tcg-card small facedown";
+        button.className = `tcg-card small facedown ${options.interactive ? "interactive" : ""} ${options.selected ? "selected" : ""}`;
         button.setAttribute("aria-label", "セットカード");
         return button;
       }
@@ -76,17 +94,18 @@
         ${this.cardHeader(card)}
         ${this.cardArt(card)}
         ${this.rulesBox(card)}
-        ${this.unitStats(card, atk)}
+        ${this.unitStats(card, atk, options.atkMod || 0)}
         ${options.stateTag ? `<span class="state-tag">${options.stateTag}</span>` : ""}
       `;
       return button;
     }
 
     static cardHeader(card, headingTag = "span") {
+      const chip = card.type === "環境" ? `Lv${card.level}` : card.cost;
       return `
         <div class="card-mini-top">
           <${headingTag} class="card-name">${card.name}</${headingTag}>
-          <span class="cost-chip">${card.cost}</span>
+          <span class="cost-chip">${chip}</span>
         </div>
       `;
     }
@@ -110,10 +129,15 @@
     static rulesBox(card) {
       return `
         <div class="rules-box">
-          <div class="type-line">${card.type} / ${card.attr} / コスト${card.cost}</div>
+          <div class="type-line">${this.metaLine(card)}</div>
           <p class="card-effect ${this.effectSizeClass(card.text)}">${card.text}</p>
         </div>
       `;
+    }
+
+    static metaLine(card) {
+      if (card.type === "環境") return `${card.type} / ${card.family} / Lv${card.level}`;
+      return `${card.type} / ${card.attr} / コスト${card.cost}`;
     }
 
     static effectSizeClass(text) {
@@ -124,11 +148,17 @@
       return "";
     }
 
-    static unitStats(card, atk = card.atk) {
+    static statMod(value, parenthesized = false) {
+      if (!value) return "";
+      const text = `${value > 0 ? "+" : ""}${value}`;
+      return parenthesized ? ` <span class="stat-mod">(${text})</span>` : `<em class="stat-mod">${text}</em>`;
+    }
+
+    static unitStats(card, atk = card.atk, atkMod = 0) {
       if (card.type !== "ユニット") return "";
       return `
         <div class="battle-stats compact-stats">
-          <span>ATK <strong>${atk}</strong></span>
+          <span>ATK <strong>${atk}</strong>${this.statMod(atkMod)}</span>
           <span>DEF <strong>${card.def}</strong></span>
         </div>
       `;

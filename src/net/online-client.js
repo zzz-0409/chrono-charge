@@ -19,19 +19,19 @@
       this.seat = session.seat;
     }
 
-    static async createRoom(deck) {
+    static async createRoom(deck, environmentDeck) {
       const session = await requestJson("/api/rooms", {
         method: "POST",
-        body: { deck },
+        body: { deck, environmentDeck },
       });
       this.saveSession(session);
       return new OnlineClient(session);
     }
 
-    static async joinRoom(roomId, deck) {
+    static async joinRoom(roomId, deck, environmentDeck) {
       const session = await requestJson(`/api/rooms/${normalizeRoomId(roomId)}/join`, {
         method: "POST",
-        body: { deck },
+        body: { deck, environmentDeck },
       });
       this.saveSession(session);
       return new OnlineClient(session);
@@ -75,6 +75,9 @@
       this.finished = false;
       this.won = false;
       this.busy = false;
+      this.currentEnvironment = null;
+      this.naturalEnvironmentLevel = 1;
+      this.environmentCycle = 0;
       this.logItems = [];
       this.pendingChoice = null;
       this.player = emptyDuelist("Player");
@@ -155,6 +158,9 @@
       this.finished = Boolean(snapshot.finished);
       this.won = Boolean(snapshot.won);
       this.pendingChoice = snapshot.pendingChoice || null;
+      this.currentEnvironment = snapshot.currentEnvironment || null;
+      this.naturalEnvironmentLevel = snapshot.naturalEnvironmentLevel || 1;
+      this.environmentCycle = snapshot.environmentCycle || 0;
 
       if (snapshot.status === "waiting") {
         this.player = emptyDuelist("Player");
@@ -212,7 +218,16 @@
       let atk = card.atk + (unit.atkMod || 0);
       if (card.name.includes("星導の衛士カイ")) atk += player.cores.filter(Boolean).length * 300;
       if (card.name.includes("黒機") && player.cores.includes("black_tower")) atk += 200;
+      atk += this.getEnvironmentAtkMod();
       return atk;
+    }
+
+    getEnvironmentAtkMod() {
+      const environment = cards[this.currentEnvironment];
+      if (!environment || environment.type !== "環境") return 0;
+      if (environment.family === "晴れ") return environment.level * 100;
+      if (environment.family === "雪") return environment.level * -100;
+      return 0;
     }
   }
 

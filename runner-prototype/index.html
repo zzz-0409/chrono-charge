@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ぷるっとランナー Prototype</title>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="game.js"></script>
+  </head>
+  <body>
+    <main class="game-shell" aria-labelledby="gameTitle">
+      <header class="topbar">
+        <div class="title-block">
+          <p class="eyebrow">文化祭ミニゲーム試作</p>
+          <h1 id="gameTitle">ぷるっとランナー</h1>
+        </div>
+
+        <dl class="stats" aria-label="ゲーム情報">
+          <div class="stat">
+            <dt>Score</dt>
+            <dd id="scoreValue">0</dd>
+          </div>
+          <div class="stat">
+            <dt>High</dt>
+            <dd id="highScoreValue">0</dd>
+          </div>
+          <div class="stat">
+            <dt>Speed</dt>
+            <dd id="speedValue">1.00x</dd>
+          </div>
+        </dl>
+      </header>
+
+      <section class="stage-wrap" aria-label="ゲーム画面">
+        <canvas id="gameCanvas" width="960" height="540">
+          このゲームを遊ぶにはCanvas対応ブラウザが必要です。
+        </canvas>
+
+        <div id="messageLayer" class="message-layer">
+          <div class="message-panel">
+            <p id="statusText" class="status-text">Spaceでスタート</p>
+            <p id="statusSubtext" class="status-subtext">
+              低い障害物はジャンプ、高い障害物はスライディングで回避。
+            </p>
+            <button id="restartButton" class="restart-button" type="button">スタート</button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="controls">
+        <p class="key-help">
+          <kbd>Space</kbd><kbd>↑</kbd> ジャンプ
+          <span aria-hidden="true">/</span>
+          <kbd>↓</kbd> スライディング
+          <span aria-hidden="true">/</span>
+          <kbd>R</kbd> リスタート
+        </p>
+
+        <div class="touch-controls" aria-label="タッチ操作">
+          <button class="touch-button" type="button" data-action="jump">Jump</button>
+          <button class="touch-button" type="button" data-action="slide">Slide</button>
+        </div>
+      </footer>
+    </main>
+  </body>
+</html>

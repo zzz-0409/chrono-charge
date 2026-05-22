@@ -13,6 +13,9 @@ const REACTION_ZONES = 3;
 const chrono = loadChronoData();
 const cards = chrono.cards;
 const DECK_SIZE = chrono.DECK_SIZE || 40;
+const ENVIRONMENT_DECK_PER_LEVEL = chrono.ENVIRONMENT_DECK_PER_LEVEL || 3;
+const ENVIRONMENT_MAX_LEVEL = chrono.ENVIRONMENT_MAX_LEVEL || 3;
+const starterEnvironmentDeck = chrono.starterEnvironmentDeck || {};
 
 const rooms = new Map();
 
@@ -48,7 +51,8 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/rooms") {
     const body = await readJson(req);
     const deck = validateDeck(body.deck);
-    const room = createRoom(deck);
+    const environmentDeck = validateEnvironmentDeck(body.environmentDeck);
+    const room = createRoom(deck, environmentDeck);
     sendJson(res, 200, {
       roomId: room.id,
       playerId: room.players.host.id,
@@ -79,6 +83,7 @@ async function handleApi(req, res, url) {
     room.players.guest = {
       id: makeId(12),
       deck: validateDeck(body.deck),
+      environmentDeck: validateEnvironmentDeck(body.environmentDeck),
     };
     startRoomGame(room);
     sendJson(res, 200, {
@@ -115,7 +120,7 @@ async function handleApi(req, res, url) {
   sendJson(res, 404, { error: "not found" });
 }
 
-function createRoom(deck) {
+function createRoom(deck, environmentDeck) {
   let id = "";
   do {
     id = makeId(5);
@@ -125,7 +130,7 @@ function createRoom(deck) {
     status: "waiting",
     version: 1,
     players: {
-      host: { id: makeId(12), deck },
+      host: { id: makeId(12), deck, environmentDeck },
       guest: null,
     },
     game: null,
@@ -136,19 +141,32 @@ function createRoom(deck) {
 }
 
 function startRoomGame(room) {
+  const firstActive = Math.random() < 0.5 ? "host" : "guest";
   room.game = {
     turn: 1,
-    active: "host",
+    active: firstActive,
+    firstActive,
+    openingTurn: true,
+    completedTurns: 0,
+    environmentCycle: 0,
+    naturalEnvironmentLevel: 1,
+    currentEnvironment: null,
+    hostEnvironmentDeck: room.players.host.environmentDeck.slice(),
+    guestEnvironmentDeck: room.players.guest.environmentDeck.slice(),
     finished: false,
     winner: null,
     pendingChoice: null,
     host: newDuelist("Host", room.players.host.deck),
     guest: newDuelist("Guest", room.players.guest.deck),
-    logItems: [`ルーム ${room.id}: オンラインデュエル開始。`],
+    logItems: [
+      `ルーム ${room.id}: オンラインデュエル開始。`,
+      `先攻は${firstActive === "host" ? "ホスト" : "ゲスト"}です。`,
+    ],
   };
   drawCards(room.game.host, 5, room.game);
   drawCards(room.game.guest, 5, room.game);
-  refreshTurn(room.game.host);
+  refreshTurn(room.game[firstActive]);
+  changeEnvironment(room.game, room.game.naturalEnvironmentLevel);
   room.status = "playing";
   room.version += 1;
 }
@@ -228,7 +246,7 @@ function setReaction(game, player, index) {
   const slot = player.reactions.findIndex((entry) => !entry);
   if (!card || card.type !== "リアクション" || slot === -1) return false;
   player.hand.splice(index, 1);
-  player.reactions[slot] = id;
+  player.reactions[slot] = { id, revealed: false };
   log(game, `${card.name}をセット。`);
   return true;
 }
@@ -239,8 +257,11 @@ function playFromHand(game, player, opponent, index, seat) {
   if (!card || !canPlayCard(player, card) || !payCost(player, card.cost)) return false;
   player.hand.splice(index, 1);
 
-  const negated = autoReact(game, opponent, player, card, "effect");
-  resolvePlayedCard(game, player, opponent, card, negated, seat);
+  if (!queueReactionChoice(game, opponent, player, card, "effect", (negated) => {
+    resolvePlayedCard(game, player, opponent, card, negated, seat);
+  })) {
+    resolvePlayedCard(game, player, opponent, card, false, seat);
+  }
   return true;
 }
 
@@ -279,40 +300,87 @@ function attackWithUnit(game, player, opponent, attackerIndex, targetIndex) {
   const unit = player.units[attackerIndex];
   if (!unit || unit.exhausted) return false;
   const attackerCard = cards[unit.id];
-  const negated = autoReact(game, opponent, player, attackerCard, "attack");
-  if (negated) {
-    unit.exhausted = true;
+  if (queueReactionChoice(game, opponent, player, attackerCard, "attack", (negated) => {
+    if (negated) {
+      unit.exhausted = true;
+      return;
+    }
+    resolveAttack(game, player, opponent, attackerIndex, targetIndex);
+  })) {
     return true;
   }
 
-  const attackerAtk = getUnitAtk(player, unit);
+  resolveAttack(game, player, opponent, attackerIndex, targetIndex);
+  return true;
+}
+
+function resolveAttack(game, player, opponent, attackerIndex, targetIndex) {
+  const unit = player.units[attackerIndex];
+  if (!unit || unit.exhausted) return false;
+  const attackerCard = cards[unit.id];
+  const attackerAtk = getUnitAtk(player, unit, game);
   unit.exhausted = true;
   if (targetIndex === null || targetIndex === undefined || !opponent.units[targetIndex]) {
-    damage(game, opponent, attackerAtk);
-    log(game, `${attackerCard.name}が直接攻撃。${attackerAtk}ダメージ。`);
+    const dealt = damage(game, opponent, attackerAtk);
+    log(game, `${attackerCard.name}が直接攻撃。${dealt}ダメージ。`);
     return true;
   }
 
   const defender = opponent.units[targetIndex];
   const defenderCard = cards[defender.id];
-  const defenderAtk = getUnitAtk(opponent, defender);
+  const defenderAtk = getUnitAtk(opponent, defender, game);
   const diff = Math.abs(attackerAtk - defenderAtk);
   if (attackerAtk >= defenderAtk) {
     destroyUnit(opponent, targetIndex);
-    if (diff > 0) damage(game, opponent, diff);
-    log(game, `${attackerCard.name}が${defenderCard.name}を破壊。`);
+    const dealt = diff > 0 ? damage(game, opponent, diff) : 0;
+    log(game, `${attackerCard.name}が${defenderCard.name}を破壊。${dealt}ダメージ。`);
   } else {
     destroyUnit(player, attackerIndex);
-    damage(game, player, diff);
-    log(game, `${attackerCard.name}は戦闘で破壊された。`);
+    const dealt = damage(game, player, diff);
+    log(game, `${attackerCard.name}は戦闘で破壊された。${dealt}ダメージ。`);
   }
   return true;
 }
 
+function queueReactionChoice(game, reactor, opponent, sourceCard, trigger, continuation) {
+  const options = getUsableReactions(reactor, trigger);
+  if (options.length === 0) return false;
+
+  game.pendingChoice = {
+    id: makeId(8),
+    seat: seatOf(game, reactor),
+    zone: "reaction",
+    title: "リアクション確認",
+    message: `${sourceCard.name}に対応できます。発動するカードを選んでください。`,
+    candidates: options,
+    allowPass: true,
+    resolve: (candidate) => {
+      let negated = false;
+      if (candidate) {
+        const card = cards[candidate.id];
+        if (card && payCost(reactor, card.cost)) {
+          reactor.reactions[candidate.index] = null;
+          reactor.grave.push(candidate.id);
+          log(game, `${card.name}を発動。`);
+          applyReactionEffect(game, card, reactor, opponent);
+          negated = true;
+        }
+      }
+      continuation(negated);
+    },
+    afterResolve: null,
+  };
+  return true;
+}
+
+function getUsableReactions(player, trigger) {
+  return player.reactions
+    .map((entry, index) => ({ id: reactionId(entry), index }))
+    .filter((entry) => entry.id && cards[entry.id].trigger === trigger && canPay(player, cards[entry.id].cost));
+}
+
 function autoReact(game, reactor, opponent, sourceCard, trigger) {
-  const option = reactor.reactions
-    .map((id, index) => ({ id, index }))
-    .find((entry) => entry.id && cards[entry.id].trigger === trigger && canPay(reactor, cards[entry.id].cost));
+  const option = getUsableReactions(reactor, trigger)[0];
   if (!option) return false;
   const card = cards[option.id];
   if (!payCost(reactor, card.cost)) return false;
@@ -325,8 +393,8 @@ function autoReact(game, reactor, opponent, sourceCard, trigger) {
 
 function applyReactionEffect(game, card, player, opponent) {
   if (card.effect === "negateAttackDamage") {
-    damage(game, opponent, 500);
-    log(game, `${card.name}で攻撃を止め、500ダメージ。`);
+    const dealt = damage(game, opponent, 500);
+    log(game, `${card.name}で攻撃を止め、${dealt}ダメージ。`);
     return;
   }
   if (card.effect === "negateAttackUntap") {
@@ -345,8 +413,11 @@ function applyReactionEffect(game, card, player, opponent) {
 function resolvePendingChoice(game, action) {
   const pending = game.pendingChoice;
   if (!pending || pending.id !== action.choiceId) return;
+  const passed = pending.allowPass && (action.index === null || action.index === undefined || action.index === "pass");
   const requestedIndex = Number(action.index);
-  const candidate = pending.candidates.find((entry) => entry.index === requestedIndex) || pending.candidates[0];
+  const candidate = passed
+    ? null
+    : pending.candidates.find((entry) => entry.index === requestedIndex) || (pending.allowPass ? null : pending.candidates[0]);
   game.pendingChoice = null;
   pending.resolve(candidate);
   pending.afterResolve?.();
@@ -428,9 +499,85 @@ function seatOf(game, player) {
   return null;
 }
 
+function completeTurn(game) {
+  game.completedTurns += 1;
+  if (game.completedTurns % 2 !== 0) return;
+  game.environmentCycle += 1;
+  game.naturalEnvironmentLevel = Math.min(ENVIRONMENT_MAX_LEVEL, 1 + Math.floor(game.environmentCycle / 2));
+  changeEnvironment(game, game.naturalEnvironmentLevel);
+}
+
+function changeEnvironment(game, level) {
+  const candidates = [...game.hostEnvironmentDeck, ...game.guestEnvironmentDeck]
+    .filter((id) => cards[id]?.type === "環境" && cards[id].level === level);
+  const fallback = Object.keys(starterEnvironmentDeck).filter((id) => cards[id]?.type === "環境" && cards[id].level === level);
+  const pool = candidates.length ? candidates : fallback;
+  if (pool.length === 0) return false;
+  const next = pool[Math.floor(Math.random() * pool.length)];
+  game.currentEnvironment = next;
+  log(game, `環境が${cards[next].name}（Lv${cards[next].level}）になった。`);
+  applyEnvironmentEnter(game, cards[next]);
+  return true;
+}
+
+function applyEnvironmentEnter(game, card) {
+  if (card.family === "星") {
+    const drawAmount = card.level >= 3 ? 2 : 1;
+    drawCards(game.host, drawAmount, game);
+    drawCards(game.guest, drawAmount, game);
+    let untapped = false;
+    if (card.level >= 2) {
+      untapped = untapOneCharge(game.host) || untapped;
+      untapped = untapOneCharge(game.guest) || untapped;
+    }
+    log(game, `${card.name}で各プレイヤーは${drawAmount}枚ドロー。`);
+    if (untapped) log(game, `${card.name}でチャージがアクティブになった。`);
+    return;
+  }
+
+  if (card.family !== "風") return;
+  if (card.level >= 3) {
+    const hostChanged = removeRevealedReaction(game, game.host) || revealReactions(game.host, 1);
+    const guestChanged = removeRevealedReaction(game, game.guest) || revealReactions(game.guest, 1);
+    if (hostChanged || guestChanged) log(game, `${card.name}が表向きのリアクションを吹き飛ばした。`);
+    return;
+  }
+  const amount = card.level >= 2 ? 2 : 1;
+  if (revealReactions(game.host, amount) || revealReactions(game.guest, amount)) {
+    log(game, `${card.name}でセットリアクションがめくられた。`);
+  }
+}
+
+function revealReactions(player, amount) {
+  let revealed = 0;
+  for (let i = 0; i < player.reactions.length && revealed < amount; i += 1) {
+    const entry = player.reactions[i];
+    const id = reactionId(entry);
+    if (!id || reactionRevealed(entry)) continue;
+    player.reactions[i] = { id, revealed: true };
+    revealed += 1;
+  }
+  return revealed > 0;
+}
+
+function removeRevealedReaction(game, player) {
+  const index = player.reactions.findIndex((entry) => reactionId(entry) && reactionRevealed(entry));
+  if (index === -1) return false;
+  const id = reactionId(player.reactions[index]);
+  player.reactions[index] = null;
+  player.grave.push(id);
+  log(game, `${cards[id].name}は環境で墓地に送られた。`);
+  return true;
+}
+
 function endTurn(game) {
+  completeTurn(game);
   game.active = game.active === "host" ? "guest" : "host";
-  if (game.active === "host") game.turn += 1;
+  if (game.openingTurn) {
+    game.openingTurn = false;
+  } else if (game.active === game.firstActive) {
+    game.turn += 1;
+  }
   const activePlayer = game[game.active];
   refreshTurn(activePlayer);
   drawCards(activePlayer, 1, game);
@@ -677,7 +824,7 @@ function exhaustBestUnit(game, player) {
   const target = player.units
     .map((unit, index) => ({ unit, index }))
     .filter((entry) => entry.unit && !entry.unit.exhausted)
-    .sort((a, b) => getUnitAtk(player, b.unit) - getUnitAtk(player, a.unit))[0];
+    .sort((a, b) => getUnitAtk(player, b.unit, game) - getUnitAtk(player, a.unit, game))[0];
   if (!target) return false;
   target.unit.exhausted = true;
   log(game, `${cards[target.unit.id].name}を行動済みにした。`);
@@ -707,16 +854,34 @@ function controlsThemeUnit(player, theme) {
   return player.units.some((unit) => unit && cards[unit.id].name.includes(theme));
 }
 
-function getUnitAtk(player, unit) {
+function getUnitAtk(player, unit, game = null) {
   if (!unit) return 0;
   let atk = cards[unit.id].atk + (unit.atkMod || 0);
   if (player.cores.includes("black_tower") && cards[unit.id].name.includes("黒機")) atk += 200;
   if (cards[unit.id].id === "star_guard") atk += player.cores.filter(Boolean).length * 300;
+  atk += getEnvironmentAtkMod(game);
   return atk;
 }
 
+function getEnvironmentAtkMod(game) {
+  const environment = cards[game?.currentEnvironment];
+  if (!environment || environment.type !== "環境") return 0;
+  if (environment.family === "晴れ") return environment.level * 100;
+  if (environment.family === "雪") return environment.level * -100;
+  return 0;
+}
+
 function damage(game, player, amount) {
-  player.lp = Math.max(0, player.lp - amount);
+  const dealt = Math.max(0, amount - getEnvironmentDamageReduction(game));
+  player.lp = Math.max(0, player.lp - dealt);
+  return dealt;
+}
+
+function getEnvironmentDamageReduction(game) {
+  const environment = cards[game?.currentEnvironment];
+  if (!environment || environment.type !== "環境") return 0;
+  if (environment.family === "雨") return environment.level * 100;
+  return 0;
 }
 
 function checkGameEnd(game) {
@@ -753,6 +918,9 @@ function roomSnapshot(room, seat) {
     active: game.active === seat ? "player" : "enemy",
     finished: game.finished,
     won: game.finished ? game.winner === seat : false,
+    currentEnvironment: game.currentEnvironment,
+    naturalEnvironmentLevel: game.naturalEnvironmentLevel,
+    environmentCycle: game.environmentCycle,
     pendingChoice: publicPendingChoice(game.pendingChoice, seat),
     player,
     enemy,
@@ -767,6 +935,7 @@ function publicPendingChoice(choice, seat) {
     zone: choice.zone,
     title: choice.title,
     message: choice.message,
+    allowPass: Boolean(choice.allowPass),
     candidates: choice.candidates.map((entry) => ({
       id: entry.id,
       index: entry.index,
@@ -784,9 +953,18 @@ function publicDuelist(player, includeHand) {
     charge: player.charge.map((entry) => ({ ...entry })),
     units: player.units.map((unit) => (unit ? { ...unit } : null)),
     cores: player.cores.slice(),
-    reactions: player.reactions.slice(),
+    reactions: publicReactions(player.reactions, includeHand),
     chargedThisTurn: player.chargedThisTurn,
   };
+}
+
+function publicReactions(reactions, includeHand) {
+  return reactions.map((entry) => {
+    const id = reactionId(entry);
+    if (!id) return null;
+    if (includeHand || reactionRevealed(entry)) return { id, revealed: reactionRevealed(entry) };
+    return { facedown: true };
+  });
 }
 
 function log(game, message) {
@@ -796,9 +974,41 @@ function log(game, message) {
 
 function validateDeck(deck) {
   if (!Array.isArray(deck) || deck.length === 0) throw new Error("deck is required");
-  const valid = deck.filter((id) => cards[id]);
+  const valid = deck.filter((id) => cards[id] && cards[id].type !== "環境");
   if (valid.length !== DECK_SIZE) throw new Error(`deck must be ${DECK_SIZE} cards`);
   return valid;
+}
+
+function validateEnvironmentDeck(deck) {
+  const source = Array.isArray(deck) && deck.length > 0 ? deck : expandCounts(starterEnvironmentDeck);
+  const result = [];
+  const levelCounts = new Map();
+  source.forEach((id) => {
+    const card = cards[id];
+    if (!card || card.type !== "環境" || result.includes(id)) return;
+    const current = levelCounts.get(card.level) || 0;
+    if (current >= ENVIRONMENT_DECK_PER_LEVEL) return;
+    result.push(id);
+    levelCounts.set(card.level, current + 1);
+  });
+  Object.keys(starterEnvironmentDeck).forEach((id) => {
+    const card = cards[id];
+    if (!card || result.includes(id)) return;
+    const current = levelCounts.get(card.level) || 0;
+    if (current >= ENVIRONMENT_DECK_PER_LEVEL) return;
+    result.push(id);
+    levelCounts.set(card.level, current + 1);
+  });
+  for (let level = 1; level <= ENVIRONMENT_MAX_LEVEL; level += 1) {
+    if ((levelCounts.get(level) || 0) !== ENVIRONMENT_DECK_PER_LEVEL) {
+      throw new Error(`environment deck needs ${ENVIRONMENT_DECK_PER_LEVEL} cards for level ${level}`);
+    }
+  }
+  return result;
+}
+
+function expandCounts(counts) {
+  return Object.entries(counts).flatMap(([id, count]) => Array(count).fill(id));
 }
 
 function getSeat(room, playerId) {
@@ -885,4 +1095,12 @@ function makeId(length) {
   let id = "";
   for (let i = 0; i < length; i += 1) id += chars[Math.floor(Math.random() * chars.length)];
   return id;
+}
+
+function reactionId(entry) {
+  return typeof entry === "string" ? entry : entry?.id;
+}
+
+function reactionRevealed(entry) {
+  return Boolean(entry && typeof entry === "object" && entry.revealed);
 }

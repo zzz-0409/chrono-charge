@@ -34,6 +34,11 @@
     avgCost: document.querySelector("#avgCost"),
     reactionCount: document.querySelector("#reactionCount"),
     deckList: document.querySelector("#deckList"),
+    environmentDeckCount: document.querySelector("#environmentDeckCount"),
+    environmentLevel1Count: document.querySelector("#environmentLevel1Count"),
+    environmentLevel2Count: document.querySelector("#environmentLevel2Count"),
+    environmentLevel3Count: document.querySelector("#environmentLevel3Count"),
+    environmentDeckList: document.querySelector("#environmentDeckList"),
     cardPreview: document.querySelector("#cardPreview"),
     enemyLp: document.querySelector("#enemyLp"),
     enemyLpBar: document.querySelector("#enemyLpBar"),
@@ -56,6 +61,7 @@
     playerUnitZones: document.querySelector("#playerUnitZones"),
     enemyReactionZones: document.querySelector("#enemyReactionZones"),
     playerReactionZones: document.querySelector("#playerReactionZones"),
+    environmentZone: document.querySelector("#environmentZone"),
     handZone: document.querySelector("#handZone"),
     handInfo: document.querySelector("#handInfo"),
     selectedCardPanel: document.querySelector("#selectedCardPanel"),
@@ -97,7 +103,7 @@
     store,
     els,
     toast,
-    onStartDuel: () => duelView.start(store.list),
+    onStartDuel: () => duelView.start(store.list, store.environmentList),
   });
 
   const requireDeck = () => {
@@ -107,7 +113,12 @@
       setView("builder");
       return null;
     }
-    return deck;
+    if (!store.environmentReady) {
+      toast("環境カードをLv1/Lv2/Lv3それぞれ3枚にしてください。");
+      setView("builder");
+      return null;
+    }
+    return { deck, environmentDeck: store.environmentList };
   };
 
   const canUseOnline = () => {
@@ -123,10 +134,10 @@
 
   els.createRoomButton.addEventListener("click", async () => {
     if (!canUseOnline()) return;
-    const deck = requireDeck();
-    if (!deck) return;
+    const deckSet = requireDeck();
+    if (!deckSet) return;
     try {
-      const client = await OnlineClient.createRoom(deck);
+      const client = await OnlineClient.createRoom(deckSet.deck, deckSet.environmentDeck);
       startOnlineDuel(client);
       toast(`ルーム ${client.roomId} を作成しました。`);
     } catch (error) {
@@ -136,12 +147,12 @@
 
   els.joinRoomButton.addEventListener("click", async () => {
     if (!canUseOnline()) return;
-    const deck = requireDeck();
-    if (!deck) return;
+    const deckSet = requireDeck();
+    if (!deckSet) return;
     const roomId = window.prompt("参加するルームIDを入力してください。");
     if (!roomId) return;
     try {
-      const client = await OnlineClient.joinRoom(roomId, deck);
+      const client = await OnlineClient.joinRoom(roomId, deckSet.deck, deckSet.environmentDeck);
       startOnlineDuel(client);
       toast(`ルーム ${client.roomId} に参加しました。`);
     } catch (error) {
@@ -151,7 +162,7 @@
 
   els.builderTab.addEventListener("click", () => setView("builder"));
   els.duelTab.addEventListener("click", () => {
-    if (!duelView.game) duelView.start(store.list);
+    if (!duelView.game) duelView.start(store.list, store.environmentList);
     else setView("duel");
   });
 

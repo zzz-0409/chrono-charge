@@ -97,6 +97,7 @@
                   <option value="スペル">スペル</option>
                   <option value="リアクション">リアクション</option>
                   <option value="コア">コア</option>
+                  <option value="環境">環境</option>
                 </select>
               </label>
               <label>
@@ -107,6 +108,11 @@
                   <option value="炎">炎</option>
                   <option value="影">影</option>
                   <option value="無">無</option>
+                  <option value="晴れ">晴れ</option>
+                  <option value="雨">雨</option>
+                  <option value="風">風</option>
+                  <option value="雪">雪</option>
+                  <option value="星">星</option>
                 </select>
               </label>
             </div>
@@ -136,6 +142,21 @@
               </div>
             </div>
             <div id="deckList" class="deck-list" aria-label="デッキリスト"></div>
+            <section class="environment-deck-panel">
+              <div class="panel-head compact">
+                <div>
+                  <p class="eyebrow">Environment</p>
+                  <h2>環境デッキ</h2>
+                </div>
+                <strong id="environmentDeckCount" class="deck-count compact-count">0 / 9</strong>
+              </div>
+              <div class="environment-levels">
+                <div>Lv1 <strong id="environmentLevel1Count">0 / 3</strong></div>
+                <div>Lv2 <strong id="environmentLevel2Count">0 / 3</strong></div>
+                <div>Lv3 <strong id="environmentLevel3Count">0 / 3</strong></div>
+              </div>
+              <div id="environmentDeckList" class="deck-list environment-deck-list" aria-label="環境デッキリスト"></div>
+            </section>
             <div class="deck-actions">
               <button id="resetDeckButton" class="ghost-button" type="button">初期デッキ</button>
               <button id="clearDeckButton" class="ghost-button danger" type="button">空にする</button>
@@ -198,6 +219,7 @@
               </div>
 
               <div class="center-command">
+                <div id="environmentZone" class="environment-zone" aria-label="現在の環境"></div>
                 <button id="endTurnButton" class="primary-button" type="button">ターン終了</button>
                 <button id="restartDuelButton" class="ghost-button" type="button">再戦</button>
               </div>

@@ -3,10 +3,13 @@
 
   const {
     MAX_LP,
+    ENVIRONMENT_MAX_LEVEL,
     UNIT_ZONES,
     CORE_ZONES,
     REACTION_ZONES,
     cards,
+    starterEnvironmentDeck,
+    cpuEnvironmentDeck,
     EffectResolver,
     CpuController,
   } = window.Chrono;
@@ -51,12 +54,19 @@
         ...options,
       };
       this.turn = 1;
-      this.active = "player";
+      this.active = Math.random() < 0.5 ? "player" : "enemy";
       this.busy = false;
       this.finished = false;
       this.logItems = [];
       this.player = new Duelist("Player", this.options.playerDeck);
       this.enemy = new Duelist("CPU: 黒機", this.options.cpuDeck);
+      this.firstActive = this.active;
+      this.completedTurns = 0;
+      this.environmentCycle = 0;
+      this.naturalEnvironmentLevel = 1;
+      this.currentEnvironment = null;
+      this.playerEnvironmentDeck = this.options.playerEnvironmentDeck?.length ? this.options.playerEnvironmentDeck.slice() : expandCounts(starterEnvironmentDeck);
+      this.enemyEnvironmentDeck = this.options.cpuEnvironmentDeck?.length ? this.options.cpuEnvironmentDeck.slice() : expandCounts(cpuEnvironmentDeck);
       this.effects = new EffectResolver(this);
       this.cpu = new CpuController(this);
     }
@@ -64,9 +74,13 @@
     start() {
       this.drawCards(this.player, 5);
       this.drawCards(this.enemy, 5);
-      this.player.refreshTurn();
+      const starter = this.active === "player" ? this.player : this.enemy;
+      starter.refreshTurn();
       this.log("デュエル開始。");
+      this.log(`先攻は${this.active === "player" ? "自分" : "相手"}です。`);
+      this.changeEnvironment(this.naturalEnvironmentLevel);
       this.notify();
+      if (this.active === "enemy") this.runEnemyTurn({ opening: true });
     }
 
     notify() {
@@ -90,7 +104,7 @@
       if (!this.payCost(this.player, card.cost)) return;
 
       this.player.hand.splice(index, 1);
-      const negated = await this.opponentMayReact({ trigger: "effect", source: card });
+      const negated = card.effect ? await this.opponentMayReact({ trigger: "effect", source: card }) : false;
       await this.resolvePlayedCard(this.player, this.enemy, card, negated, "player");
       this.checkGameEnd();
       this.notify();
@@ -111,7 +125,7 @@
       if (!this.canPlayerAct() || !this.canSetReaction(this.player)) return false;
       const id = this.player.hand.splice(index, 1)[0];
       const slot = this.player.reactions.findIndex((card) => !card);
-      this.player.reactions[slot] = id;
+      this.player.reactions[slot] = { id, revealed: false };
       this.log(`${cards[id].name}をセット。`);
       this.notify();
       return true;
@@ -136,22 +150,24 @@
 
     endPlayerTurn() {
       if (!this.canPlayerAct()) return;
+      this.completeTurn();
       this.active = "enemy";
       this.notify();
       this.runEnemyTurn();
     }
 
-    async runEnemyTurn() {
+    async runEnemyTurn(options = {}) {
       if (this.finished) return;
+      const openingTurn = Boolean(options.opening);
       this.busy = true;
       this.enemy.refreshTurn();
-      this.drawCards(this.enemy, 1);
+      if (!openingTurn) this.drawCards(this.enemy, 1);
       this.log("相手ターン。");
       this.notify();
       await pause(this.options.delayMs);
       if (this.checkGameEnd()) return;
 
-      if (!this.enemy.chargedThisTurn && this.enemy.hand.length > 0) {
+      if (this.cpu.shouldCharge()) {
         const chargeIndex = this.cpu.chooseChargeIndex();
         const id = this.enemy.hand.splice(chargeIndex, 1)[0];
         this.enemy.charge.push({ id, tapped: false });
@@ -192,8 +208,9 @@
       }
 
       if (this.finished) return;
+      this.completeTurn();
       this.active = "player";
-      this.turn += 1;
+      if (!openingTurn) this.turn += 1;
       this.busy = false;
       this.player.refreshTurn();
       this.drawCards(this.player, 1);
@@ -208,7 +225,7 @@
       if (!card || !this.canPlayCard(this.enemy, card) || !this.payCost(this.enemy, card.cost)) return;
       this.enemy.hand.splice(index, 1);
 
-      const negated = await this.playerMayReact({ trigger: "effect", source: card });
+      const negated = card.effect ? await this.playerMayReact({ trigger: "effect", source: card }) : false;
       await this.resolvePlayedCard(this.enemy, this.player, card, negated, "enemy");
       this.checkGameEnd();
       this.notify();
@@ -219,11 +236,13 @@
       if (card.type === "ユニット") {
         this.summonUnit(player, card.id);
         this.log(`${prefix}${card.name}を召喚。`);
-        if (!negated) {
+        if (!negated && card.effect) {
           await this.effects.resolve(card.effect, player, opponent, card);
           this.afterSummon(player, card.id);
-        } else {
+        } else if (negated) {
           this.log(`${card.name}の召喚時効果は無効化された。`);
+        } else {
+          this.afterSummon(player, card.id);
         }
         return;
       }
@@ -231,14 +250,14 @@
       if (card.type === "コア") {
         this.placeCore(player, card.id);
         this.log(`${prefix}${card.name}を発動。`);
-        if (!negated) await this.effects.resolve(card.effect, player, opponent, card);
+        if (!negated && card.effect) await this.effects.resolve(card.effect, player, opponent, card);
         if (negated) this.log(`${card.name}の効果は無効化された。`);
         return;
       }
 
       if (card.type === "スペル") {
         this.log(`${prefix}${card.name}を発動。`);
-        if (!negated) await this.effects.resolve(card.effect, player, opponent, card);
+        if (!negated && card.effect) await this.effects.resolve(card.effect, player, opponent, card);
         if (negated) this.log(`${card.name}は無効化された。`);
         player.grave.push(card.id);
       }
@@ -278,7 +297,7 @@
 
     getUsableReactions(player, trigger) {
       return player.reactions
-        .map((id, index) => ({ id, index }))
+        .map((entry, index) => ({ id: reactionId(entry), index }))
         .filter((entry) => {
           if (!entry.id) return false;
           const card = cards[entry.id];
@@ -288,8 +307,8 @@
 
     applyReactionEffect(card, player, opponent) {
       if (card.effect === "negateAttackDamage") {
-        opponent.lp = Math.max(0, opponent.lp - 500);
-        this.log(`${card.name}で攻撃を止め、500ダメージ。`);
+        const dealt = this.damage(opponent, 500, { log: false });
+        this.log(`${card.name}で攻撃を止め、${dealt}ダメージ。`);
         return;
       }
       if (card.effect === "negateAttackUntap") {
@@ -485,6 +504,76 @@
       return player.charge.filter((entry) => cards[entry.id].name.includes(theme)).length;
     }
 
+    completeTurn() {
+      this.completedTurns += 1;
+      if (this.completedTurns % 2 !== 0) return;
+      this.environmentCycle += 1;
+      this.naturalEnvironmentLevel = Math.min(ENVIRONMENT_MAX_LEVEL, 1 + Math.floor(this.environmentCycle / 2));
+      this.changeEnvironment(this.naturalEnvironmentLevel);
+    }
+
+    changeEnvironment(level) {
+      const candidates = [...this.playerEnvironmentDeck, ...this.enemyEnvironmentDeck]
+        .filter((id) => cards[id]?.type === "環境" && cards[id].level === level);
+      const pool = candidates.length ? candidates : Object.keys(starterEnvironmentDeck).filter((id) => cards[id]?.level === level);
+      if (pool.length === 0) return false;
+      const next = pool[Math.floor(Math.random() * pool.length)];
+      this.currentEnvironment = next;
+      this.log(`環境が${cards[next].name}（Lv${cards[next].level}）になった。`);
+      this.applyEnvironmentEnter(cards[next]);
+      return true;
+    }
+
+    applyEnvironmentEnter(card) {
+      if (card.family === "星") {
+        const drawAmount = card.level >= 3 ? 2 : 1;
+        this.drawCards(this.player, drawAmount);
+        this.drawCards(this.enemy, drawAmount);
+        let untapped = false;
+        if (card.level >= 2) {
+          untapped = this.untapOneCharge(this.player) || untapped;
+          untapped = this.untapOneCharge(this.enemy) || untapped;
+        }
+        this.log(`${card.name}で各プレイヤーは${drawAmount}枚ドロー。`);
+        if (untapped) this.log(`${card.name}でチャージがアクティブになった。`);
+        return;
+      }
+
+      if (card.family !== "風") return;
+      if (card.level >= 3) {
+        const playerRemoved = this.removeRevealedReaction(this.player) || this.revealReactions(this.player, 1);
+        const enemyRemoved = this.removeRevealedReaction(this.enemy) || this.revealReactions(this.enemy, 1);
+        if (playerRemoved || enemyRemoved) this.log(`${card.name}が表向きのリアクションを吹き飛ばした。`);
+        return;
+      }
+      const amount = card.level >= 2 ? 2 : 1;
+      if (this.revealReactions(this.player, amount) || this.revealReactions(this.enemy, amount)) {
+        this.log(`${card.name}でセットリアクションがめくられた。`);
+      }
+    }
+
+    revealReactions(player, amount) {
+      let revealed = 0;
+      for (let i = 0; i < player.reactions.length && revealed < amount; i += 1) {
+        const entry = player.reactions[i];
+        const id = reactionId(entry);
+        if (!id || reactionRevealed(entry)) continue;
+        player.reactions[i] = { id, revealed: true };
+        revealed += 1;
+      }
+      return revealed > 0;
+    }
+
+    removeRevealedReaction(player) {
+      const index = player.reactions.findIndex((entry) => reactionId(entry) && reactionRevealed(entry));
+      if (index === -1) return false;
+      const id = reactionId(player.reactions[index]);
+      player.reactions[index] = null;
+      player.grave.push(id);
+      this.log(`${cards[id].name}は環境で墓地に送られた。`);
+      return true;
+    }
+
     controlsThemeUnit(player, theme) {
       return player.units.some((unit) => unit && cards[unit.id].name.includes(theme));
     }
@@ -522,8 +611,8 @@
       attacker.exhausted = true;
 
       if (targetIndex === null || targetIndex === undefined) {
-        defenderPlayer.lp = Math.max(0, defenderPlayer.lp - attackerAtk);
-        this.log(`${attackerCard.name}が直接攻撃。${attackerAtk}ダメージ。`);
+        const dealt = this.damage(defenderPlayer, attackerAtk, { log: false });
+        this.log(`${attackerCard.name}が直接攻撃。${dealt}ダメージ。`);
         return;
       }
 
@@ -535,12 +624,12 @@
 
       if (attackerAtk > defenderAtk) {
         this.destroyUnit(defenderPlayer, targetIndex);
-        defenderPlayer.lp = Math.max(0, defenderPlayer.lp - diff);
-        this.log(`${attackerCard.name}が${defenderCard.name}を破壊。${diff}ダメージ。`);
+        const dealt = this.damage(defenderPlayer, diff, { log: false });
+        this.log(`${attackerCard.name}が${defenderCard.name}を破壊。${dealt}ダメージ。`);
       } else if (attackerAtk < defenderAtk) {
         this.destroyUnit(attackerPlayer, attackerIndex);
-        attackerPlayer.lp = Math.max(0, attackerPlayer.lp - diff);
-        this.log(`${attackerCard.name}は返り討ち。${diff}ダメージ。`);
+        const dealt = this.damage(attackerPlayer, diff, { log: false });
+        this.log(`${attackerCard.name}は返り討ち。${dealt}ダメージ。`);
       } else {
         this.destroyUnit(attackerPlayer, attackerIndex);
         this.destroyUnit(defenderPlayer, targetIndex);
@@ -555,9 +644,16 @@
       player.units[index] = null;
     }
 
-    damage(player, amount) {
-      player.lp = Math.max(0, player.lp - amount);
-      this.log(`${player.name}に${amount}ダメージ。`);
+    damage(player, amount, options = {}) {
+      const reduction = this.getEnvironmentDamageReduction();
+      const dealt = Math.max(0, amount - reduction);
+      player.lp = Math.max(0, player.lp - dealt);
+      if (options.log !== false) {
+        const reduced = amount - dealt;
+        if (reduced > 0) this.log(`${cards[this.currentEnvironment].name}で${reduced}ダメージ軽減。`);
+        this.log(`${player.name}に${dealt}ダメージ。`);
+      }
+      return dealt;
     }
 
     getUnitAtk(player, unit) {
@@ -565,7 +661,23 @@
       let atk = card.atk + (unit.atkMod || 0);
       if (card.name.includes("星導の衛士カイ")) atk += player.cores.filter(Boolean).length * 300;
       if (card.name.includes("黒機") && this.hasCore(player, "black_tower")) atk += 200;
+      atk += this.getEnvironmentAtkMod();
       return atk;
+    }
+
+    getEnvironmentAtkMod() {
+      const environment = cards[this.currentEnvironment];
+      if (!environment || environment.type !== "環境") return 0;
+      if (environment.family === "晴れ") return environment.level * 100;
+      if (environment.family === "雪") return environment.level * -100;
+      return 0;
+    }
+
+    getEnvironmentDamageReduction() {
+      const environment = cards[this.currentEnvironment];
+      if (!environment || environment.type !== "環境") return 0;
+      if (environment.family === "雨") return environment.level * 100;
+      return 0;
     }
 
     checkGameEnd() {
@@ -591,6 +703,18 @@
       [result[i], result[j]] = [result[j], result[i]];
     }
     return result;
+  }
+
+  function reactionId(entry) {
+    return typeof entry === "string" ? entry : entry?.id;
+  }
+
+  function reactionRevealed(entry) {
+    return Boolean(entry && typeof entry === "object" && entry.revealed);
+  }
+
+  function expandCounts(counts) {
+    return Object.entries(counts).flatMap(([id, count]) => Array(count).fill(id));
   }
 
   function pause(ms) {
