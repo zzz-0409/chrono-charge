@@ -922,6 +922,7 @@ function roomSnapshot(room, seat) {
     naturalEnvironmentLevel: game.naturalEnvironmentLevel,
     environmentCycle: game.environmentCycle,
     pendingChoice: publicPendingChoice(game.pendingChoice, seat),
+    waitingChoice: publicWaitingChoice(game.pendingChoice, seat),
     player,
     enemy,
     logItems: game.logItems.slice(),
@@ -940,6 +941,14 @@ function publicPendingChoice(choice, seat) {
       id: entry.id,
       index: entry.index,
     })),
+  };
+}
+
+function publicWaitingChoice(choice, seat) {
+  if (!choice || choice.seat === seat) return null;
+  return {
+    id: choice.id,
+    zone: choice.zone,
   };
 }
 

@@ -4,18 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Chrono Charge TCG</title>
-    <link rel="stylesheet" href="styles.css?v=20260522a">
+    <link rel="stylesheet" href="styles.css?v=20260522e">
     <script defer src="src/data/cards.js?v=20260522a"></script>
-    <script defer src="src/core/deck-store.js?v=20260522a"></script>
+    <script defer src="src/core/deck-store.js?v=20260522b"></script>
     <script defer src="src/core/effect-resolver.js?v=20260522a"></script>
     <script defer src="src/core/cpu-controller.js?v=20260522a"></script>
     <script defer src="src/core/duel-game.js?v=20260522a"></script>
     <script defer src="src/ui/scale-manager.js?v=20260522a"></script>
     <script defer src="src/ui/card-renderer.js?v=20260522a"></script>
-    <script defer src="src/ui/deck-builder-view.js?v=20260522a"></script>
-    <script defer src="src/net/online-client.js?v=20260522a"></script>
-    <script defer src="src/ui/duel-view.js?v=20260522a"></script>
-    <script defer src="src/main.js?v=20260522a"></script>
+    <script defer src="src/ui/deck-builder-view.js?v=20260522d"></script>
+    <script defer src="src/net/online-client.js?v=20260522b"></script>
+    <script defer src="src/ui/duel-view.js?v=20260522b"></script>
+    <script defer src="src/main.js?v=20260522c"></script>
   </head>
   <body>
     <svg class="sprite-sheet" aria-hidden="true">
@@ -59,7 +59,14 @@
           </div>
           <div>
             <p class="eyebrow">Prototype TCG</p>
-            <h1>Chrono Charge</h1>
+            <div class="brand-title-row">
+              <h1>Chrono Charge</h1>
+              <div class="header-account" aria-label="アカウント">
+                <input id="accountNameInput" type="text" list="accountNameList" autocomplete="off" maxlength="24">
+                <datalist id="accountNameList"></datalist>
+                <button id="changeAccountButton" class="ghost-button" type="button">変更</button>
+              </div>
+            </div>
           </div>
         </div>
         <nav class="view-tabs" aria-label="画面切替">
@@ -82,7 +89,14 @@
                 <p class="eyebrow">Card Pool</p>
                 <h2>カード一覧</h2>
               </div>
-              <span id="poolCount" class="soft-badge">0種</span>
+              <div class="pool-actions">
+                <div id="environmentLevelTabs" class="environment-level-tabs" aria-label="環境カードLv選択" hidden>
+                  <button id="environmentLevel1Button" class="level-tab active" type="button">Lv1</button>
+                  <button id="environmentLevel2Button" class="level-tab" type="button" disabled>Lv2</button>
+                  <button id="environmentLevel3Button" class="level-tab" type="button" disabled>Lv3</button>
+                </div>
+                <span id="poolCount" class="soft-badge">0種</span>
+              </div>
             </div>
             <div class="filters">
               <label>
@@ -122,12 +136,16 @@
           <aside class="deck-panel">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">Main Deck</p>
-                <h2>構築デッキ</h2>
+                <p id="deckPanelEyebrow" class="eyebrow">Main Deck</p>
+                <h2 id="deckPanelTitle">構築デッキ</h2>
               </div>
               <strong id="deckCount" class="deck-count">40 / 40</strong>
             </div>
-            <div class="deck-stats">
+            <div class="deck-mode-tabs" aria-label="デッキ編集切替">
+              <button id="mainDeckModeButton" class="deck-mode-button active" type="button">メインデッキ</button>
+              <button id="environmentDeckModeButton" class="deck-mode-button" type="button">環境デッキ</button>
+            </div>
+            <div id="deckStats" class="deck-stats deck-panel-stats">
               <div>
                 <span>テーマ純度</span>
                 <strong id="themeRate">0%</strong>
@@ -157,13 +175,39 @@
               </div>
               <div id="environmentDeckList" class="deck-list environment-deck-list" aria-label="環境デッキリスト"></div>
             </section>
-            <div class="deck-actions">
-              <button id="resetDeckButton" class="ghost-button" type="button">初期デッキ</button>
-              <button id="clearDeckButton" class="ghost-button danger" type="button">空にする</button>
-            </div>
           </aside>
 
-          <aside id="cardPreview" class="preview-panel" aria-label="カード詳細"></aside>
+          <aside class="preview-panel" aria-label="カード詳細">
+            <div id="cardPreview" class="preview-card-slot"></div>
+            <div id="previewDeckControls" class="preview-deck-controls" aria-label="選択カードの投入枚数"></div>
+            <section class="deck-profile-panel" aria-label="デッキ保存">
+              <div class="profile-grid">
+                <label class="profile-field preset-select-field">
+                  <span>プリセット</span>
+                  <select id="deckPresetSelect"></select>
+                </label>
+                <button id="loadDeckButton" class="ghost-button" type="button">読込</button>
+                <label class="profile-field deck-name-field">
+                  <span>デッキ名</span>
+                  <input id="deckNameInput" type="text" autocomplete="off" maxlength="32">
+                </label>
+                <button id="savePresetButton" class="ghost-button" type="button">上書き</button>
+                <button id="saveAsPresetButton" class="ghost-button" type="button">新規保存</button>
+                <button id="deletePresetButton" class="ghost-button danger" type="button">削除</button>
+              </div>
+              <div class="auto-build-row">
+                <label class="profile-field">
+                  <span>おまかせ</span>
+                  <select id="autoBuildMode">
+                    <option value="star">星導</option>
+                    <option value="black">黒機</option>
+                    <option value="balance">バランス</option>
+                  </select>
+                </label>
+                <button id="autoBuildButton" class="primary-button" type="button">おまかせ編成</button>
+              </div>
+            </section>
+          </aside>
         </section>
 
         <section id="duelView" class="view duel-view" hidden>

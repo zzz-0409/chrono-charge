@@ -80,6 +80,7 @@
       this.environmentCycle = 0;
       this.logItems = [];
       this.pendingChoice = null;
+      this.waitingChoice = null;
       this.player = emptyDuelist("Player");
       this.enemy = emptyDuelist("Opponent");
       this.pollTimer = 0;
@@ -98,7 +99,7 @@
     }
 
     canPlayerAct() {
-      return this.status === "playing" && this.active === "player" && !this.pendingChoice && !this.busy && !this.finished;
+      return this.status === "playing" && this.active === "player" && !this.pendingChoice && !this.waitingChoice && !this.busy && !this.finished;
     }
 
     async playFromHand(index) {
@@ -158,6 +159,7 @@
       this.finished = Boolean(snapshot.finished);
       this.won = Boolean(snapshot.won);
       this.pendingChoice = snapshot.pendingChoice || null;
+      this.waitingChoice = snapshot.waitingChoice || null;
       this.currentEnvironment = snapshot.currentEnvironment || null;
       this.naturalEnvironmentLevel = snapshot.naturalEnvironmentLevel || 1;
       this.environmentCycle = snapshot.environmentCycle || 0;

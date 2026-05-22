@@ -22,6 +22,7 @@
       this.game = null;
       this.selectedCardId = "star_scout";
       this.selectedContext = null;
+      this.handSnapshot = null;
       this.bindEvents();
     }
 
@@ -47,6 +48,7 @@
       this.game?.dispose?.();
       this.restart = () => this.start(deckList, environmentDeck);
       this.selectedContext = null;
+      this.handSnapshot = null;
       this.game = new DuelGame({
         playerDeck: deckList,
         cpuDeck: expandDeck(cpuDeck),
@@ -65,6 +67,7 @@
       this.game?.dispose?.();
       this.restart = null;
       this.selectedContext = null;
+      this.handSnapshot = null;
       this.game = game;
       this.game.onChange = () => this.render();
       this.game.onResult = (won) => this.showResult(won);
@@ -83,6 +86,7 @@
       this.renderLog();
       this.els.turnBadge.textContent = `Turn ${this.game.turn}`;
       this.els.phaseBadge.textContent = this.phaseLabel();
+      this.els.phaseBadge.classList.toggle("is-waiting", Boolean(this.game.pendingChoice || this.game.waitingChoice));
       this.els.endTurnButton.disabled = !this.game.canPlayerAct();
       this.els.restartDuelButton.disabled = Boolean(this.game.isOnline);
       this.els.playerDeckInfo.textContent = `山札 ${this.game.player.deck.length} / 墓地 ${this.game.player.grave.length}`;
@@ -93,7 +97,23 @@
     phaseLabel() {
       if (this.game.status === "waiting") return "相手待ち";
       if (this.game.finished) return "決着";
+      if (this.game.waitingChoice) return this.choiceStatusLabel(this.game.waitingChoice, "opponent");
+      if (this.game.pendingChoice) return this.choiceStatusLabel(this.game.pendingChoice, "player");
       return this.game.active === "player" ? "自分ターン" : "相手ターン";
+    }
+
+    choiceStatusLabel(choice, owner) {
+      if (choice?.zone === "reaction") {
+        return owner === "opponent" ? "相手がリアクション確認中" : "リアクション選択中";
+      }
+      return owner === "opponent" ? "相手が選択中" : "選択中";
+    }
+
+    waitingChoiceMessage() {
+      if (this.game?.waitingChoice?.zone === "reaction") {
+        return "相手がリアクションカードを使うか考えています。";
+      }
+      return "相手がカードを選択中です。";
     }
 
     renderLp() {
@@ -249,6 +269,12 @@
     }
 
     renderHand() {
+      const previous = this.handSnapshot;
+      const playerHandCount = this.game.player.hand.length;
+      const enemyHandCount = this.game.enemy.hand.length;
+      const playerDrawn = previous ? Math.max(0, playerHandCount - previous.player) : 0;
+      const enemyDrawn = previous ? Math.max(0, enemyHandCount - previous.enemy) : 0;
+
       this.els.handZone.replaceChildren();
       this.els.enemyHandZone.replaceChildren();
       this.game.enemy.hand.forEach((_, index) => {
@@ -256,6 +282,7 @@
         back.className = "enemy-hand-card card-back";
         back.style.setProperty("--hand-offset", index);
         back.setAttribute("aria-label", `相手の手札 ${index + 1}`);
+        if (index >= enemyHandCount - enemyDrawn) this.applyDrawAnimation(back, index - (enemyHandCount - enemyDrawn), "enemy");
         this.els.enemyHandZone.append(back);
       });
       this.game.player.hand.forEach((id, index) => {
@@ -263,9 +290,23 @@
           interactive: true,
           selected: this.isSelected("hand", index),
         });
+        if (index >= playerHandCount - playerDrawn) this.applyDrawAnimation(card, index - (playerHandCount - playerDrawn), "player");
         card.addEventListener("click", () => this.selectCard(id, { zone: "hand", index, owner: "player" }));
         this.els.handZone.append(card);
       });
+      this.handSnapshot = {
+        player: playerHandCount,
+        enemy: enemyHandCount,
+      };
+    }
+
+    applyDrawAnimation(element, drawIndex, owner) {
+      element.classList.add("draw-card", owner === "enemy" ? "draw-card-enemy" : "draw-card-player");
+      element.style.setProperty("--draw-delay", `${Math.min(drawIndex, 4) * 72}ms`);
+      element.addEventListener("animationend", () => {
+        element.classList.remove("draw-card", "draw-card-enemy", "draw-card-player");
+        element.style.removeProperty("--draw-delay");
+      }, { once: true });
     }
 
     selectCard(id, context) {
@@ -291,6 +332,10 @@
         CardRenderer.focus(this.selectedCardId, this.els.selectedCardPanel, this.selectedFocusStats());
       }
       this.els.contextActions.replaceChildren();
+      if (this.game?.waitingChoice) {
+        this.renderWaitingActionNotice();
+        return;
+      }
       if (!this.game || !this.selectedContext || this.game.finished) return;
       if (this.selectedContext.owner !== "player" || !this.game.canPlayerAct()) return;
 
@@ -332,6 +377,13 @@
           });
         }
       }
+    }
+
+    renderWaitingActionNotice() {
+      const notice = document.createElement("div");
+      notice.className = "context-waiting";
+      notice.textContent = this.waitingChoiceMessage();
+      this.els.contextActions.append(notice);
     }
 
     selectedFocusStats() {
