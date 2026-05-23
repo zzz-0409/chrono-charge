@@ -14,6 +14,12 @@
     CpuController,
   } = window.Chrono;
 
+  const SOSAI_PAIRS = [
+    ["sosai_hikari", "sosai_mint"],
+    ["sosai_nene", "sosai_ruri"],
+    ["sosai_coco", "sosai_luna"],
+  ];
+
   class Duelist {
     constructor(name, deck) {
       this.name = name;
@@ -114,7 +120,7 @@
         this.player.hand.splice(index, 1);
         this.notify();
         if (card.effect) await this.showActivation(card, "player", "effect");
-        const negated = card.effect ? await this.opponentMayReact({ trigger: "effect", source: card }) : false;
+        const negated = card.effect ? await this.resolveReactionWindow({ trigger: "effect", source: card }, this.enemy, this.player) : false;
         await this.resolvePlayedCard(this.player, this.enemy, card, negated, "player", preferredSlot);
         this.checkGameEnd();
         return true;
@@ -162,7 +168,7 @@
       const unit = this.player.units[attackerIndex];
       if (!unit || unit.exhausted) return;
 
-      const negated = await this.opponentMayReact({ trigger: "attack", source: cards[unit.id] });
+      const negated = await this.resolveReactionWindow({ trigger: "attack", source: cards[unit.id], sourceIndex: attackerIndex }, this.enemy, this.player);
       if (negated) {
         unit.exhausted = true;
         this.notify();
@@ -220,7 +226,7 @@
         const unit = this.enemy.units[i];
         if (!unit || unit.exhausted || this.finished) continue;
         const target = this.cpu.chooseAttackTarget(this.player);
-        const negated = await this.playerMayReact({ trigger: "attack", source: cards[unit.id] });
+        const negated = await this.resolveReactionWindow({ trigger: "attack", source: cards[unit.id], sourceIndex: i }, this.player, this.enemy);
         if (negated) {
           unit.exhausted = true;
           this.notify();
@@ -253,7 +259,7 @@
 
       this.notify();
       if (card.effect) await this.showActivation(card, "enemy", "effect");
-      const negated = card.effect ? await this.playerMayReact({ trigger: "effect", source: card }) : false;
+      const negated = card.effect ? await this.resolveReactionWindow({ trigger: "effect", source: card }, this.player, this.enemy) : false;
       await this.resolvePlayedCard(this.enemy, this.player, card, negated, "enemy");
       this.checkGameEnd();
       this.notify();
@@ -273,7 +279,7 @@
           await this.effects.resolve(card.effect, player, opponent, card);
           this.afterSummon(player, card.id);
         } else if (negated) {
-          this.log(`${card.name}の召喚時効果は無効化された。`);
+          this.log(`${card.name}の通常召喚時効果は無効化された。`);
         } else {
           this.afterSummon(player, card.id);
         }
@@ -296,40 +302,62 @@
       }
     }
 
-    async playerMayReact(event) {
-      const options = this.getUsableReactions(this.player, event.trigger);
-      if (options.length === 0) return false;
-      const choiceIndex = await this.options.requestReaction(options, event, this);
-      if (choiceIndex === null || choiceIndex === undefined) return false;
+    async resolveReactionWindow(initialEvent, firstResponder, otherPlayer) {
+      const chain = [];
+      let responder = firstResponder;
+      let opponent = otherPlayer;
+      let event = initialEvent;
 
-      const option = options.find((entry) => entry.index === choiceIndex);
-      if (!option) return false;
-      const card = cards[option.id];
-      if (!this.payCost(this.player, card.cost)) return false;
-      this.player.reactions[option.index] = null;
-      this.player.grave.push(option.id);
-      this.log(`${card.name}を発動。`);
-      this.notify();
-      await this.showActivation(card, "player", "reaction");
-      this.applyReactionEffect(card, this.player, this.enemy);
-      this.notify();
-      return true;
+      while (!this.finished) {
+        const link = await this.chooseReactionLink(responder, opponent, event);
+        if (!link) break;
+        chain.push(link);
+        event = { trigger: "effect", source: link.card, chainLink: link };
+        [responder, opponent] = [opponent, responder];
+      }
+
+      if (chain.length === 0) return false;
+      return await this.resolveReactionChain(chain);
     }
 
-    async opponentMayReact(event) {
-      const options = this.getUsableReactions(this.enemy, event.trigger);
+    async chooseReactionLink(player, opponent, event) {
+      const options = this.getUsableReactions(player, event.trigger);
       if (options.length === 0) return false;
-      const option = options[0];
+      const choiceIndex = player === this.player
+        ? await this.options.requestReaction(options, event, this)
+        : options[0].index;
+      if (choiceIndex === null || choiceIndex === undefined) return null;
+
+      const option = options.find((entry) => entry.index === choiceIndex);
+      if (!option) return null;
       const card = cards[option.id];
-      if (!this.payCost(this.enemy, card.cost)) return false;
-      this.enemy.reactions[option.index] = null;
-      this.enemy.grave.push(option.id);
-      this.log(`相手は${card.name}を発動。`);
+      if (!this.payCost(player, card.cost)) return null;
+      player.reactions[option.index] = null;
+      player.grave.push(option.id);
+      this.log(`${player === this.enemy ? "相手は" : ""}${card.name}を発動。`);
       this.notify();
-      await this.showActivation(card, "enemy", "reaction");
-      this.applyReactionEffect(card, this.enemy, this.player);
-      this.notify();
-      return true;
+      await this.showActivation(card, player === this.enemy ? "enemy" : "player", "reaction");
+      return { card, player, opponent, event, negated: false };
+    }
+
+    async resolveReactionChain(chain) {
+      let baseNegated = false;
+      this.log("チェーンを解決。");
+      for (let i = chain.length - 1; i >= 0; i -= 1) {
+        const link = chain[i];
+        if (link.negated) {
+          this.log(`${link.card.name}は無効化された。`);
+          continue;
+        }
+        const result = this.applyReactionEffect(link.card, link.player, link.opponent, link.event);
+        if (result?.negates) {
+          if (i === 0) baseNegated = true;
+          else chain[i - 1].negated = true;
+        }
+        this.notify();
+        if (i > 0) await this.afterEffectStep();
+      }
+      return baseNegated;
     }
 
     getUsableReactions(player, trigger) {
@@ -342,23 +370,58 @@
         });
     }
 
-    applyReactionEffect(card, player, opponent) {
+    applyReactionEffect(card, player, opponent, event = {}) {
       if (card.effect === "negateAttackDamage") {
         const dealt = this.damage(opponent, 500, { log: false });
         this.log(`${card.name}で攻撃を止め、${dealt}ダメージ。`);
-        return;
+        return { negates: true };
       }
       if (card.effect === "negateAttackUntap") {
         this.untapOneCharge(player);
         this.log(`${card.name}で攻撃を止めた。`);
-        return;
+        return { negates: true };
       }
       if (card.effect === "negateEffectDraw") {
         if (this.countThemeInCharge(player, "星導") >= 3) this.drawCards(player, 1);
         this.log(`${card.name}で効果を止めた。`);
-        return;
+        return { negates: true };
+      }
+      if (card.effect === "bladeCounter") {
+        const sourceIndex = Number(event.sourceIndex);
+        const targetIndex = Number.isInteger(sourceIndex) && opponent.units[sourceIndex]
+          ? sourceIndex
+          : opponent.units.findIndex((unit) => unit && unit.id === event.source?.id);
+        if (targetIndex !== -1) {
+          const targetName = cards[opponent.units[targetIndex].id].name;
+          if (this.countThemeInCharge(player, "断刃") >= 3) {
+            this.destroyUnit(opponent, targetIndex);
+            this.log(`${card.name}で${targetName}を破壊。`);
+          } else {
+            opponent.units[targetIndex].exhausted = true;
+            this.log(`${card.name}で${targetName}を行動済みにした。`);
+          }
+          return { negates: true };
+        }
+        this.log(`${card.name}で攻撃を止めた。`);
+        return { negates: true };
+      }
+      if (card.effect === "cyberShield") {
+        if (this.countThemeUnits(player, "電脳") >= 2) this.drawCards(player, 1);
+        this.log(`${card.name}で攻撃を止めた。`);
+        return { negates: true };
+      }
+      if (card.effect === "cyberCounterhack") {
+        if (this.countThemeUnits(player, "電脳") >= 2) this.revealReactions(opponent, 1);
+        this.log(`${card.name}で効果を止めた。`);
+        return { negates: true };
+      }
+      if (card.effect === "sosaiStreamCancel") {
+        if (this.hasSosaiPair(player)) this.drawCards(player, 1);
+        this.log(`${card.name}で効果を止めた。`);
+        return { negates: true };
       }
       this.log(`${card.name}で止めた。`);
+      return { negates: true };
     }
 
     afterSummon(player, id) {
@@ -390,7 +453,11 @@
       return true;
     }
 
-    async specialSummonFromHand(player, predicate, choice = {}) {
+    opponentOf(player) {
+      return player === this.player ? this.enemy : this.player;
+    }
+
+    async specialSummonFromHand(player, predicate, choice = {}, opponent = null) {
       const slot = player.units.findIndex((unit) => !unit);
       if (slot === -1) return false;
       const index = await this.chooseHandIndex(player, predicate, {
@@ -401,8 +468,21 @@
       const id = player.hand.splice(index, 1)[0];
       player.units[slot] = { id, exhausted: false, atkMod: 0 };
       this.log(`${cards[id].name}を追加召喚。`);
+      await this.resolveSpecialSummonEffect(player, opponent || this.opponentOf(player), id);
       this.afterSummon(player, id);
       return true;
+    }
+
+    async resolveSpecialSummonEffect(player, opponent, id) {
+      const card = cards[id];
+      if (!card?.specialEffect) return;
+      await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
+      const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
+      if (negated) {
+        this.log(`${card.name}の追加召喚時効果は無効化された。`);
+        return;
+      }
+      await this.effects.resolve(card.specialEffect, player, opponent, card);
     }
 
     placeCore(player, id, preferredSlot = null) {
@@ -542,6 +622,25 @@
       return player.charge.filter((entry) => cards[entry.id].name.includes(theme)).length;
     }
 
+    countThemeUnits(player, theme) {
+      return player.units.filter((unit) => unit && cards[unit.id].name.includes(theme)).length;
+    }
+
+    controlsCard(player, id) {
+      return player.units.some((unit) => unit?.id === id);
+    }
+
+    hasSosaiPair(player) {
+      return SOSAI_PAIRS.some(([first, second]) => this.controlsCard(player, first) && this.controlsCard(player, second));
+    }
+
+    hasSosaiPairMate(player, id) {
+      return SOSAI_PAIRS.some(([first, second]) => (
+        (id === first && this.controlsCard(player, second)) ||
+        (id === second && this.controlsCard(player, first))
+      ));
+    }
+
     completeTurn() {
       this.completedTurns += 1;
       if (this.completedTurns % 2 !== 0) return;
@@ -585,7 +684,9 @@
         return;
       }
       const amount = card.level >= 2 ? 2 : 1;
-      if (this.revealReactions(this.player, amount) || this.revealReactions(this.enemy, amount)) {
+      const playerRevealed = this.revealReactions(this.player, amount);
+      const enemyRevealed = this.revealReactions(this.enemy, amount);
+      if (playerRevealed || enemyRevealed) {
         this.log(`${card.name}でセットリアクションがめくられた。`);
       }
     }
@@ -599,7 +700,7 @@
         player.reactions[i] = { id, revealed: true };
         revealed += 1;
       }
-      return revealed > 0;
+      return revealed;
     }
 
     removeRevealedReaction(player) {
@@ -608,7 +709,7 @@
       const id = reactionId(player.reactions[index]);
       player.reactions[index] = null;
       player.grave.push(id);
-      this.log(`${cards[id].name}は環境で墓地に送られた。`);
+      this.log(`${cards[id].name}は墓地に送られた。`);
       return true;
     }
 
@@ -630,6 +731,31 @@
       return true;
     }
 
+    returnBestUnitToHand(player) {
+      const target = player.units
+        .map((unit, index) => ({ unit, index }))
+        .filter((entry) => entry.unit)
+        .sort((a, b) => this.getUnitAtk(player, b.unit) - this.getUnitAtk(player, a.unit))[0];
+      if (!target) return false;
+      const targetName = cards[target.unit.id].name;
+      player.hand.push(target.unit.id);
+      player.units[target.index] = null;
+      this.log(`${targetName}を手札に戻した。`);
+      return true;
+    }
+
+    destroyBestExhaustedUnit(player) {
+      const target = player.units
+        .map((unit, index) => ({ unit, index }))
+        .filter((entry) => entry.unit && entry.unit.exhausted)
+        .sort((a, b) => this.getUnitAtk(player, b.unit) - this.getUnitAtk(player, a.unit))[0];
+      if (!target) return false;
+      const targetName = cards[target.unit.id].name;
+      this.destroyUnit(player, target.index);
+      this.log(`${targetName}を破壊した。`);
+      return true;
+    }
+
     exhaustBestUnit(player) {
       const target = player.units
         .map((unit, index) => ({ unit, index }))
@@ -639,6 +765,14 @@
       target.unit.exhausted = true;
       this.log(`${cards[target.unit.id].name}を行動済みにした。`);
       return true;
+    }
+
+    hasExhaustedUnit(player) {
+      return player.units.some((unit) => unit && unit.exhausted);
+    }
+
+    hasSetReaction(player) {
+      return player.reactions.some((entry) => reactionId(entry));
     }
 
     resolveAttack(attackerPlayer, defenderPlayer, attackerIndex, targetIndex) {
@@ -699,6 +833,9 @@
       let atk = card.atk + (unit.atkMod || 0);
       if (card.name.includes("星導の衛士カイ")) atk += player.cores.filter(Boolean).length * 300;
       if (card.name.includes("黒機") && this.hasCore(player, "black_tower")) atk += 200;
+      if (card.name.includes("断刃") && this.hasCore(player, "blade_scaffold")) atk += 200;
+      if (card.name.includes("電脳") && this.hasCore(player, "cyber_network")) atk += 100;
+      if (card.name.includes("双彩") && this.hasCore(player, "sosai_pop_stage") && this.hasSosaiPairMate(player, unit.id)) atk += 300;
       atk += this.getEnvironmentAtkMod();
       return atk;
     }

@@ -16,6 +16,11 @@ const DECK_SIZE = chrono.DECK_SIZE || 40;
 const ENVIRONMENT_DECK_PER_LEVEL = chrono.ENVIRONMENT_DECK_PER_LEVEL || 3;
 const ENVIRONMENT_MAX_LEVEL = chrono.ENVIRONMENT_MAX_LEVEL || 3;
 const starterEnvironmentDeck = chrono.starterEnvironmentDeck || {};
+const SOSAI_PAIRS = [
+  ["sosai_hikari", "sosai_mint"],
+  ["sosai_nene", "sosai_ruri"],
+  ["sosai_coco", "sosai_luna"],
+];
 
 const rooms = new Map();
 
@@ -265,11 +270,12 @@ function playFromHand(game, player, opponent, index, seat, preferredSlot = null)
   player.hand.splice(index, 1);
   if (card.effect) addActivation(game, card, seat, "effect");
 
-  if (!queueReactionChoice(game, opponent, player, card, "effect", (negated) => {
+  if (card.effect && queueReactionChoice(game, opponent, player, card, "effect", (negated) => {
     resolvePlayedCard(game, player, opponent, card, negated, seat, preferredSlot);
   })) {
-    resolvePlayedCard(game, player, opponent, card, false, seat, preferredSlot);
+    return true;
   }
+  resolvePlayedCard(game, player, opponent, card, false, seat, preferredSlot);
   return true;
 }
 
@@ -278,12 +284,14 @@ function resolvePlayedCard(game, player, opponent, card, negated, seat, preferre
   if (card.type === "ユニット") {
     summonUnit(player, card.id, preferredSlot);
     log(game, `${prefix}${card.name}を召喚。`);
-    if (!negated) {
+    if (!negated && card.effect) {
       const pending = resolveEffect(game, card.effect, player, opponent, card);
       if (pending) appendPendingAfter(game, () => afterSummon(game, player, card.id));
       else afterSummon(game, player, card.id);
+    } else if (negated) {
+      log(game, `${card.name}の通常召喚時効果は無効化された。`);
     } else {
-      log(game, `${card.name}の召喚時効果は無効化された。`);
+      afterSummon(game, player, card.id);
     }
     return;
   }
@@ -314,7 +322,7 @@ function attackWithUnit(game, player, opponent, attackerIndex, targetIndex) {
       return;
     }
     resolveAttack(game, player, opponent, attackerIndex, targetIndex);
-  })) {
+  }, attackerIndex)) {
     return true;
   }
 
@@ -350,8 +358,12 @@ function resolveAttack(game, player, opponent, attackerIndex, targetIndex) {
   return true;
 }
 
-function queueReactionChoice(game, reactor, opponent, sourceCard, trigger, continuation) {
-  const options = getUsableReactions(reactor, trigger);
+function queueReactionChoice(game, reactor, opponent, sourceCard, trigger, continuation, sourceIndex = null) {
+  return queueReactionChainStep(game, [], { trigger, source: sourceCard, sourceIndex }, reactor, opponent, continuation, true);
+}
+
+function queueReactionChainStep(game, chain, event, reactor, opponent, continuation, firstStep = false) {
+  const options = getUsableReactions(reactor, event.trigger);
   if (options.length === 0) return false;
 
   game.pendingChoice = {
@@ -359,13 +371,12 @@ function queueReactionChoice(game, reactor, opponent, sourceCard, trigger, conti
     seat: seatOf(game, reactor),
     zone: "reaction",
     title: "リアクション確認",
-    message: `${sourceCard.name}に対応できます。発動するカードを選んでください。`,
+    message: `${event.source.name}に対応できます。発動するカードを選んでください。`,
     candidates: options,
     allowPass: true,
     confirmLabel: "発動",
     passLabel: "発動しない",
     resolve: (candidate) => {
-      let negated = false;
       if (candidate) {
         const card = cards[candidate.id];
         if (card && payCost(reactor, card.cost)) {
@@ -373,15 +384,40 @@ function queueReactionChoice(game, reactor, opponent, sourceCard, trigger, conti
           reactor.grave.push(candidate.id);
           addActivation(game, card, seatOf(game, reactor), "reaction");
           log(game, `${card.name}を発動。`);
-          applyReactionEffect(game, card, reactor, opponent);
-          negated = true;
+          const link = { card, player: reactor, opponent, event, negated: false };
+          chain.push(link);
+          const nextEvent = { trigger: "effect", source: card, chainLink: link };
+          if (queueReactionChainStep(game, chain, nextEvent, opponent, reactor, continuation)) return;
+          resolveReactionChain(game, chain, continuation);
+          return;
         }
       }
-      continuation(negated);
+      if (chain.length > 0) {
+        resolveReactionChain(game, chain, continuation);
+      }
+      else continuation(false);
     },
     afterResolve: null,
   };
   return true;
+}
+
+function resolveReactionChain(game, chain, continuation) {
+  let baseNegated = false;
+  if (chain.length > 0) log(game, "チェーンを解決。");
+  for (let i = chain.length - 1; i >= 0; i -= 1) {
+    const link = chain[i];
+    if (link.negated) {
+      log(game, `${link.card.name}は無効化された。`);
+      continue;
+    }
+    const result = applyReactionEffect(game, link.card, link.player, link.opponent, link.event);
+    if (result?.negates) {
+      if (i === 0) baseNegated = true;
+      else chain[i - 1].negated = true;
+    }
+  }
+  continuation(baseNegated);
 }
 
 function getUsableReactions(player, trigger) {
@@ -399,27 +435,62 @@ function autoReact(game, reactor, opponent, sourceCard, trigger) {
   reactor.grave.push(option.id);
   addActivation(game, card, seatOf(game, reactor), "reaction");
   log(game, `${card.name}を発動。`);
-  applyReactionEffect(game, card, reactor, opponent);
+  applyReactionEffect(game, card, reactor, opponent, { trigger, source: sourceCard });
   return true;
 }
 
-function applyReactionEffect(game, card, player, opponent) {
+function applyReactionEffect(game, card, player, opponent, event = {}) {
   if (card.effect === "negateAttackDamage") {
     const dealt = damage(game, opponent, 500);
     log(game, `${card.name}で攻撃を止め、${dealt}ダメージ。`);
-    return;
+    return { negates: true };
   }
   if (card.effect === "negateAttackUntap") {
     untapOneCharge(player);
     log(game, `${card.name}で攻撃を止めた。`);
-    return;
+    return { negates: true };
   }
   if (card.effect === "negateEffectDraw") {
     if (countThemeInCharge(player, "星導") >= 3) drawCards(player, 1, game);
     log(game, `${card.name}で効果を止めた。`);
-    return;
+    return { negates: true };
+  }
+  if (card.effect === "bladeCounter") {
+    const sourceIndex = Number(event.sourceIndex);
+    const targetIndex = Number.isInteger(sourceIndex) && opponent.units[sourceIndex]
+      ? sourceIndex
+      : opponent.units.findIndex((unit) => unit && unit.id === event.source?.id);
+    if (targetIndex !== -1) {
+      const targetName = cards[opponent.units[targetIndex].id].name;
+      if (countThemeInCharge(player, "断刃") >= 3) {
+        destroyUnit(opponent, targetIndex);
+        log(game, `${card.name}で${targetName}を破壊。`);
+      } else {
+        opponent.units[targetIndex].exhausted = true;
+        log(game, `${card.name}で${targetName}を行動済みにした。`);
+      }
+      return { negates: true };
+    }
+    log(game, `${card.name}で攻撃を止めた。`);
+    return { negates: true };
+  }
+  if (card.effect === "cyberShield") {
+    if (countThemeUnits(player, "電脳") >= 2) drawCards(player, 1, game);
+    log(game, `${card.name}で攻撃を止めた。`);
+    return { negates: true };
+  }
+  if (card.effect === "cyberCounterhack") {
+    if (countThemeUnits(player, "電脳") >= 2) revealReactions(opponent, 1);
+    log(game, `${card.name}で効果を止めた。`);
+    return { negates: true };
+  }
+  if (card.effect === "sosaiStreamCancel") {
+    if (hasSosaiPair(player)) drawCards(player, 1, game);
+    log(game, `${card.name}で効果を止めた。`);
+    return { negates: true };
   }
   log(game, `${card.name}で止めた。`);
+  return { negates: true };
 }
 
 function resolvePendingChoice(game, action) {
@@ -487,22 +558,53 @@ function chooseFromGrave(game, player, predicate, choice, after = () => {}) {
   }, () => after(false));
 }
 
-function chooseSpecialSummonFromHand(game, player, predicate, choice) {
+function chooseSpecialSummonFromHand(game, player, predicate, choice, opponent = null, after = () => {}) {
   const slot = player.units.findIndex((unit) => !unit);
-  if (slot === -1) return false;
+  if (slot === -1) {
+    after(false);
+    return false;
+  }
   return queueChoice(game, player, "hand", player.hand, predicate, choice, (candidate) => {
     const [id] = player.hand.splice(candidate.index, 1);
     player.units[slot] = { id, exhausted: false, atkMod: 0 };
     log(game, `${cards[id].name}を追加召喚。`);
-    afterSummon(game, player, id);
-  });
+    resolveSpecialSummonEffect(game, player, opponent || opponentOf(game, player), id, () => {
+      afterSummon(game, player, id);
+      after(true);
+    });
+  }, () => after(false));
 }
 
-function chooseDiscardFromHand(game, player, choice) {
+function resolveSpecialSummonEffect(game, player, opponent, id, after = () => {}) {
+  const card = cards[id];
+  if (!card?.specialEffect) {
+    after(false);
+    return false;
+  }
+  addActivation(game, card, seatOf(game, player), "effect");
+  const resolveEffectAfterReactions = (negated) => {
+    if (negated) {
+      log(game, `${card.name}の追加召喚時効果は無効化された。`);
+      after(false);
+      return;
+    }
+    const pending = resolveEffect(game, card.specialEffect, player, opponent, card);
+    if (pending) appendPendingAfter(game, () => after(true));
+    else after(true);
+  };
+  if (queueReactionChoice(game, opponent, player, card, "effect", resolveEffectAfterReactions)) return true;
+  resolveEffectAfterReactions(false);
+  return true;
+}
+
+function chooseDiscardFromHand(game, player, choice, after = () => {}) {
   return queueChoice(game, player, "hand", player.hand, () => true, choice, (candidate) => {
     const [id] = player.hand.splice(candidate.index, 1);
     player.grave.push(id);
     log(game, `${cards[id].name}を墓地に送った。`);
+    after(true);
+  }, () => {
+    after(false);
   });
 }
 
@@ -510,6 +612,10 @@ function seatOf(game, player) {
   if (player === game.host) return "host";
   if (player === game.guest) return "guest";
   return null;
+}
+
+function opponentOf(game, player) {
+  return player === game.host ? game.guest : game.host;
 }
 
 function completeTurn(game) {
@@ -556,7 +662,9 @@ function applyEnvironmentEnter(game, card) {
     return;
   }
   const amount = card.level >= 2 ? 2 : 1;
-  if (revealReactions(game.host, amount) || revealReactions(game.guest, amount)) {
+  const hostRevealed = revealReactions(game.host, amount);
+  const guestRevealed = revealReactions(game.guest, amount);
+  if (hostRevealed || guestRevealed) {
     log(game, `${card.name}でセットリアクションがめくられた。`);
   }
 }
@@ -570,7 +678,7 @@ function revealReactions(player, amount) {
     player.reactions[i] = { id, revealed: true };
     revealed += 1;
   }
-  return revealed > 0;
+  return revealed;
 }
 
 function removeRevealedReaction(game, player) {
@@ -579,7 +687,7 @@ function removeRevealedReaction(game, player) {
   const id = reactionId(player.reactions[index]);
   player.reactions[index] = null;
   player.grave.push(id);
-  log(game, `${cards[id].name}は環境で墓地に送られた。`);
+  log(game, `${cards[id].name}は墓地に送られた。`);
   return true;
 }
 
@@ -677,6 +785,154 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "blackRaid":
       damage(game, opponent, 800);
       if (controlsThemeUnit(player, "黒機")) exhaustBestUnit(game, opponent);
+      break;
+    case "bladeTracker":
+      if (!exhaustBestUnit(game, opponent)) damage(game, opponent, 300);
+      break;
+    case "bladeMarksmith":
+      if (hasExhaustedUnit(opponent)) drawCards(player, 1, game);
+      break;
+    case "bladeEdgeguard":
+      if (countThemeInCharge(player, "断刃") >= 2) exhaustBestUnit(game, opponent);
+      break;
+    case "bladeExecutioner":
+      if (!destroyBestExhaustedUnit(game, opponent)) exhaustBestUnit(game, opponent);
+      break;
+    case "bladeArbiter":
+      if (countThemeInCharge(player, "断刃") >= 4) destroyBestUnit(opponent);
+      else destroyBestExhaustedUnit(game, opponent);
+      break;
+    case "bladeMark":
+      exhaustBestUnit(game, opponent);
+      if (controlsThemeUnit(player, "断刃")) damage(game, opponent, 400);
+      break;
+    case "bladeCleave":
+      if (!destroyBestExhaustedUnit(game, opponent)) exhaustBestUnit(game, opponent);
+      break;
+    case "bladeWarrant":
+      return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.name.includes("断刃"), {
+        title: "断刃ユニットをサーチ",
+        message: "デッキから手札に加えるユニットを選んでください。",
+      }, () => {
+        if (hasExhaustedUnit(opponent)) drawCards(player, 1, game);
+      });
+    case "bladeScaffold":
+      exhaustBestUnit(game, opponent);
+      break;
+    case "cyberMio":
+      return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
+        title: "電脳ユニットを追加召喚",
+        message: "手札から追加召喚するユニットを選んでください。",
+      }, opponent);
+    case "cyberReiSpecial":
+      return chooseFromDeck(game, player, (card) => card.type === "リアクション" && card.name.includes("電脳"), {
+        title: "電脳リアクションをサーチ",
+        message: "デッキから手札に加えるリアクションを選んでください。",
+      });
+    case "cyberShionSpecial": {
+      const revealed = revealReactions(opponent, 1);
+      if (revealed > 0) damage(game, opponent, 500);
+      break;
+    }
+    case "cyberYuna":
+      return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 2, {
+        title: "電脳ユニットを追加召喚",
+        message: "手札から追加召喚するユニットを選んでください。",
+      }, opponent);
+    case "cyberYunaSpecial":
+      untapOneCharge(player);
+      break;
+    case "cyberAkariSpecial":
+      drawCards(player, 2, game);
+      return chooseDiscardFromHand(game, player, {
+        title: "手札を1枚捨てる",
+        message: "墓地に送るカードを選んでください。",
+        delayBeforeOpenMs: 560,
+      }, () => {
+        removeRevealedReaction(game, opponent);
+      });
+    case "cyberPreview":
+      return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
+        title: "電脳ユニットを追加召喚",
+        message: "手札から追加召喚するユニットを選んでください。",
+      }, opponent, (moved) => {
+        if (moved) drawCards(player, 1, game);
+      });
+    case "cyberIntrusion": {
+      revealReactions(opponent, 1);
+      if (countThemeUnits(player, "電脳") >= 2) {
+        return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳"), {
+          title: "電脳ユニットを追加召喚",
+          message: "手札から追加召喚するユニットを選んでください。",
+          delayBeforeOpenMs: 560,
+        }, opponent);
+      }
+      return false;
+    }
+    case "cyberNetwork":
+      return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
+        title: "電脳ユニットを追加召喚",
+        message: "手札から追加召喚するユニットを選んでください。",
+      }, opponent);
+    case "sosaiHikari":
+      return chooseFromDeck(game, player, (card) => card.id === "sosai_mint", {
+        title: "ミントをサーチ",
+        message: "デッキから手札に加えるミントを選んでください。",
+      }, () => {
+        if (controlsCard(player, "sosai_mint")) drawCards(player, 1, game);
+      });
+    case "sosaiMint": {
+      revealReactions(opponent, 1);
+      if (controlsCard(player, "sosai_hikari")) removeRevealedReaction(game, opponent);
+      break;
+    }
+    case "sosaiNene":
+      return chooseFromDeck(game, player, (card) => card.id === "sosai_ruri", {
+        title: "ルリをサーチ",
+        message: "デッキから手札に加えるルリを選んでください。",
+      }, () => {
+        if (controlsCard(player, "sosai_ruri")) returnBestUnitToHand(game, opponent);
+      });
+    case "sosaiRuri":
+      return chooseFromDeck(game, player, (card) => card.id === "sosai_nene", {
+        title: "ネネをサーチ",
+        message: "デッキから手札に加えるネネを選んでください。",
+      }, () => {
+        if (controlsCard(player, "sosai_nene")) {
+          damage(game, opponent, 700);
+          drawCards(player, 1, game);
+        }
+      });
+    case "sosaiCoco":
+      return chooseFromDeck(game, player, (card) => card.id === "sosai_luna", {
+        title: "ルナをサーチ",
+        message: "デッキから手札に加えるルナを選んでください。",
+      }, () => {
+        if (controlsCard(player, "sosai_luna")) {
+          untapOneCharge(player);
+          drawCards(player, 1, game);
+        }
+      });
+    case "sosaiLuna":
+      damage(game, opponent, 700);
+      if (controlsCard(player, "sosai_coco")) destroyBestUnit(opponent);
+      break;
+    case "sosaiLiveStart":
+      return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.name.includes("双彩"), {
+        title: "双彩ユニットをサーチ",
+        message: "デッキから手札に加えるユニットを選んでください。",
+      }, () => {
+        if (hasSosaiPair(player)) drawCards(player, 1, game);
+      });
+    case "sosaiHeartSync":
+      return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("双彩") && card.cost <= 2, {
+        title: "双彩ユニットを追加召喚",
+        message: "手札から追加召喚するユニットを選んでください。",
+      }, opponent, (moved) => {
+        if (moved && hasSosaiPair(player)) drawCards(player, 1, game);
+      });
+    case "sosaiPopStage":
+      drawCards(player, 1, game);
       break;
     case "drawDiscard":
       drawCards(player, 2, game);
@@ -836,6 +1092,31 @@ function destroyBestUnit(player) {
   return true;
 }
 
+function returnBestUnitToHand(game, player) {
+  const target = player.units
+    .map((unit, index) => ({ unit, index }))
+    .filter((entry) => entry.unit)
+    .sort((a, b) => getUnitAtk(player, b.unit, game) - getUnitAtk(player, a.unit, game))[0];
+  if (!target) return false;
+  const targetName = cards[target.unit.id].name;
+  player.hand.push(target.unit.id);
+  player.units[target.index] = null;
+  log(game, `${targetName}を手札に戻した。`);
+  return true;
+}
+
+function destroyBestExhaustedUnit(game, player) {
+  const target = player.units
+    .map((unit, index) => ({ unit, index }))
+    .filter((entry) => entry.unit && entry.unit.exhausted)
+    .sort((a, b) => getUnitAtk(player, b.unit, game) - getUnitAtk(player, a.unit, game))[0];
+  if (!target) return false;
+  const targetName = cards[target.unit.id].name;
+  destroyUnit(player, target.index);
+  log(game, `${targetName}を破壊した。`);
+  return true;
+}
+
 function exhaustBestUnit(game, player) {
   const target = player.units
     .map((unit, index) => ({ unit, index }))
@@ -845,6 +1126,14 @@ function exhaustBestUnit(game, player) {
   target.unit.exhausted = true;
   log(game, `${cards[target.unit.id].name}を行動済みにした。`);
   return true;
+}
+
+function hasExhaustedUnit(player) {
+  return player.units.some((unit) => unit && unit.exhausted);
+}
+
+function hasSetReaction(player) {
+  return player.reactions.some((entry) => reactionId(entry));
 }
 
 function destroyUnit(player, index) {
@@ -866,6 +1155,25 @@ function countThemeInCharge(player, theme) {
   return player.charge.filter((entry) => cards[entry.id].name.includes(theme)).length;
 }
 
+function countThemeUnits(player, theme) {
+  return player.units.filter((unit) => unit && cards[unit.id].name.includes(theme)).length;
+}
+
+function controlsCard(player, id) {
+  return player.units.some((unit) => unit?.id === id);
+}
+
+function hasSosaiPair(player) {
+  return SOSAI_PAIRS.some(([first, second]) => controlsCard(player, first) && controlsCard(player, second));
+}
+
+function hasSosaiPairMate(player, id) {
+  return SOSAI_PAIRS.some(([first, second]) => (
+    (id === first && controlsCard(player, second)) ||
+    (id === second && controlsCard(player, first))
+  ));
+}
+
 function controlsThemeUnit(player, theme) {
   return player.units.some((unit) => unit && cards[unit.id].name.includes(theme));
 }
@@ -875,6 +1183,9 @@ function getUnitAtk(player, unit, game = null) {
   let atk = cards[unit.id].atk + (unit.atkMod || 0);
   if (player.cores.includes("black_tower") && cards[unit.id].name.includes("黒機")) atk += 200;
   if (cards[unit.id].id === "star_guard") atk += player.cores.filter(Boolean).length * 300;
+  if (player.cores.includes("blade_scaffold") && cards[unit.id].name.includes("断刃")) atk += 200;
+  if (player.cores.includes("cyber_network") && cards[unit.id].name.includes("電脳")) atk += 100;
+  if (player.cores.includes("sosai_pop_stage") && cards[unit.id].name.includes("双彩") && hasSosaiPairMate(player, unit.id)) atk += 300;
   atk += getEnvironmentAtkMod(game);
   return atk;
 }

@@ -455,7 +455,7 @@
       top.className = "hand-drag-ghost-top";
       const name = document.createElement("div");
       name.className = "hand-drag-ghost-name";
-      name.textContent = card.name;
+      name.innerHTML = CardRenderer.rubyText(card.name);
       const cost = document.createElement("div");
       cost.className = "hand-drag-ghost-cost";
       cost.textContent = card.level ? `Lv${card.level}` : card.cost;
@@ -476,10 +476,10 @@
       rules.className = "hand-drag-ghost-rules";
       const type = document.createElement("div");
       type.className = "hand-drag-ghost-type";
-      type.textContent = CardRenderer.metaLine(card);
+      type.innerHTML = CardRenderer.rubyText(CardRenderer.metaLine(card));
       const effect = document.createElement("div");
       effect.className = `hand-drag-ghost-effect ${CardRenderer.effectSizeClass(card.text)}`;
-      effect.textContent = card.text;
+      effect.innerHTML = CardRenderer.rubyText(card.text);
       rules.append(type, effect);
       ghost.append(rules);
 

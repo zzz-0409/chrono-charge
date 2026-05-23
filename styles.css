@@ -611,6 +611,51 @@ select {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.82);
 }
 
+.card-name ruby,
+.type-line ruby,
+.card-effect ruby,
+.focus-type ruby,
+.focus-effect-text ruby,
+.deck-row-sub ruby,
+.hand-drag-ghost ruby {
+  ruby-position: over;
+  ruby-align: center;
+}
+
+.card-name rt,
+.type-line rt,
+.card-effect rt,
+.focus-type rt,
+.focus-effect-text rt,
+.deck-row-sub rt,
+.hand-drag-ghost rt {
+  color: rgba(238, 248, 246, 0.9);
+  font-size: 0.34em;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.88);
+  user-select: none;
+}
+
+.game-card .card-name rt {
+  font-size: 0.32em;
+}
+
+.game-card .type-line rt,
+.game-card .card-effect rt {
+  font-size: 0.36em;
+}
+
+.focus-card-copy rt,
+.deck-row rt {
+  font-size: 0.42em;
+}
+
+.card-zoom-shell .preview-card rt {
+  font-size: 0.46em;
+}
+
 .cost-chip {
   width: 30px;
   aspect-ratio: 1;
@@ -740,8 +785,8 @@ select {
 .type-line {
   font-size: 0.78rem;
   font-weight: 900;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -756,15 +801,16 @@ select {
   width: 78.4%;
   height: 26.2%;
   display: grid;
-  grid-template-rows: 13% 1fr;
-  gap: 2%;
+  grid-template-rows: 20% minmax(0, 1fr);
+  gap: 0;
   color: #dce8e6;
 }
 
 .game-card .type-line {
   font-size: 0.64rem;
-  line-height: 1;
+  line-height: 1.28;
   opacity: 0.82;
+  padding-top: 0.1em;
 }
 
 .card-effect {
@@ -2814,7 +2860,7 @@ select {
 .game-card .card-face .type-line {
   display: block;
   font-size: 0.78rem;
-  line-height: 1;
+  line-height: 1.28;
 }
 
 .game-card .card-face .card-effect {

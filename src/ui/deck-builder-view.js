@@ -321,9 +321,9 @@
       row.innerHTML = `
         <div>
           <div class="deck-row-main">
-            <span class="card-name">${card.name}</span>
+            <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
           </div>
-          <div class="deck-row-sub">${card.type} / ${card.attr} / ${count}枚</div>
+          <div class="deck-row-sub">${CardRenderer.rubyText(`${card.type} / ${card.attr} / ${count}枚`)}</div>
         </div>
         <div class="deck-row-controls">
           <span class="cost-chip">${card.cost}</span>
@@ -367,10 +367,10 @@
       row.innerHTML = `
         <div>
           <div class="deck-row-main">
-            <span class="card-name">${card.name}</span>
+            <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
             <span class="level-chip">Lv${card.level}</span>
           </div>
-          <div class="deck-row-sub">${card.family}系統 / 環境</div>
+          <div class="deck-row-sub">${CardRenderer.rubyText(`${card.family}系統 / 環境`)}</div>
         </div>
         <div class="deck-row-controls">
           <button class="mini-button" type="button" data-action="remove">-</button>
