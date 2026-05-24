@@ -3,24 +3,35 @@
 
   const {
     DECK_SIZE,
+    DRIVE_DECK_SIZE,
     MAX_COPIES,
-    ENVIRONMENT_DECK_PER_LEVEL,
+    MAX_DRIVE_COPIES,
     STORAGE_KEY,
     cards,
-    environmentPool,
+    drivePool,
     starterDeck,
-    starterEnvironmentDeck,
+    starterDriveDeck,
   } = window.Chrono;
 
-  const STORE_VERSION = 2;
+  const STORE_VERSION = 4;
   const DEFAULT_ACCOUNT = "Player";
   const DEFAULT_DECK_ID = "main";
+  const MAIN_THEME_THRESHOLD = 10;
+
+  const driveDecks = {
+    star: themedDriveDeck("星導"),
+    black: themedDriveDeck("黒機"),
+    blade: themedDriveDeck("断刃"),
+    cyber: themedDriveDeck("電脳"),
+    sosai: themedDriveDeck("双彩"),
+    balance: starterDriveDeck,
+  };
 
   const autoDeckTemplates = {
     star: {
       label: "星導おまかせ",
       main: starterDeck,
-      environment: starterEnvironmentDeck,
+      drive: driveDecks.star,
     },
     black: {
       label: "黒機おまかせ",
@@ -41,17 +52,7 @@
         generic_lancer: 2,
         generic_crusher: 2,
       },
-      environment: {
-        env_wind_l1: 1,
-        env_snow_l1: 1,
-        env_star_l1: 1,
-        env_wind_cross_l2: 1,
-        env_snow_blizzard_l2: 1,
-        env_star_meteor_l2: 1,
-        env_wind_tornado_l3: 1,
-        env_snow_glacier_l3: 1,
-        env_star_shower_l3: 1,
-      },
+      drive: driveDecks.black,
     },
     blade: {
       label: "断刃おまかせ",
@@ -73,17 +74,7 @@
         generic_transfer: 1,
         generic_zero: 2,
       },
-      environment: {
-        env_wind_l1: 1,
-        env_snow_l1: 1,
-        env_star_l1: 1,
-        env_wind_cross_l2: 1,
-        env_snow_blizzard_l2: 1,
-        env_star_meteor_l2: 1,
-        env_wind_tornado_l3: 1,
-        env_snow_glacier_l3: 1,
-        env_star_shower_l3: 1,
-      },
+      drive: driveDecks.blade,
     },
     cyber: {
       label: "電脳おまかせ",
@@ -104,17 +95,7 @@
         generic_zero: 2,
         generic_bind: 2,
       },
-      environment: {
-        env_sun_l1: 1,
-        env_wind_l1: 1,
-        env_star_l1: 1,
-        env_sun_clear_l2: 1,
-        env_wind_gust_l2: 1,
-        env_star_aurora_l2: 1,
-        env_sun_scorch_l3: 1,
-        env_wind_storm_l3: 1,
-        env_star_revelation_l3: 1,
-      },
+      drive: driveDecks.cyber,
     },
     sosai: {
       label: "双彩おまかせ",
@@ -135,17 +116,7 @@
         generic_zero: 2,
         generic_bind: 2,
       },
-      environment: {
-        env_sun_l1: 1,
-        env_star_l1: 1,
-        env_wind_l1: 1,
-        env_sun_clear_l2: 1,
-        env_star_aurora_l2: 1,
-        env_wind_gust_l2: 1,
-        env_sun_gold_l3: 1,
-        env_star_revelation_l3: 1,
-        env_wind_storm_l3: 1,
-      },
+      drive: driveDecks.sosai,
     },
     balance: {
       label: "バランスおまかせ",
@@ -173,7 +144,7 @@
         generic_recall: 1,
         generic_zero: 1,
       },
-      environment: starterEnvironmentDeck,
+      drive: driveDecks.balance,
     },
   };
 
@@ -185,25 +156,23 @@
       this.activeAccount = loaded.activeAccount;
       this.activeDeckId = loaded.activeDeckId;
       this.counts = loaded.counts;
-      this.environmentCounts = loaded.environmentCounts;
+      this.driveCounts = loaded.driveCounts;
     }
 
     load() {
       try {
         const saved = JSON.parse(this.storage.getItem(STORAGE_KEY));
         if (saved && typeof saved === "object") {
-          if (saved.version === STORE_VERSION && saved.accounts) {
-            return this.normalizeState(saved);
+          if (saved.accounts) return this.normalizeState(saved);
+          if (saved.mainDeck || saved.counts || saved.driveDeck) {
+            return this.stateFromDeck(saved.mainDeck || saved.counts || {}, saved.driveDeck || saved.driveCounts || starterDriveDeck);
           }
-          if (saved.mainDeck || saved.environmentDeck) {
-            return this.stateFromDeck(saved.mainDeck || saved.counts || {}, saved.environmentDeck || {});
-          }
-          return this.stateFromDeck(saved, starterEnvironmentDeck);
+          return this.stateFromDeck(saved, starterDriveDeck);
         }
       } catch {
         this.storage.removeItem(STORAGE_KEY);
       }
-      return this.stateFromDeck(starterDeck, starterEnvironmentDeck);
+      return this.stateFromDeck(starterDeck, starterDriveDeck);
     }
 
     normalizeState(saved) {
@@ -219,7 +188,7 @@
       });
 
       if (Object.keys(data.accounts).length === 0) {
-        data.accounts[DEFAULT_ACCOUNT] = this.defaultAccount(starterDeck, starterEnvironmentDeck);
+        data.accounts[DEFAULT_ACCOUNT] = this.defaultAccount(starterDeck, starterDriveDeck);
       }
       if (!data.accounts[data.activeAccount]) data.activeAccount = Object.keys(data.accounts)[0];
 
@@ -232,7 +201,7 @@
         activeAccount: data.activeAccount,
         activeDeckId: activeAccount.activeDeckId,
         counts: this.normalizeMain(activeDeck.mainDeck),
-        environmentCounts: this.normalizeEnvironment(activeDeck.environmentDeck),
+        driveCounts: this.normalizeDrive(activeDeck.driveDeck),
       };
     }
 
@@ -244,7 +213,7 @@
       });
 
       if (Object.keys(decks).length === 0) {
-        decks[DEFAULT_DECK_ID] = this.createDeck(DEFAULT_DECK_ID, "メインデッキ", starterDeck, starterEnvironmentDeck);
+        decks[DEFAULT_DECK_ID] = this.createDeck(DEFAULT_DECK_ID, "メインデッキ", starterDeck, starterDriveDeck);
       }
 
       const activeDeckId = sanitizeId(account.activeDeckId);
@@ -260,17 +229,17 @@
         id,
         deck.name || "メインデッキ",
         deck.mainDeck || deck.counts || {},
-        deck.environmentDeck || deck.environmentCounts || {},
+        deck.driveDeck || deck.driveCounts || starterDriveDeck,
         deck.updatedAt
       );
     }
 
-    stateFromDeck(mainDeck, environmentDeck) {
+    stateFromDeck(mainDeck, driveDeck = starterDriveDeck) {
       const data = {
         version: STORE_VERSION,
         activeAccount: DEFAULT_ACCOUNT,
         accounts: {
-          [DEFAULT_ACCOUNT]: this.defaultAccount(mainDeck, environmentDeck),
+          [DEFAULT_ACCOUNT]: this.defaultAccount(mainDeck, driveDeck),
         },
       };
 
@@ -279,26 +248,26 @@
         activeAccount: DEFAULT_ACCOUNT,
         activeDeckId: DEFAULT_DECK_ID,
         counts: this.normalizeMain(mainDeck),
-        environmentCounts: this.normalizeEnvironment(environmentDeck),
+        driveCounts: this.normalizeDrive(driveDeck),
       };
     }
 
-    defaultAccount(mainDeck, environmentDeck) {
+    defaultAccount(mainDeck, driveDeck) {
       return {
         name: DEFAULT_ACCOUNT,
         activeDeckId: DEFAULT_DECK_ID,
         decks: {
-          [DEFAULT_DECK_ID]: this.createDeck(DEFAULT_DECK_ID, "メインデッキ", mainDeck, environmentDeck),
+          [DEFAULT_DECK_ID]: this.createDeck(DEFAULT_DECK_ID, "メインデッキ", mainDeck, driveDeck),
         },
       };
     }
 
-    createDeck(id, name, mainDeck, environmentDeck, updatedAt = new Date().toISOString()) {
+    createDeck(id, name, mainDeck, driveDeck, updatedAt = new Date().toISOString()) {
       return {
         id,
         name: normalizeDeckName(name),
         mainDeck: this.normalizeMain(mainDeck),
-        environmentDeck: this.normalizeEnvironment(environmentDeck),
+        driveDeck: this.normalizeDrive(driveDeck),
         updatedAt,
       };
     }
@@ -306,54 +275,22 @@
     normalizeMain(source = {}) {
       const result = {};
       Object.entries(source).forEach(([id, count]) => {
-        if (!cards[id] || cards[id].type === "環境") return;
+        if (!cards[id] || cards[id].driveKind || cards[id].type === "環境") return;
         const safeCount = Math.max(0, Math.min(MAX_COPIES, Number(count) || 0));
         if (safeCount > 0) result[id] = safeCount;
       });
-      return trimDeck(result);
+      return trimDeck(result, DECK_SIZE);
     }
 
-    normalizeEnvironment(source = {}) {
+    normalizeDrive(source = starterDriveDeck) {
       const result = {};
-      const entries = (Array.isArray(source) ? source.map((id) => [id, 1]) : Object.entries(source))
-        .sort((a, b) => (cards[a[0]]?.level || 0) - (cards[b[0]]?.level || 0));
+      const entries = Array.isArray(source) ? Object.entries(countIds(source)) : Object.entries(source || {});
       entries.forEach(([id, count]) => {
-        const card = cards[id];
-        if (!card || card.type !== "環境") return;
-        const safeCount = Math.max(0, Math.min(1, Number(count) || 0));
-        if (safeCount > 0 && this.canIncludeEnvironment(result, card)) {
-          result[id] = safeCount;
-        }
+        if (!isDriveCard(cards[id])) return;
+        const safeCount = Math.max(0, Math.min(MAX_DRIVE_COPIES, Number(count) || 0));
+        if (safeCount > 0) result[id] = safeCount;
       });
-      return this.fillEnvironmentDefaults(result);
-    }
-
-    fillEnvironmentDefaults(result) {
-      const next = { ...result };
-      [1, 2, 3].forEach((level) => {
-        this.environmentFillCandidates(level).forEach((id) => {
-          const card = cards[id];
-          if (!card || next[id] || !this.canIncludeEnvironment(next, card)) return;
-          next[id] = 1;
-        });
-      });
-      return next;
-    }
-
-    environmentFillCandidates(level) {
-      const starterIds = Object.keys(starterEnvironmentDeck).filter((id) => cards[id]?.level === level);
-      const poolIds = environmentPool.filter((card) => card.level === level).map((card) => card.id);
-      return [...starterIds, ...poolIds.filter((id) => !starterIds.includes(id))];
-    }
-
-    canIncludeEnvironment(source, card) {
-      if (!card || card.type !== "環境") return false;
-      if (this.environmentLevelTotal(source, card.level) >= ENVIRONMENT_DECK_PER_LEVEL) return false;
-      if (this.environmentLevelHasFamily(source, card.level, card.family)) return false;
-      if (card.level > 1 && !this.environmentLevelHasFamily(source, 1, card.family)) return false;
-      if (card.level === 2 && this.environmentLevelTotal(source, 1) < ENVIRONMENT_DECK_PER_LEVEL) return false;
-      if (card.level === 3 && this.environmentLevelTotal(source, 2) < ENVIRONMENT_DECK_PER_LEVEL) return false;
-      return true;
+      return trimDeck(result, DRIVE_DECK_SIZE);
     }
 
     save(name = this.activeDeck?.name) {
@@ -364,7 +301,7 @@
 
     saveActiveDeck(name = this.activeDeck?.name) {
       const account = this.activeAccountData;
-      const deck = this.createDeck(this.activeDeckId, name, this.counts, this.environmentCounts);
+      const deck = this.createDeck(this.activeDeckId, name, this.counts, this.driveCounts);
       account.decks[this.activeDeckId] = deck;
       account.activeDeckId = this.activeDeckId;
       return deck;
@@ -375,7 +312,7 @@
       const id = uniqueDeckId(account.decks);
       this.activeDeckId = id;
       account.activeDeckId = id;
-      const deck = this.createDeck(id, name || this.nextDeckName(), this.counts, this.environmentCounts);
+      const deck = this.createDeck(id, name || this.nextDeckName(), this.counts, this.driveCounts);
       account.decks[id] = deck;
       this.persist();
       return deck;
@@ -388,7 +325,7 @@
       this.activeDeckId = id;
       account.activeDeckId = id;
       this.counts = this.normalizeMain(deck.mainDeck);
-      this.environmentCounts = this.normalizeEnvironment(deck.environmentDeck);
+      this.driveCounts = this.normalizeDrive(deck.driveDeck);
       this.persist();
       return true;
     }
@@ -410,7 +347,7 @@
     switchAccount(name) {
       const accountName = normalizeAccountName(name);
       if (!this.data.accounts[accountName]) {
-        this.data.accounts[accountName] = this.defaultAccount(starterDeck, starterEnvironmentDeck);
+        this.data.accounts[accountName] = this.defaultAccount(starterDeck, starterDriveDeck);
         this.data.accounts[accountName].name = accountName;
       }
       this.activeAccount = accountName;
@@ -420,7 +357,7 @@
       this.activeDeckId = account.activeDeckId;
       const deck = account.decks[this.activeDeckId];
       this.counts = this.normalizeMain(deck.mainDeck);
-      this.environmentCounts = this.normalizeEnvironment(deck.environmentDeck);
+      this.driveCounts = this.normalizeDrive(deck.driveDeck);
       this.persist();
       return account;
     }
@@ -428,14 +365,14 @@
     autoBuild(mode = "star") {
       const template = autoDeckTemplates[mode] || autoDeckTemplates.star;
       this.counts = this.completeMainDeck(template.main);
-      this.environmentCounts = this.normalizeEnvironment(template.environment);
+      this.driveCounts = this.completeDriveDeck(template.drive);
       return template.label;
     }
 
     completeMainDeck(source) {
       const result = this.normalizeMain(source);
       const candidates = Object.values(cards)
-        .filter((card) => card.type !== "環境")
+        .filter((card) => !isDriveCard(card) && card.type !== "環境")
         .sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name, "ja"));
 
       for (const card of candidates) {
@@ -445,6 +382,16 @@
         if (deckTotal(result) >= DECK_SIZE) break;
       }
 
+      return result;
+    }
+
+    completeDriveDeck(source) {
+      const result = this.normalizeDrive(source);
+      for (const card of drivePool) {
+        if (deckTotal(result) >= DRIVE_DECK_SIZE) break;
+        if (result[card.id]) continue;
+        result[card.id] = 1;
+      }
       return result;
     }
 
@@ -459,16 +406,16 @@
 
     reset() {
       this.counts = { ...starterDeck };
-      this.environmentCounts = { ...starterEnvironmentDeck };
+      this.driveCounts = { ...starterDriveDeck };
     }
 
     clear() {
       this.counts = {};
-      this.environmentCounts = {};
+      this.driveCounts = {};
     }
 
     add(id) {
-      if (!cards[id] || cards[id].type === "環境") return { ok: false, reason: "unknown" };
+      if (!cards[id] || isDriveCard(cards[id]) || cards[id].type === "環境") return { ok: false, reason: "unknown" };
       if (this.total >= DECK_SIZE) return { ok: false, reason: "full" };
       if ((this.counts[id] || 0) >= MAX_COPIES) return { ok: false, reason: "copies" };
       this.counts[id] = (this.counts[id] || 0) + 1;
@@ -481,77 +428,38 @@
       if (this.counts[id] <= 0) delete this.counts[id];
     }
 
-    addEnvironment(id) {
-      const card = cards[id];
-      if (!card || card.type !== "環境") return { ok: false, reason: "unknown" };
-      if (this.environmentCounts[id]) return { ok: false, reason: "copies" };
-      if (card.level === 2 && this.environmentLevelTotal(this.environmentCounts, 1) < ENVIRONMENT_DECK_PER_LEVEL) {
-        return { ok: false, reason: "levelLocked" };
-      }
-      if (card.level === 3 && this.environmentLevelTotal(this.environmentCounts, 2) < ENVIRONMENT_DECK_PER_LEVEL) {
-        return { ok: false, reason: "levelLocked" };
-      }
-      if (card.level > 1 && !this.environmentLevelHasFamily(this.environmentCounts, 1, card.family)) {
-        return { ok: false, reason: "familyLocked" };
-      }
-      if (this.environmentLevelHasFamily(this.environmentCounts, card.level, card.family)) {
-        return { ok: false, reason: "familyLevelUsed" };
-      }
-      if (this.environmentLevelTotal(this.environmentCounts, card.level) >= ENVIRONMENT_DECK_PER_LEVEL) {
-        return { ok: false, reason: "levelFull" };
-      }
-      this.environmentCounts[id] = 1;
+    addDrive(id) {
+      if (!isDriveCard(cards[id])) return { ok: false, reason: "unknown" };
+      if (this.driveTotal >= DRIVE_DECK_SIZE) return { ok: false, reason: "full" };
+      if ((this.driveCounts[id] || 0) >= MAX_DRIVE_COPIES) return { ok: false, reason: "copies" };
+      this.driveCounts[id] = (this.driveCounts[id] || 0) + 1;
       return { ok: true };
     }
 
-    removeEnvironment(id) {
-      if (!this.environmentCounts[id]) return;
-      const removedCard = cards[id];
-      delete this.environmentCounts[id];
-      if (!removedCard || removedCard.type !== "環境") return;
-      Object.keys(this.environmentCounts).forEach((otherId) => {
-        const card = cards[otherId];
-        if (card?.type === "環境" && card.family === removedCard.family && card.level > removedCard.level) {
-          delete this.environmentCounts[otherId];
-        }
-      });
+    removeDrive(id) {
+      if (!this.driveCounts[id]) return;
+      this.driveCounts[id] -= 1;
+      if (this.driveCounts[id] <= 0) delete this.driveCounts[id];
     }
 
     get total() {
       return deckTotal(this.counts);
     }
 
+    get driveTotal() {
+      return deckTotal(this.driveCounts);
+    }
+
     get list() {
       return Object.entries(this.counts).flatMap(([id, count]) => Array(count).fill(id));
     }
 
-    get environmentList() {
-      return Object.keys(this.environmentCounts);
+    get driveList() {
+      return Object.entries(this.driveCounts).flatMap(([id, count]) => Array(count).fill(id));
     }
 
-    get environmentReady() {
-      return [1, 2, 3].every((level) => this.environmentLevelTotal(this.environmentCounts, level) === ENVIRONMENT_DECK_PER_LEVEL);
-    }
-
-    environmentLevelTotal(source, level) {
-      return Object.entries(source).reduce((sum, [id, count]) => {
-        const card = cards[id];
-        return sum + (card?.type === "環境" && card.level === level ? count : 0);
-      }, 0);
-    }
-
-    environmentLevelHasFamily(source, level, family) {
-      return Object.keys(source).some((id) => {
-        const card = cards[id];
-        return card?.type === "環境" && card.level === level && card.family === family;
-      });
-    }
-
-    environmentFamiliesAtLevel(level) {
-      return Object.keys(this.environmentCounts)
-        .map((id) => cards[id])
-        .filter((card) => card?.type === "環境" && card.level === level)
-        .map((card) => card.family);
+    get driveReady() {
+      return this.driveTotal === DRIVE_DECK_SIZE;
     }
 
     get activeAccountData() {
@@ -576,9 +484,28 @@
     }
 
     get stats() {
-      const deckCards = this.list.map((id) => cards[id]);
-      const themed = deckCards.filter((card) => card.theme).length;
-      const reactions = deckCards.filter((card) => card.type === "リアクション").length;
+      return {
+        ...this.combinedStats,
+        reactions: this.list.map((id) => cards[id]).filter((card) => card.type === "リアクション").length,
+      };
+    }
+
+    get driveStats() {
+      const driveCards = this.driveList.map((id) => cards[id]);
+      return {
+        ...this.combinedStats,
+        units: driveCards.filter((card) => card.type === "ユニットドライブ").length,
+        reactions: driveCards.filter((card) => card.type === "リアクションドライブ").length,
+        spells: driveCards.filter((card) => card.type === "スペルドライブ").length,
+        cores: driveCards.filter((card) => card.type === "コアドライブ").length,
+      };
+    }
+
+    get combinedStats() {
+      const deckCards = [...this.list, ...this.driveList].map((id) => cards[id]);
+      const mainThemeInfo = this.mainThemeInfo;
+      const mainTheme = mainThemeInfo.theme;
+      const themed = mainTheme === "なし" ? 0 : mainThemeInfo.count;
       const avgCost = deckCards.length
         ? deckCards.reduce((sum, card) => sum + card.cost, 0) / deckCards.length
         : 0;
@@ -587,22 +514,53 @@
         total: deckCards.length,
         themeRate: deckCards.length ? Math.round((themed / deckCards.length) * 100) : 0,
         avgCost,
-        reactions,
+        mainTheme,
       };
     }
 
-    get environmentStats() {
-      return [1, 2, 3].map((level) => ({
-        level,
-        total: this.environmentLevelTotal(this.environmentCounts, level),
-      }));
+    get mainThemeInfo() {
+      const themeCounts = new Map();
+      [...this.list, ...this.driveList].forEach((id) => {
+        const theme = cards[id]?.theme;
+        if (!theme) return;
+        themeCounts.set(theme, (themeCounts.get(theme) || 0) + 1);
+      });
+
+      let theme = "なし";
+      let count = 0;
+      themeCounts.forEach((currentCount, currentTheme) => {
+        if (currentCount > count) {
+          theme = currentTheme;
+          count = currentCount;
+        }
+      });
+
+      return {
+        theme: count > MAIN_THEME_THRESHOLD ? theme : "なし",
+        count,
+      };
     }
   }
 
-  function trimDeck(source) {
+  function themedDriveDeck(theme) {
+    const result = {};
+    drivePool
+      .filter((card) => card.theme === theme || !card.theme)
+      .slice(0, DRIVE_DECK_SIZE)
+      .forEach((card) => {
+        result[card.id] = 1;
+      });
+    return result;
+  }
+
+  function isDriveCard(card) {
+    return Boolean(card?.driveKind || card?.type?.includes("ドライブ"));
+  }
+
+  function trimDeck(source, size) {
     const result = {};
     Object.entries(source).some(([id, count]) => {
-      const room = DECK_SIZE - deckTotal(result);
+      const room = size - deckTotal(result);
       if (room <= 0) return true;
       result[id] = Math.min(count, room);
       return false;
@@ -612,6 +570,13 @@
 
   function deckTotal(source) {
     return Object.values(source).reduce((sum, count) => sum + count, 0);
+  }
+
+  function countIds(list) {
+    return list.reduce((result, id) => {
+      result[id] = (result[id] || 0) + 1;
+      return result;
+    }, {});
   }
 
   function normalizeAccountName(name) {

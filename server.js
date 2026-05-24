@@ -13,9 +13,8 @@ const REACTION_ZONES = 3;
 const chrono = loadChronoData();
 const cards = chrono.cards;
 const DECK_SIZE = chrono.DECK_SIZE || 40;
-const ENVIRONMENT_DECK_PER_LEVEL = chrono.ENVIRONMENT_DECK_PER_LEVEL || 3;
-const ENVIRONMENT_MAX_LEVEL = chrono.ENVIRONMENT_MAX_LEVEL || 3;
-const starterEnvironmentDeck = chrono.starterEnvironmentDeck || {};
+const DRIVE_DECK_SIZE = chrono.DRIVE_DECK_SIZE || 10;
+const MAX_DRIVE_COPIES = chrono.MAX_DRIVE_COPIES || 1;
 const SOSAI_PAIRS = [
   ["sosai_hikari", "sosai_mint"],
   ["sosai_nene", "sosai_ruri"],
@@ -56,8 +55,8 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/rooms") {
     const body = await readJson(req);
     const deck = validateDeck(body.deck);
-    const environmentDeck = validateEnvironmentDeck(body.environmentDeck);
-    const room = createRoom(deck, environmentDeck);
+    const driveDeck = validateDriveDeck(body.driveDeck);
+    const room = createRoom(deck, driveDeck);
     sendJson(res, 200, {
       roomId: room.id,
       playerId: room.players.host.id,
@@ -88,7 +87,7 @@ async function handleApi(req, res, url) {
     room.players.guest = {
       id: makeId(12),
       deck: validateDeck(body.deck),
-      environmentDeck: validateEnvironmentDeck(body.environmentDeck),
+      driveDeck: validateDriveDeck(body.driveDeck),
     };
     startRoomGame(room);
     sendJson(res, 200, {
@@ -125,7 +124,7 @@ async function handleApi(req, res, url) {
   sendJson(res, 404, { error: "not found" });
 }
 
-function createRoom(deck, environmentDeck) {
+function createRoom(deck, driveDeck) {
   let id = "";
   do {
     id = makeId(5);
@@ -135,7 +134,7 @@ function createRoom(deck, environmentDeck) {
     status: "waiting",
     version: 1,
     players: {
-      host: { id: makeId(12), deck, environmentDeck },
+      host: { id: makeId(12), deck, driveDeck },
       guest: null,
     },
     game: null,
@@ -153,17 +152,12 @@ function startRoomGame(room) {
     firstActive,
     openingTurn: true,
     completedTurns: 0,
-    environmentCycle: 0,
-    naturalEnvironmentLevel: 1,
-    currentEnvironment: null,
     activationEvents: [],
-    hostEnvironmentDeck: room.players.host.environmentDeck.slice(),
-    guestEnvironmentDeck: room.players.guest.environmentDeck.slice(),
     finished: false,
     winner: null,
     pendingChoice: null,
-    host: newDuelist("Host", room.players.host.deck),
-    guest: newDuelist("Guest", room.players.guest.deck),
+    host: newDuelist("Host", room.players.host.deck, room.players.host.driveDeck),
+    guest: newDuelist("Guest", room.players.guest.deck, room.players.guest.driveDeck),
     logItems: [
       `ルーム ${room.id}: オンラインデュエル開始。`,
       `先攻は${firstActive === "host" ? "ホスト" : "ゲスト"}です。`,
@@ -172,16 +166,17 @@ function startRoomGame(room) {
   drawCards(room.game.host, 5, room.game);
   drawCards(room.game.guest, 5, room.game);
   refreshTurn(room.game[firstActive]);
-  changeEnvironment(room.game, room.game.naturalEnvironmentLevel);
   room.status = "playing";
   room.version += 1;
 }
 
-function newDuelist(name, deck) {
+function newDuelist(name, deck, driveDeck = []) {
   return {
     name,
     lp: MAX_LP,
     deck: shuffle(deck.slice()),
+    driveDeck: driveDeck.slice(),
+    driveUsed: [],
     hand: [],
     grave: [],
     charge: [],
@@ -620,53 +615,6 @@ function opponentOf(game, player) {
 
 function completeTurn(game) {
   game.completedTurns += 1;
-  if (game.completedTurns % 2 !== 0) return;
-  game.environmentCycle += 1;
-  game.naturalEnvironmentLevel = Math.min(ENVIRONMENT_MAX_LEVEL, 1 + Math.floor(game.environmentCycle / 2));
-  changeEnvironment(game, game.naturalEnvironmentLevel);
-}
-
-function changeEnvironment(game, level) {
-  const candidates = [...game.hostEnvironmentDeck, ...game.guestEnvironmentDeck]
-    .filter((id) => cards[id]?.type === "環境" && cards[id].level === level);
-  const fallback = Object.keys(starterEnvironmentDeck).filter((id) => cards[id]?.type === "環境" && cards[id].level === level);
-  const pool = candidates.length ? candidates : fallback;
-  if (pool.length === 0) return false;
-  const next = pool[Math.floor(Math.random() * pool.length)];
-  game.currentEnvironment = next;
-  log(game, `環境が${cards[next].name}（Lv${cards[next].level}）になった。`);
-  applyEnvironmentEnter(game, cards[next]);
-  return true;
-}
-
-function applyEnvironmentEnter(game, card) {
-  if (card.family === "星") {
-    const drawAmount = card.level >= 3 ? 2 : 1;
-    drawCards(game.host, drawAmount, game);
-    drawCards(game.guest, drawAmount, game);
-    let untapped = false;
-    if (card.level >= 2) {
-      untapped = untapOneCharge(game.host) || untapped;
-      untapped = untapOneCharge(game.guest) || untapped;
-    }
-    log(game, `${card.name}で各プレイヤーは${drawAmount}枚ドロー。`);
-    if (untapped) log(game, `${card.name}でチャージがアクティブになった。`);
-    return;
-  }
-
-  if (card.family !== "風") return;
-  if (card.level >= 3) {
-    const hostChanged = removeRevealedReaction(game, game.host) || revealReactions(game.host, 1);
-    const guestChanged = removeRevealedReaction(game, game.guest) || revealReactions(game.guest, 1);
-    if (hostChanged || guestChanged) log(game, `${card.name}が表向きのリアクションを吹き飛ばした。`);
-    return;
-  }
-  const amount = card.level >= 2 ? 2 : 1;
-  const hostRevealed = revealReactions(game.host, amount);
-  const guestRevealed = revealReactions(game.guest, amount);
-  if (hostRevealed || guestRevealed) {
-    log(game, `${card.name}でセットリアクションがめくられた。`);
-  }
 }
 
 function revealReactions(player, amount) {
@@ -1062,7 +1010,7 @@ function discardLowestImpact(game, player) {
 }
 
 function afterSummon(game, player, id) {
-  if (cards[id].name.includes("星導") && player.cores.includes("star_orbit") && !player.drewFromStarCore) {
+  if (cardHasTheme(cards[id], "星導") && player.cores.includes("star_orbit") && !player.drewFromStarCore) {
     player.drewFromStarCore = true;
     drawCards(player, 1, game);
     log(game, "星導の軌道環で1枚ドロー。");
@@ -1152,11 +1100,11 @@ function untapOneCharge(player, predicate = () => true) {
 }
 
 function countThemeInCharge(player, theme) {
-  return player.charge.filter((entry) => cards[entry.id].name.includes(theme)).length;
+  return player.charge.filter((entry) => cardHasTheme(cards[entry.id], theme)).length;
 }
 
 function countThemeUnits(player, theme) {
-  return player.units.filter((unit) => unit && cards[unit.id].name.includes(theme)).length;
+  return player.units.filter((unit) => unit && cardHasTheme(cards[unit.id], theme)).length;
 }
 
 function controlsCard(player, id) {
@@ -1175,40 +1123,33 @@ function hasSosaiPairMate(player, id) {
 }
 
 function controlsThemeUnit(player, theme) {
-  return player.units.some((unit) => unit && cards[unit.id].name.includes(theme));
+  return player.units.some((unit) => unit && cardHasTheme(cards[unit.id], theme));
 }
 
 function getUnitAtk(player, unit, game = null) {
   if (!unit) return 0;
   let atk = cards[unit.id].atk + (unit.atkMod || 0);
-  if (player.cores.includes("black_tower") && cards[unit.id].name.includes("黒機")) atk += 200;
+  if (player.cores.includes("black_tower") && cardHasTheme(cards[unit.id], "黒機")) atk += 200;
   if (cards[unit.id].id === "star_guard") atk += player.cores.filter(Boolean).length * 300;
-  if (player.cores.includes("blade_scaffold") && cards[unit.id].name.includes("断刃")) atk += 200;
-  if (player.cores.includes("cyber_network") && cards[unit.id].name.includes("電脳")) atk += 100;
-  if (player.cores.includes("sosai_pop_stage") && cards[unit.id].name.includes("双彩") && hasSosaiPairMate(player, unit.id)) atk += 300;
-  atk += getEnvironmentAtkMod(game);
+  if (player.cores.includes("blade_scaffold") && cardHasTheme(cards[unit.id], "断刃")) atk += 200;
+  if (player.cores.includes("cyber_network") && cardHasTheme(cards[unit.id], "電脳")) atk += 100;
+  if (player.cores.includes("sosai_pop_stage") && cardHasTheme(cards[unit.id], "双彩") && hasSosaiPairMate(player, unit.id)) atk += 300;
+  if (player.cores.includes("drive_star_core") && cardHasTheme(cards[unit.id], "星導")) atk += 300;
+  if (player.cores.includes("drive_black_core") && cardHasTheme(cards[unit.id], "黒機")) atk += 300;
+  if (player.cores.includes("drive_blade_core") && cardHasTheme(cards[unit.id], "断刃")) atk += 300;
+  if (player.cores.includes("drive_cyber_core") && cardHasTheme(cards[unit.id], "電脳")) atk += 200;
+  if (player.cores.includes("drive_sosai_core") && cardHasTheme(cards[unit.id], "双彩") && hasSosaiPairMate(player, unit.id)) atk += 500;
   return atk;
 }
 
-function getEnvironmentAtkMod(game) {
-  const environment = cards[game?.currentEnvironment];
-  if (!environment || environment.type !== "環境") return 0;
-  if (environment.family === "晴れ") return environment.level * 100;
-  if (environment.family === "雪") return environment.level * -100;
-  return 0;
+function cardHasTheme(card, theme) {
+  return Boolean(card && (card.theme === theme || card.name.includes(theme)));
 }
 
 function damage(game, player, amount) {
-  const dealt = Math.max(0, amount - getEnvironmentDamageReduction(game));
+  const dealt = amount;
   player.lp = Math.max(0, player.lp - dealt);
   return dealt;
-}
-
-function getEnvironmentDamageReduction(game) {
-  const environment = cards[game?.currentEnvironment];
-  if (!environment || environment.type !== "環境") return 0;
-  if (environment.family === "雨") return environment.level * 100;
-  return 0;
 }
 
 function checkGameEnd(game) {
@@ -1245,9 +1186,6 @@ function roomSnapshot(room, seat) {
     active: game.active === seat ? "player" : "enemy",
     finished: game.finished,
     won: game.finished ? game.winner === seat : false,
-    currentEnvironment: game.currentEnvironment,
-    naturalEnvironmentLevel: game.naturalEnvironmentLevel,
-    environmentCycle: game.environmentCycle,
     pendingChoice: publicPendingChoice(game.pendingChoice, seat),
     waitingChoice: publicWaitingChoice(game.pendingChoice, seat),
     activationEvents: publicActivationEvents(game.activationEvents, seat),
@@ -1297,6 +1235,8 @@ function publicDuelist(player, includeHand) {
     name: player.name,
     lp: player.lp,
     deck: Array(player.deck.length).fill(null),
+    driveDeck: includeHand ? player.driveDeck.slice() : Array(player.driveDeck.length).fill(null),
+    driveUsed: player.driveUsed.slice(),
     hand: includeHand ? player.hand.slice() : Array(player.hand.length).fill(null),
     grave: player.grave.slice(),
     charge: player.charge.map((entry) => ({ ...entry })),
@@ -1335,41 +1275,27 @@ function log(game, message) {
 
 function validateDeck(deck) {
   if (!Array.isArray(deck) || deck.length === 0) throw new Error("deck is required");
-  const valid = deck.filter((id) => cards[id] && cards[id].type !== "環境");
+  const valid = deck.filter((id) => cards[id] && !isDriveCard(cards[id]) && cards[id].type !== "環境");
   if (valid.length !== DECK_SIZE) throw new Error(`deck must be ${DECK_SIZE} cards`);
   return valid;
 }
 
-function validateEnvironmentDeck(deck) {
-  const source = Array.isArray(deck) && deck.length > 0 ? deck : expandCounts(starterEnvironmentDeck);
-  const result = [];
-  const levelCounts = new Map();
-  source.forEach((id) => {
-    const card = cards[id];
-    if (!card || card.type !== "環境" || result.includes(id)) return;
-    const current = levelCounts.get(card.level) || 0;
-    if (current >= ENVIRONMENT_DECK_PER_LEVEL) return;
-    result.push(id);
-    levelCounts.set(card.level, current + 1);
+function validateDriveDeck(driveDeck) {
+  if (!Array.isArray(driveDeck) || driveDeck.length === 0) throw new Error("drive deck is required");
+  const valid = driveDeck.filter((id) => isDriveCard(cards[id]));
+  if (valid.length !== DRIVE_DECK_SIZE) throw new Error(`drive deck must be ${DRIVE_DECK_SIZE} cards`);
+  const counts = {};
+  valid.forEach((id) => {
+    counts[id] = (counts[id] || 0) + 1;
   });
-  Object.keys(starterEnvironmentDeck).forEach((id) => {
-    const card = cards[id];
-    if (!card || result.includes(id)) return;
-    const current = levelCounts.get(card.level) || 0;
-    if (current >= ENVIRONMENT_DECK_PER_LEVEL) return;
-    result.push(id);
-    levelCounts.set(card.level, current + 1);
-  });
-  for (let level = 1; level <= ENVIRONMENT_MAX_LEVEL; level += 1) {
-    if ((levelCounts.get(level) || 0) !== ENVIRONMENT_DECK_PER_LEVEL) {
-      throw new Error(`environment deck needs ${ENVIRONMENT_DECK_PER_LEVEL} cards for level ${level}`);
-    }
+  if (Object.values(counts).some((count) => count > MAX_DRIVE_COPIES)) {
+    throw new Error(`drive card copies must be ${MAX_DRIVE_COPIES}`);
   }
-  return result;
+  return valid;
 }
 
-function expandCounts(counts) {
-  return Object.entries(counts).flatMap(([id, count]) => Array(count).fill(id));
+function isDriveCard(card) {
+  return Boolean(card?.driveKind || card?.type?.includes("ドライブ"));
 }
 
 function getSeat(room, playerId) {

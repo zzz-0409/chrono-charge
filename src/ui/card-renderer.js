@@ -4,6 +4,44 @@
   const { cards, typeIcons, attrClass, typeClass } = window.Chrono;
 
   const rubyTerms = [
+    ["ドライブ召喚", "どらいぶしょうかん"],
+    ["ドライブ発動", "どらいぶはつどう"],
+    ["ユニットドライブ", "ゆにっとどらいぶ"],
+    ["スペルドライブ", "すぺるどらいぶ"],
+    ["リアクションドライブ", "りあくしょんどらいぶ"],
+    ["コアドライブ", "こあどらいぶ"],
+    ["天星龍", "てんせいりゅう"],
+    ["天球儀", "てんきゅうぎ"],
+    ["流星招来", "りゅうせいしょうらい"],
+    ["恒星防壁", "こうせいぼうへき"],
+    ["因果遮断", "いんがしゃだん"],
+    ["黒機", "こっき"],
+    ["殲滅機兵", "せんめつきへい"],
+    ["重圧炉", "じゅうあつろ"],
+    ["総分解", "そうぶんかい"],
+    ["反撃砲列", "はんげきほうれつ"],
+    ["回路封鎖", "かいろふうさ"],
+    ["終刃", "しゅうじん"],
+    ["審判台", "しんぱんだい"],
+    ["無明一閃", "むみょういっせん"],
+    ["見切り返し", "みきりがえし"],
+    ["裁きの間", "さばきのま"],
+    ["量子姫", "りょうしひめ"],
+    ["量子中枢", "りょうしちゅうすう"],
+    ["全域侵入", "ぜんいきしんにゅう"],
+    ["絶対防壁", "ぜったいぼうへき"],
+    ["管理者権限", "かんりしゃけんげん"],
+    ["プリズムデュオ", "ぷりずむでゅお"],
+    ["プリズムステージ", "ぷりずむすてーじ"],
+    ["満員アンコール", "まんいんあんこーる"],
+    ["ハートガード", "はーとがーど"],
+    ["シンクロカーテン", "しんくろかーてん"],
+    ["汎用ドライブ", "はんようどらいぶ"],
+    ["クロノガーディアン", "くろのがーでぃあん"],
+    ["クロノ炉", "くろのろ"],
+    ["時空圧縮", "じくうあっしゅく"],
+    ["時防壁", "ときぼうへき"],
+    ["無効領域", "むこうりょういき"],
     ["攻撃宣言時", "こうげきせんげんじ"],
     ["通常召喚時", "つうじょうしょうかんじ"],
     ["追加召喚時", "ついかしょうかんじ"],
@@ -37,7 +75,7 @@
     ["斥候", "せっこう"],
     ["戦士", "せんし"],
     ["祈り手", "いのりて"],
-    ["衛士", "えじ"],
+    ["衛士", "えいし"],
     ["星龍", "せいりゅう"],
     ["誘い", "さそい"],
     ["連結", "れんけつ"],
@@ -45,7 +83,7 @@
     ["軌道環", "きどうかん"],
     ["防壁", "ぼうへき"],
     ["干渉波", "かんしょうは"],
-    ["黒機", "くろき"],
+    ["黒機", "こっき"],
     ["分解者", "ぶんかいしゃ"],
     ["歯車兵", "はぐるまへい"],
     ["固定砲", "こていほう"],
@@ -104,7 +142,6 @@
     ["受ける", "うける"],
     ["加える", "くわえる"],
     ["場合", "ばあい"],
-    ["環境", "かんきょう"],
     ["系統", "けいとう"],
     ["晴れ", "はれ"],
     ["快晴", "かいせい"],
@@ -157,6 +194,47 @@
   };
 
   const kanjiPattern = /[一-龯々]/;
+  const katakanaPattern = /[\u30A0-\u30FF]/;
+  const latinPattern = /[A-Za-z]/;
+  const latinReadings = {
+    AP: "エーピー",
+    CPU: "シーピーユー",
+    D: "ディー",
+    DECK: "デッキ",
+    DRIVE: "ドライブ",
+    LP: "エルピー",
+    MAIN: "メイン",
+    TCG: "ティーシージー",
+  };
+  const plainLatinTerms = new Set(["ATK"]);
+  const letterReadings = {
+    A: "エー",
+    B: "ビー",
+    C: "シー",
+    D: "ディー",
+    E: "イー",
+    F: "エフ",
+    G: "ジー",
+    H: "エイチ",
+    I: "アイ",
+    J: "ジェイ",
+    K: "ケー",
+    L: "エル",
+    M: "エム",
+    N: "エヌ",
+    O: "オー",
+    P: "ピー",
+    Q: "キュー",
+    R: "アール",
+    S: "エス",
+    T: "ティー",
+    U: "ユー",
+    V: "ブイ",
+    W: "ダブリュー",
+    X: "エックス",
+    Y: "ワイ",
+    Z: "ゼット",
+  };
 
   class CardRenderer {
     static cardFace(content) {
@@ -164,7 +242,7 @@
     }
 
     static libraryCard(card, count, selected) {
-      const limit = card.type === "環境" ? 1 : window.Chrono.MAX_COPIES;
+      const limit = this.isDriveCard(card) ? window.Chrono.MAX_DRIVE_COPIES : window.Chrono.MAX_COPIES;
       const button = document.createElement("button");
       button.type = "button";
       button.className = `library-card game-card ${typeClass[card.type]} ${attrClass[card.attr]}${selected ? " selected" : ""}`;
@@ -203,14 +281,14 @@
         return;
       }
       const atkMod = options.atkMod || 0;
-      const displayAtk = card.type === "ユニット" ? card.atk + atkMod : 0;
+      const displayAtk = this.hasAtk(card) ? card.atk + atkMod : 0;
       target.innerHTML = `
         <div class="focus-card-detail ${typeClass[card.type]} ${attrClass[card.attr]}">
           <div class="focus-card-copy">
             <div>
               <p class="focus-type">${this.rubyText(this.metaLine(card))}</p>
               <h3>${this.rubyText(card.name)}</h3>
-              ${card.type === "ユニット" ? `<p class="focus-stats">ATK ${displayAtk}${this.statMod(atkMod, true)}</p>` : ""}
+              ${this.hasAtk(card) ? `<p class="focus-stats">ATK ${displayAtk}${this.statMod(atkMod, true)}</p>` : ""}
             </div>
             <div class="focus-effect-text">${this.rubyText(card.text)}</div>
           </div>
@@ -251,7 +329,7 @@
         return button;
       }
 
-      const atk = card.type === "ユニット" ? card.atk + (options.atkMod || 0) : 0;
+      const atk = this.hasAtk(card) ? card.atk + (options.atkMod || 0) : 0;
       button.className = `tcg-card game-card ${typeClass[card.type]} ${attrClass[card.attr]} ${options.small ? "small" : ""} ${options.interactive ? "interactive" : ""} ${options.selected ? "selected" : ""}`;
       button.innerHTML = this.cardFace(`
         ${this.cardHeader(card)}
@@ -264,11 +342,10 @@
     }
 
     static cardHeader(card, headingTag = "span") {
-      const chip = card.type === "環境" ? `Lv${card.level}` : card.cost;
       return `
         <div class="card-mini-top">
           <${headingTag} class="card-name">${this.rubyText(card.name)}</${headingTag}>
-          <span class="cost-chip">${chip}</span>
+          <span class="cost-chip">${card.cost}</span>
         </div>
       `;
     }
@@ -299,8 +376,12 @@
     }
 
     static metaLine(card) {
-      if (card.type === "環境") return `${card.type} / ${card.family} / Lv${card.level}`;
+      if (this.isDriveCard(card)) return `${this.shortDriveType(card.type)} / ${card.attr} / コスト${card.cost}`;
       return `${card.type} / ${card.attr} / コスト${card.cost}`;
+    }
+
+    static shortDriveType(type) {
+      return String(type || "");
     }
 
     static effectSizeClass(text) {
@@ -318,7 +399,7 @@
     }
 
     static unitStats(card, atk = card.atk, atkMod = 0) {
-      if (card.type !== "ユニット") return "";
+      if (!this.hasAtk(card)) return "";
       return `
         <div class="battle-stats compact-stats">
           <span>ATK <strong>${atk}</strong>${this.statMod(atkMod)}</span>
@@ -327,7 +408,7 @@
     }
 
     static previewStats(card) {
-      if (card.type !== "ユニット") return "";
+      if (!this.hasAtk(card)) return "";
       return `
         <div class="preview-stats">
           <span>ATK<strong>${card.atk}</strong></span>
@@ -337,6 +418,14 @@
 
     static rubyText(text) {
       return renderRuby(String(text || ""));
+    }
+
+    static isDriveCard(card) {
+      return Boolean(card?.driveKind || card?.type?.includes("ドライブ"));
+    }
+
+    static hasAtk(card) {
+      return card?.type === "ユニット" || card?.type === "ユニットドライブ";
     }
   }
 
@@ -351,6 +440,12 @@
       }
 
       const char = text[i];
+      if (latinPattern.test(char)) {
+        const word = readLatinWord(text, i);
+        html += plainLatinTerms.has(word.toUpperCase()) ? escapeHtml(word) : ruby(word, englishReading(word));
+        i += word.length;
+        continue;
+      }
       if (kanjiPattern.test(char)) {
         html += ruby(char, kanjiReadings[char] || "");
       } else {
@@ -362,15 +457,37 @@
   }
 
   function renderRubyTerm(term, reading) {
-    const hasNonKanji = Array.from(term).some((char) => !kanjiPattern.test(char));
-    if (!hasNonKanji) return ruby(term, reading);
+    if (katakanaPattern.test(term)) return renderRubyWithoutTerms(term);
+    return ruby(term, reading);
+  }
+
+  function renderRubyWithoutTerms(text) {
     let html = "";
-    for (const char of term) {
-      html += kanjiPattern.test(char)
-        ? ruby(char, kanjiReadings[char] || "")
-        : escapeHtml(char);
+    for (let i = 0; i < text.length;) {
+      const char = text[i];
+      if (latinPattern.test(char)) {
+        const word = readLatinWord(text, i);
+        html += plainLatinTerms.has(word.toUpperCase()) ? escapeHtml(word) : ruby(word, englishReading(word));
+        i += word.length;
+        continue;
+      }
+      if (kanjiPattern.test(char)) html += ruby(char, kanjiReadings[char] || "");
+      else html += escapeHtml(char);
+      i += 1;
     }
     return html;
+  }
+
+  function readLatinWord(text, start) {
+    let end = start;
+    while (end < text.length && latinPattern.test(text[end])) end += 1;
+    return text.slice(start, end);
+  }
+
+  function englishReading(word) {
+    const key = String(word || "").toUpperCase();
+    if (latinReadings[key]) return latinReadings[key];
+    return Array.from(key).map((letter) => letterReadings[letter] || letter).join("");
   }
 
   function ruby(base, reading) {

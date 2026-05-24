@@ -3,13 +3,10 @@
 
   const {
     MAX_LP,
-    ENVIRONMENT_MAX_LEVEL,
     UNIT_ZONES,
     CORE_ZONES,
     REACTION_ZONES,
     cards,
-    starterEnvironmentDeck,
-    cpuEnvironmentDeck,
     EffectResolver,
     CpuController,
   } = window.Chrono;
@@ -21,10 +18,12 @@
   ];
 
   class Duelist {
-    constructor(name, deck) {
+    constructor(name, deck, driveDeck = []) {
       this.name = name;
       this.lp = MAX_LP;
       this.deck = shuffle(deck);
+      this.driveDeck = driveDeck.slice();
+      this.driveUsed = [];
       this.hand = [];
       this.grave = [];
       this.charge = [];
@@ -65,15 +64,10 @@
       this.busy = false;
       this.finished = false;
       this.logItems = [];
-      this.player = new Duelist("Player", this.options.playerDeck);
-      this.enemy = new Duelist("CPU: 黒機", this.options.cpuDeck);
+      this.player = new Duelist("Player", this.options.playerDeck, this.options.playerDriveDeck || []);
+      this.enemy = new Duelist("CPU: 黒機", this.options.cpuDeck, this.options.cpuDriveDeck || []);
       this.firstActive = this.active;
       this.completedTurns = 0;
-      this.environmentCycle = 0;
-      this.naturalEnvironmentLevel = 1;
-      this.currentEnvironment = null;
-      this.playerEnvironmentDeck = this.options.playerEnvironmentDeck?.length ? this.options.playerEnvironmentDeck.slice() : expandCounts(starterEnvironmentDeck);
-      this.enemyEnvironmentDeck = this.options.cpuEnvironmentDeck?.length ? this.options.cpuEnvironmentDeck.slice() : expandCounts(cpuEnvironmentDeck);
       this.effects = new EffectResolver(this);
       this.cpu = new CpuController(this);
     }
@@ -85,7 +79,6 @@
       starter.refreshTurn();
       this.log("デュエル開始。");
       this.log(`先攻は${this.active === "player" ? "自分" : "相手"}です。`);
-      this.changeEnvironment(this.naturalEnvironmentLevel);
       this.notify();
       if (this.active === "enemy") this.runEnemyTurn({ opening: true });
     }
@@ -163,6 +156,26 @@
       return true;
     }
 
+    async playDriveCard(id, preferredSlot = null) {
+      if (!this.canPlayerAct()) return false;
+      const card = cards[id];
+      if (!card || card.driveKind === "reaction" || !this.canUseDriveCard(this.player, card)) return false;
+
+      this.busy = true;
+      try {
+        if (!await this.activateDriveCard(this.player, card)) return false;
+        this.notify();
+        await this.showActivation(card, "player", "effect");
+        const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, this.enemy, this.player);
+        await this.resolveDriveCardEffect(this.player, this.enemy, card, negated, "player", preferredSlot);
+        this.checkGameEnd();
+        return true;
+      } finally {
+        this.busy = false;
+        this.notify();
+      }
+    }
+
     async attackWithUnit(attackerIndex, targetIndex) {
       if (!this.canPlayerAct()) return;
       const unit = this.player.units[attackerIndex];
@@ -222,6 +235,14 @@
         await pause(this.options.delayMs);
       }
 
+      for (let i = 0; i < 3; i += 1) {
+        const driveId = this.usableDriveCards(this.enemy)[0];
+        if (!driveId) break;
+        await this.cpuPlayDriveCard(driveId);
+        if (this.finished) return;
+        await pause(this.options.delayMs);
+      }
+
       for (let i = 0; i < this.enemy.units.length; i += 1) {
         const unit = this.enemy.units[i];
         if (!unit || unit.exhausted || this.finished) continue;
@@ -265,6 +286,19 @@
       this.notify();
     }
 
+    async cpuPlayDriveCard(id) {
+      const card = cards[id];
+      if (!card || card.driveKind === "reaction" || !this.canUseDriveCard(this.enemy, card)) return;
+      if (!await this.activateDriveCard(this.enemy, card)) return;
+
+      this.notify();
+      await this.showActivation(card, "enemy", "effect");
+      const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, this.player, this.enemy);
+      await this.resolveDriveCardEffect(this.enemy, this.player, card, negated, "enemy");
+      this.checkGameEnd();
+      this.notify();
+    }
+
     async showActivation(card, owner, kind) {
       if (!card) return;
       await this.options.showActivation?.({ id: card.id, owner, kind, card });
@@ -302,6 +336,34 @@
       }
     }
 
+    async resolveDriveCardEffect(player, opponent, card, negated, side, preferredSlot = null) {
+      const prefix = side === "enemy" ? "相手は" : "";
+      if (card.driveKind === "unit") {
+        this.summonUnit(player, card.id, preferredSlot);
+        this.log(`${prefix}${card.name}をドライブ召喚。`);
+        if (!negated) {
+          await this.applyDriveEffect(card, player, opponent);
+          this.afterSummon(player, card.id);
+        } else {
+          this.log(`${card.name}の効果は無効化された。`);
+        }
+        return;
+      }
+
+      if (card.driveKind === "core") {
+        this.placeCore(player, card.id, preferredSlot);
+        this.log(`${prefix}${card.name}をドライブ発動。`);
+        if (!negated) await this.applyDriveEffect(card, player, opponent);
+        else this.log(`${card.name}の効果は無効化された。`);
+        return;
+      }
+
+      this.log(`${prefix}${card.name}をドライブ発動。`);
+      if (!negated) await this.applyDriveEffect(card, player, opponent);
+      else this.log(`${card.name}は無効化された。`);
+      this.sendToGrave(player, card.id);
+    }
+
     async resolveReactionWindow(initialEvent, firstResponder, otherPlayer) {
       const chain = [];
       let responder = firstResponder;
@@ -331,6 +393,13 @@
       const option = options.find((entry) => entry.index === choiceIndex);
       if (!option) return null;
       const card = cards[option.id];
+      if (option.drive) {
+        if (!await this.activateDriveCard(player, card, event.trigger)) return null;
+        this.log(`${player === this.enemy ? "相手は" : ""}${card.name}をドライブ発動。`);
+        this.notify();
+        await this.showActivation(card, player === this.enemy ? "enemy" : "player", "reaction");
+        return { card, player, opponent, event, negated: false, drive: true };
+      }
       if (!this.payCost(player, card.cost)) return null;
       player.reactions[option.index] = null;
       player.grave.push(option.id);
@@ -347,9 +416,12 @@
         const link = chain[i];
         if (link.negated) {
           this.log(`${link.card.name}は無効化された。`);
+          if (link.drive) this.sendToGrave(link.player, link.card.id);
           continue;
         }
-        const result = this.applyReactionEffect(link.card, link.player, link.opponent, link.event);
+        const result = link.drive
+          ? await this.applyDriveReactionEffect(link.card, link.player, link.opponent, link.event)
+          : this.applyReactionEffect(link.card, link.player, link.opponent, link.event);
         if (result?.negates) {
           if (i === 0) baseNegated = true;
           else chain[i - 1].negated = true;
@@ -361,13 +433,16 @@
     }
 
     getUsableReactions(player, trigger) {
-      return player.reactions
+      const normalReactions = player.reactions
         .map((entry, index) => ({ id: reactionId(entry), index }))
         .filter((entry) => {
           if (!entry.id) return false;
           const card = cards[entry.id];
           return card.trigger === trigger && this.canPay(player, card.cost);
         });
+      const driveReactions = this.usableDriveCards(player, trigger)
+        .map((id) => ({ id, index: `drive:${id}`, drive: true }));
+      return [...normalReactions, ...driveReactions];
     }
 
     applyReactionEffect(card, player, opponent, event = {}) {
@@ -424,9 +499,154 @@
       return { negates: true };
     }
 
+    async applyDriveReactionEffect(card, player, opponent, event = {}) {
+      await this.applyDriveEffect(card, player, opponent, event);
+      this.log(`${card.name}で${event.trigger === "attack" ? "攻撃" : "効果"}を止めた。`);
+      this.sendToGrave(player, card.id);
+      return { negates: true };
+    }
+
+    async applyDriveEffect(card, player, opponent, event = {}) {
+      switch (card.driveEffect) {
+        case "driveStarUnit":
+          this.drawCards(player, 3);
+          this.untapOneCharge(player);
+          this.untapOneCharge(player);
+          return;
+        case "driveStarCore":
+          this.drawCards(player, 1);
+          return;
+        case "driveStarSpell":
+          await this.addFromDeck(player, (candidate) => candidate.theme === "星導", {
+            title: "星導カードを手札に加える",
+            message: "デッキから星導カードを1枚選んでください。",
+          });
+          this.drawCards(player, 1);
+          return;
+        case "driveStarReactAttack":
+        case "driveCyberReactAttack":
+          this.drawCards(player, 1);
+          return;
+        case "driveStarReactEffect":
+          this.drawCards(player, 2);
+          return;
+        case "driveBlackUnit":
+          this.damage(opponent, 1500);
+          this.destroyBestUnit(opponent);
+          return;
+        case "driveBlackCore":
+          this.damage(opponent, 500);
+          return;
+        case "driveBlackSpell":
+          this.destroyBestUnit(opponent);
+          this.damage(opponent, 1000);
+          return;
+        case "driveBlackReactAttack":
+          this.damage(opponent, 1000);
+          return;
+        case "driveBlackReactEffect":
+          this.damage(opponent, 800);
+          return;
+        case "driveBladeUnit":
+          this.exhaustBestUnit(opponent);
+          this.destroyBestExhaustedUnit(opponent);
+          return;
+        case "driveBladeCore":
+          this.exhaustBestUnit(opponent);
+          return;
+        case "driveBladeSpell":
+          this.exhaustBestUnit(opponent);
+          this.destroyBestExhaustedUnit(opponent);
+          return;
+        case "driveBladeReactAttack": {
+          const sourceIndex = Number(event.sourceIndex);
+          if (Number.isInteger(sourceIndex) && opponent.units[sourceIndex]) {
+            opponent.units[sourceIndex].exhausted = true;
+          }
+          return;
+        }
+        case "driveBladeReactEffect":
+          if (!this.destroyBestExhaustedUnit(opponent)) this.exhaustBestUnit(opponent);
+          return;
+        case "driveCyberUnit":
+          this.revealReactions(opponent, 1);
+          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "電脳", {
+            title: "電脳ユニットを追加召喚",
+            message: "手札から追加召喚する電脳ユニットを選んでください。",
+          }, opponent);
+          return;
+        case "driveCyberCore":
+          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "電脳" && candidate.cost <= 2, {
+            title: "電脳ユニットを追加召喚",
+            message: "手札からコスト2以下の電脳ユニットを選んでください。",
+          }, opponent);
+          return;
+        case "driveCyberSpell":
+          this.revealReactions(opponent, 2);
+          this.drawCards(player, 1);
+          return;
+        case "driveCyberReactEffect":
+          this.revealReactions(opponent, 1);
+          this.drawCards(player, 1);
+          return;
+        case "driveSosaiUnit":
+          await this.addFromDeck(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩", {
+            title: "双彩ユニットを手札に加える",
+            message: "デッキから双彩ユニットを1枚選んでください。",
+          });
+          this.drawCards(player, 2);
+          return;
+        case "driveSosaiNeneRuriUnit":
+          this.returnBestUnitToHand(opponent);
+          this.damage(opponent, 700);
+          this.drawCards(player, 1);
+          return;
+        case "driveSosaiCocoLunaUnit":
+          this.untapOneCharge(player);
+          this.drawCards(player, 1);
+          this.destroyBestUnit(opponent);
+          return;
+        case "driveSosaiCore":
+          this.drawCards(player, 1);
+          return;
+        case "driveSosaiSpell":
+          await this.addFromGrave(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩", {
+            title: "双彩ユニットを回収",
+            message: "墓地から双彩ユニットを1枚選んでください。",
+          });
+          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩" && candidate.cost <= 2, {
+            title: "双彩ユニットを追加召喚",
+            message: "手札からコスト2以下の双彩ユニットを選んでください。",
+          }, opponent);
+          return;
+        case "driveSosaiReactAttack":
+          if (this.hasSosaiPair(player)) this.drawCards(player, 1);
+          return;
+        case "driveSosaiReactEffect":
+          if (this.hasSosaiPair(player)) this.drawCards(player, 2);
+          return;
+        case "driveGenericUnit":
+          this.drawCards(player, 1);
+          return;
+        case "driveGenericCore":
+          this.drawCards(player, 2);
+          await this.discardFromHand(player, {
+            title: "手札を1枚捨てる",
+            message: "クロノ炉で墓地に送るカードを選んでください。",
+          });
+          return;
+        case "driveGenericSpell":
+          this.exhaustBestUnit(opponent);
+          this.drawCards(player, 1);
+          return;
+        default:
+          return;
+      }
+    }
+
     afterSummon(player, id) {
       const card = cards[id];
-      if (card.name.includes("星導") && this.hasCore(player, "star_orbit") && !player.drewFromStarCore) {
+      if (cardHasTheme(card, "星導") && this.hasCore(player, "star_orbit") && !player.drewFromStarCore) {
         player.drewFromStarCore = true;
         this.drawCards(player, 1);
         this.log("星導の軌道環で1枚ドロー。");
@@ -502,6 +722,413 @@
       return player.reactions.some((card) => !card);
     }
 
+    usableDriveCards(player, trigger = null) {
+      return player.driveDeck
+        .filter((id) => {
+          const card = cards[id];
+          if (!card?.driveKind) return false;
+          if (trigger) return card.driveKind === "reaction" && card.trigger === trigger && this.canUseDriveCard(player, card, trigger);
+          return card.driveKind !== "reaction" && this.canUseDriveCard(player, card);
+        });
+    }
+
+    canUseDriveCard(player, card, trigger = null) {
+      if (!card?.driveKind || !player.driveDeck.includes(card.id)) return false;
+      if (card.driveKind === "reaction" && card.trigger !== trigger) return false;
+      if (card.driveKind !== "reaction" && trigger) return false;
+      if (!this.canPayDriveCost(player, card)) return false;
+      if (card.driveKind === "unit") {
+        return this.availableSlotsAfterDriveCost(player.units, player, card.driveCost, "ユニット") > 0;
+      }
+      if (card.driveKind === "core") {
+        return this.availableSlotsAfterDriveCost(player.cores, player, card.driveCost, "コア") > 0;
+      }
+      return true;
+    }
+
+    availableSlotsAfterDriveCost(zone, player, driveCost, type) {
+      const open = zone.filter((entry) => !entry).length;
+      if (Array.isArray(driveCost?.materials)) {
+        const freed = this.driveMaterialEntries(player)
+          .filter((entry) => entry.source === "field")
+          .filter((entry) => baseDriveType(cards[entry.id]?.type) === type)
+          .filter((entry) => driveCost.materials.some((requirement) => this.matchesDriveRequirement(cards[entry.id], requirement, entry)))
+          .length;
+        return open + freed;
+      }
+      const freed = baseDriveType(driveCost?.type) === type ? Math.min(driveCost.field || 0, this.countFieldMaterials(player, driveCost)) : 0;
+      return open + freed;
+    }
+
+    async activateDriveCard(player, card, trigger = null) {
+      if (!this.canUseDriveCard(player, card, trigger)) return false;
+      if (!await this.payDriveCost(player, card)) return false;
+      const index = player.driveDeck.indexOf(card.id);
+      if (index === -1) return false;
+      player.driveDeck.splice(index, 1);
+      return true;
+    }
+
+    canPayDriveCost(player, card) {
+      const driveCost = card?.driveCost || {};
+      if (Array.isArray(driveCost.materials)) {
+        const selection = this.selectDriveMaterials(player, driveCost, card.cost || 0, this.requiredFreedTypeForDrive(player, card));
+        return Boolean(selection);
+      }
+      const field = driveCost.field || 0;
+      const charge = driveCost.charge || 0;
+      const cost = card?.cost || 0;
+      return (
+        this.countFieldMaterials(player, driveCost) >= field &&
+        this.countChargeMaterials(player, driveCost) >= charge &&
+        this.remainingUntappedAfterDriveMaterials(player, driveCost) >= cost
+      );
+    }
+
+    async payDriveCost(player, card) {
+      if (!this.canPayDriveCost(player, card)) return false;
+      if (player === this.player) return await this.payDriveCostWithChoices(player, card);
+      return this.payDriveCostAutomatically(player, card);
+    }
+
+    payDriveCostAutomatically(player, card) {
+      const driveCost = card?.driveCost || {};
+      if (Array.isArray(driveCost.materials)) {
+        const selection = this.selectDriveMaterials(player, driveCost, card.cost || 0, this.requiredFreedTypeForDrive(player, card));
+        if (!selection) return false;
+        this.removeDriveMaterialSelection(player, selection);
+        return this.payCost(player, card.cost || 0);
+      }
+      let fieldRemaining = driveCost.field || 0;
+      let chargeRemaining = driveCost.charge || 0;
+
+      if (fieldRemaining > 0) {
+        for (const entry of this.fieldMaterialEntries(player, driveCost)) {
+          if (fieldRemaining <= 0) break;
+          player.grave.push(entry.id);
+          entry.remove();
+          fieldRemaining -= 1;
+        }
+      }
+
+      if (chargeRemaining > 0) {
+        const selected = this.driveChargeMaterialIndexes(player, driveCost)
+          .slice(0, chargeRemaining)
+          .sort((a, b) => b.index - a.index);
+        for (const { index } of selected) {
+          const [removed] = player.charge.splice(index, 1);
+          player.grave.push(removed.id);
+          chargeRemaining -= 1;
+        }
+      }
+
+      if (fieldRemaining !== 0 || chargeRemaining !== 0) return false;
+      return this.payCost(player, card.cost || 0);
+    }
+
+    async payDriveCostWithChoices(player, card) {
+      const driveCost = card?.driveCost || {};
+      if (Array.isArray(driveCost.materials)) {
+        return await this.payDriveMaterialCostWithChoices(player, card);
+      }
+      const fieldRequired = driveCost.field || 0;
+      const chargeRequired = driveCost.charge || 0;
+      const fieldMaterials = [];
+      const chargeMaterials = [];
+
+      for (let i = 0; i < fieldRequired; i += 1) {
+        const material = await this.chooseDriveFieldMaterial(player, card, fieldMaterials, i + 1, fieldRequired);
+        if (!material) return false;
+        fieldMaterials.push(material);
+      }
+
+      for (let i = 0; i < chargeRequired; i += 1) {
+        const material = await this.chooseDriveChargeMaterial(player, card, chargeMaterials, i + 1, chargeRequired);
+        if (!material) return false;
+        chargeMaterials.push(material);
+      }
+
+      if (this.remainingUntappedAfterSelectedDriveMaterials(player, chargeMaterials) < (card.cost || 0)) return false;
+
+      fieldMaterials.forEach((entry) => {
+        player.grave.push(entry.id);
+        entry.remove();
+      });
+
+      chargeMaterials
+        .slice()
+        .sort((a, b) => b.originalIndex - a.originalIndex)
+        .forEach((entry) => {
+          const [removed] = player.charge.splice(entry.originalIndex, 1);
+          if (removed) player.grave.push(removed.id);
+        });
+
+      return this.payCost(player, card.cost || 0);
+    }
+
+    async payDriveMaterialCostWithChoices(player, card) {
+      const selectedMaterials = [];
+      const requirements = this.expandDriveRequirements(card.driveCost);
+
+      for (let i = 0; i < requirements.length; i += 1) {
+        const material = await this.chooseDriveMaterial(player, card, requirements[i], selectedMaterials, i + 1, requirements.length);
+        if (!material) return false;
+        selectedMaterials.push(material);
+      }
+
+      if (!this.driveSelectionFreesRequiredSlot(player, card, selectedMaterials)) return false;
+      if (this.remainingUntappedAfterSelectedDriveMaterials(player, selectedMaterials) < (card.cost || 0)) return false;
+
+      this.removeDriveMaterialSelection(player, selectedMaterials);
+      return this.payCost(player, card.cost || 0);
+    }
+
+    async chooseDriveMaterial(player, card, requirement, selectedMaterials, step, total) {
+      const selectedKeys = new Set(selectedMaterials.map((entry) => entry.key));
+      const maxUntappedMaterials = Math.max(0, player.charge.filter((entry) => !entry.tapped).length - (card.cost || 0));
+      const selectedUntapped = selectedMaterials.filter((entry) => entry.source === "charge" && !entry.tapped).length;
+      const candidates = this.driveMaterialEntries(player)
+        .filter((entry) => !selectedKeys.has(entry.key))
+        .filter((entry) => this.matchesDriveRequirement(cards[entry.id], requirement, entry))
+        .filter((entry) => entry.source !== "charge" || entry.tapped || selectedUntapped < maxUntappedMaterials)
+        .map((entry) => ({ ...entry, index: entry.key }));
+      if (candidates.length === 0) return null;
+      const selected = await this.options.requestCardChoice({
+        zone: "driveMaterial",
+        title: `${card.name}の素材`,
+        message: `${this.driveRequirementLabel(requirement)}を墓地に送ってください。${step}/${total}`,
+        candidates,
+        confirmLabel: "素材にする",
+      }, this);
+      return candidates.find((entry) => entry.key === selected) || null;
+    }
+
+    async chooseDriveFieldMaterial(player, card, selectedMaterials, step, total) {
+      const selectedKeys = new Set(selectedMaterials.map((entry) => entry.index));
+      const candidates = this.fieldMaterialEntries(player, card.driveCost)
+        .map((entry) => ({
+          ...entry,
+          index: entry.key,
+        }))
+        .filter((entry) => !selectedKeys.has(entry.index));
+      if (candidates.length === 0) return null;
+      const selected = await this.options.requestCardChoice({
+        zone: "driveMaterial",
+        title: `${card.name}の場素材`,
+        message: `墓地に送る場の素材を選んでください。${step}/${total}`,
+        candidates,
+        confirmLabel: "素材にする",
+      }, this);
+      return candidates.find((entry) => entry.index === selected) || null;
+    }
+
+    async chooseDriveChargeMaterial(player, card, selectedMaterials, step, total) {
+      const selectedKeys = new Set(selectedMaterials.map((entry) => entry.index));
+      const maxUntappedMaterials = Math.max(0, player.charge.filter((entry) => !entry.tapped).length - (card.cost || 0));
+      const selectedUntapped = selectedMaterials.filter((entry) => !entry.tapped).length;
+      const candidates = this.driveChargeMaterialIndexes(player, card.driveCost)
+        .map((entry) => ({
+          ...entry,
+          originalIndex: entry.index,
+          index: `charge:${entry.index}`,
+        }))
+        .filter((entry) => !selectedKeys.has(entry.index))
+        .filter((entry) => entry.tapped || selectedUntapped < maxUntappedMaterials);
+      if (candidates.length === 0) return null;
+      const selected = await this.options.requestCardChoice({
+        zone: "driveMaterial",
+        title: `${card.name}のチャージ素材`,
+        message: `墓地に送るチャージの素材を選んでください。${step}/${total}`,
+        candidates,
+        confirmLabel: "素材にする",
+      }, this);
+      return candidates.find((entry) => entry.index === selected) || null;
+    }
+
+    remainingUntappedAfterSelectedDriveMaterials(player, chargeMaterials) {
+      const selectedIndexes = new Set(chargeMaterials
+        .filter((entry) => entry.source === "charge" || entry.originalIndex !== undefined)
+        .map((entry) => entry.originalIndex));
+      return player.charge.filter((entry, index) => !entry.tapped && !selectedIndexes.has(index)).length;
+    }
+
+    expandDriveRequirements(driveCost = {}) {
+      if (!Array.isArray(driveCost.materials)) return [];
+      return driveCost.materials.flatMap((requirement) => {
+        const count = Math.max(0, requirement.count || 0);
+        return Array.from({ length: count }, () => requirement);
+      });
+    }
+
+    selectDriveMaterials(player, driveCost = {}, cost = 0, requiredFreedType = null) {
+      const requirements = this.expandDriveRequirements(driveCost);
+      const selected = [];
+      let entries = this.driveMaterialEntries(player);
+
+      for (const requirement of requirements) {
+        const candidates = entries
+          .filter((entry) => this.matchesDriveRequirement(cards[entry.id], requirement, entry))
+          .sort((a, b) => this.driveMaterialPriority(a, b, requiredFreedType));
+        const entry = candidates[0];
+        if (!entry) return null;
+        selected.push(entry);
+        entries = entries.filter((candidate) => candidate.key !== entry.key);
+      }
+
+      if (!this.driveSelectionFreesRequiredSlot(player, { driveKind: null }, selected, requiredFreedType)) return null;
+      if (this.remainingUntappedAfterSelectedDriveMaterials(player, selected) < cost) return null;
+      return selected;
+    }
+
+    driveMaterialPriority(a, b, requiredFreedType = null) {
+      const aFrees = requiredFreedType && a.source === "field" && baseDriveType(cards[a.id]?.type) === requiredFreedType;
+      const bFrees = requiredFreedType && b.source === "field" && baseDriveType(cards[b.id]?.type) === requiredFreedType;
+      if (aFrees !== bFrees) return aFrees ? -1 : 1;
+      const rank = (entry) => {
+        if (entry.source === "charge" && entry.tapped) return 0;
+        if (entry.source === "field") return 1;
+        return 2;
+      };
+      const aRank = rank(a);
+      const bRank = rank(b);
+      if (aRank !== bRank) return aRank - bRank;
+      return String(a.key).localeCompare(String(b.key));
+    }
+
+    requiredFreedTypeForDrive(player, card) {
+      if (card?.driveKind === "unit" && !player.units.some((unit) => !unit)) return "ユニット";
+      if (card?.driveKind === "core" && !player.cores.some((core) => !core)) return "コア";
+      return null;
+    }
+
+    driveSelectionFreesRequiredSlot(player, card, selectedMaterials, forcedType = null) {
+      const requiredType = forcedType || this.requiredFreedTypeForDrive(player, card);
+      if (!requiredType) return true;
+      return selectedMaterials.some((entry) => entry.source === "field" && baseDriveType(cards[entry.id]?.type) === requiredType);
+    }
+
+    removeDriveMaterialSelection(player, selectedMaterials) {
+      selectedMaterials
+        .filter((entry) => entry.source === "field")
+        .forEach((entry) => {
+          player.grave.push(entry.id);
+          entry.remove();
+        });
+
+      selectedMaterials
+        .filter((entry) => entry.source === "charge")
+        .slice()
+        .sort((a, b) => b.originalIndex - a.originalIndex)
+        .forEach((entry) => {
+          const [removed] = player.charge.splice(entry.originalIndex, 1);
+          if (removed) player.grave.push(removed.id);
+        });
+    }
+
+    driveMaterialEntries(player) {
+      const entries = [];
+      player.units.forEach((unit, index) => {
+        if (unit) entries.push({ id: unit.id, key: `unit:${index}`, source: "field", remove: () => { player.units[index] = null; } });
+      });
+      player.cores.forEach((id, index) => {
+        if (id) entries.push({ id, key: `core:${index}`, source: "field", remove: () => { player.cores[index] = null; } });
+      });
+      player.reactions.forEach((entry, index) => {
+        const id = reactionId(entry);
+        if (id) entries.push({ id, key: `reaction:${index}`, source: "field", remove: () => { player.reactions[index] = null; } });
+      });
+      player.charge.forEach((entry, index) => {
+        entries.push({
+          id: entry.id,
+          key: `charge:${index}`,
+          source: "charge",
+          originalIndex: index,
+          tapped: Boolean(entry.tapped),
+        });
+      });
+      return entries;
+    }
+
+    matchesDriveRequirement(card, requirement = {}, entry = null) {
+      if (!card) return false;
+      if (requirement.source && entry?.source !== requirement.source) return false;
+      if (requirement.id && card.id !== requirement.id) return false;
+      if (Array.isArray(requirement.ids) && !requirement.ids.includes(card.id)) return false;
+      const type = baseDriveType(requirement.type);
+      if (type && baseDriveType(card.type) !== type) return false;
+      if (requirement.theme && card.theme !== requirement.theme && !card.name.includes(requirement.theme)) return false;
+      return true;
+    }
+
+    driveRequirementLabel(requirement = {}) {
+      const source = requirement.source === "field" ? "場の" : requirement.source === "charge" ? "チャージの" : "";
+      if (requirement.id && cards[requirement.id]) return `${source}${cards[requirement.id].name}1枚`;
+      const theme = requirement.theme ? `「${requirement.theme}」` : "";
+      const type = baseDriveType(requirement.type) || "カード";
+      if (theme && type !== "カード") return `${source}${theme}${type}1枚`;
+      if (theme) return `${source}任意の${theme}カード1枚`;
+      return `${source}${type}1枚`;
+    }
+
+    countFieldMaterials(player, driveCost = {}) {
+      return this.fieldMaterialEntries(player, driveCost).length;
+    }
+
+    countChargeMaterials(player, driveCost = {}) {
+      return player.charge.filter((entry) => this.matchesDriveMaterial(cards[entry.id], driveCost)).length;
+    }
+
+    remainingUntappedAfterDriveMaterials(player, driveCost = {}) {
+      const untappedTotal = player.charge.filter((entry) => !entry.tapped).length;
+      const chargeMaterials = driveCost.charge || 0;
+      const selected = this.driveChargeMaterialIndexes(player, driveCost).slice(0, chargeMaterials);
+      const untappedRemoved = selected.filter((entry) => !entry.tapped).length;
+      return untappedTotal - untappedRemoved;
+    }
+
+    driveChargeMaterialIndexes(player, driveCost = {}) {
+      return player.charge
+        .map((entry, index) => ({ index, tapped: Boolean(entry.tapped), id: entry.id }))
+        .filter((entry) => this.matchesDriveMaterial(cards[entry.id], driveCost))
+        .sort((a, b) => Number(b.tapped) - Number(a.tapped) || b.index - a.index);
+    }
+
+    fieldMaterialEntries(player, driveCost = {}) {
+      const entries = [];
+      const type = baseDriveType(driveCost.type);
+      if (type === "ユニット") {
+        player.units.forEach((unit, index) => {
+          if (unit && this.matchesDriveMaterial(cards[unit.id], driveCost)) {
+            entries.push({ id: unit.id, key: `unit:${index}`, remove: () => { player.units[index] = null; } });
+          }
+        });
+      }
+      if (type === "コア") {
+        player.cores.forEach((id, index) => {
+          if (id && this.matchesDriveMaterial(cards[id], driveCost)) {
+            entries.push({ id, key: `core:${index}`, remove: () => { player.cores[index] = null; } });
+          }
+        });
+      }
+      if (type === "リアクション") {
+        player.reactions.forEach((entry, index) => {
+          const id = reactionId(entry);
+          if (id && this.matchesDriveMaterial(cards[id], driveCost)) {
+            entries.push({ id, key: `reaction:${index}`, remove: () => { player.reactions[index] = null; } });
+          }
+        });
+      }
+      return entries;
+    }
+
+    matchesDriveMaterial(card, driveCost = {}) {
+      if (!card) return false;
+      const type = baseDriveType(driveCost.type);
+      if (type && baseDriveType(card.type) !== type) return false;
+      if (driveCost.theme && card.theme !== driveCost.theme && !card.name.includes(driveCost.theme)) return false;
+      return true;
+    }
+
     canPay(player, cost) {
       return player.charge.filter((charge) => !charge.tapped).length >= cost;
     }
@@ -549,8 +1176,7 @@
       });
       if (index === -1) return false;
       const [id] = player.grave.splice(index, 1);
-      player.hand.push(id);
-      this.log(`${cards[id].name}を墓地から戻した。`);
+      this.returnCardToHandOrDriveDeck(player, id, "墓地から");
       return true;
     }
 
@@ -611,6 +1237,25 @@
       return true;
     }
 
+    sendToGrave(player, id) {
+      if (!id) return false;
+      player.grave.push(id);
+      return true;
+    }
+
+    returnCardToHandOrDriveDeck(player, id, prefix = "") {
+      const card = cards[id];
+      if (!card) return false;
+      if (card.driveKind) {
+        player.driveDeck.push(id);
+        this.log(`${card.name}を${prefix}ドライブデッキに戻した。`);
+        return true;
+      }
+      player.hand.push(id);
+      this.log(`${card.name}を${prefix}手札に戻した。`);
+      return true;
+    }
+
     untapOneCharge(player, predicate = () => true) {
       const charge = player.charge.find((entry) => entry.tapped && predicate(cards[entry.id]));
       if (!charge) return false;
@@ -619,11 +1264,11 @@
     }
 
     countThemeInCharge(player, theme) {
-      return player.charge.filter((entry) => cards[entry.id].name.includes(theme)).length;
+      return player.charge.filter((entry) => cardHasTheme(cards[entry.id], theme)).length;
     }
 
     countThemeUnits(player, theme) {
-      return player.units.filter((unit) => unit && cards[unit.id].name.includes(theme)).length;
+      return player.units.filter((unit) => unit && cardHasTheme(cards[unit.id], theme)).length;
     }
 
     controlsCard(player, id) {
@@ -643,52 +1288,6 @@
 
     completeTurn() {
       this.completedTurns += 1;
-      if (this.completedTurns % 2 !== 0) return;
-      this.environmentCycle += 1;
-      this.naturalEnvironmentLevel = Math.min(ENVIRONMENT_MAX_LEVEL, 1 + Math.floor(this.environmentCycle / 2));
-      this.changeEnvironment(this.naturalEnvironmentLevel);
-    }
-
-    changeEnvironment(level) {
-      const candidates = [...this.playerEnvironmentDeck, ...this.enemyEnvironmentDeck]
-        .filter((id) => cards[id]?.type === "環境" && cards[id].level === level);
-      const pool = candidates.length ? candidates : Object.keys(starterEnvironmentDeck).filter((id) => cards[id]?.level === level);
-      if (pool.length === 0) return false;
-      const next = pool[Math.floor(Math.random() * pool.length)];
-      this.currentEnvironment = next;
-      this.log(`環境が${cards[next].name}（Lv${cards[next].level}）になった。`);
-      this.applyEnvironmentEnter(cards[next]);
-      return true;
-    }
-
-    applyEnvironmentEnter(card) {
-      if (card.family === "星") {
-        const drawAmount = card.level >= 3 ? 2 : 1;
-        this.drawCards(this.player, drawAmount);
-        this.drawCards(this.enemy, drawAmount);
-        let untapped = false;
-        if (card.level >= 2) {
-          untapped = this.untapOneCharge(this.player) || untapped;
-          untapped = this.untapOneCharge(this.enemy) || untapped;
-        }
-        this.log(`${card.name}で各プレイヤーは${drawAmount}枚ドロー。`);
-        if (untapped) this.log(`${card.name}でチャージがアクティブになった。`);
-        return;
-      }
-
-      if (card.family !== "風") return;
-      if (card.level >= 3) {
-        const playerRemoved = this.removeRevealedReaction(this.player) || this.revealReactions(this.player, 1);
-        const enemyRemoved = this.removeRevealedReaction(this.enemy) || this.revealReactions(this.enemy, 1);
-        if (playerRemoved || enemyRemoved) this.log(`${card.name}が表向きのリアクションを吹き飛ばした。`);
-        return;
-      }
-      const amount = card.level >= 2 ? 2 : 1;
-      const playerRevealed = this.revealReactions(this.player, amount);
-      const enemyRevealed = this.revealReactions(this.enemy, amount);
-      if (playerRevealed || enemyRevealed) {
-        this.log(`${card.name}でセットリアクションがめくられた。`);
-      }
     }
 
     revealReactions(player, amount) {
@@ -714,7 +1313,7 @@
     }
 
     controlsThemeUnit(player, theme) {
-      return player.units.some((unit) => unit && cards[unit.id].name.includes(theme));
+      return player.units.some((unit) => unit && cardHasTheme(cards[unit.id], theme));
     }
 
     hasCore(player, id) {
@@ -737,10 +1336,8 @@
         .filter((entry) => entry.unit)
         .sort((a, b) => this.getUnitAtk(player, b.unit) - this.getUnitAtk(player, a.unit))[0];
       if (!target) return false;
-      const targetName = cards[target.unit.id].name;
-      player.hand.push(target.unit.id);
+      this.returnCardToHandOrDriveDeck(player, target.unit.id);
       player.units[target.index] = null;
-      this.log(`${targetName}を手札に戻した。`);
       return true;
     }
 
@@ -817,12 +1414,9 @@
     }
 
     damage(player, amount, options = {}) {
-      const reduction = this.getEnvironmentDamageReduction();
-      const dealt = Math.max(0, amount - reduction);
+      const dealt = amount;
       player.lp = Math.max(0, player.lp - dealt);
       if (options.log !== false) {
-        const reduced = amount - dealt;
-        if (reduced > 0) this.log(`${cards[this.currentEnvironment].name}で${reduced}ダメージ軽減。`);
         this.log(`${player.name}に${dealt}ダメージ。`);
       }
       return dealt;
@@ -832,27 +1426,16 @@
       const card = cards[unit.id];
       let atk = card.atk + (unit.atkMod || 0);
       if (card.name.includes("星導の衛士カイ")) atk += player.cores.filter(Boolean).length * 300;
-      if (card.name.includes("黒機") && this.hasCore(player, "black_tower")) atk += 200;
-      if (card.name.includes("断刃") && this.hasCore(player, "blade_scaffold")) atk += 200;
-      if (card.name.includes("電脳") && this.hasCore(player, "cyber_network")) atk += 100;
-      if (card.name.includes("双彩") && this.hasCore(player, "sosai_pop_stage") && this.hasSosaiPairMate(player, unit.id)) atk += 300;
-      atk += this.getEnvironmentAtkMod();
+      if (cardHasTheme(card, "黒機") && this.hasCore(player, "black_tower")) atk += 200;
+      if (cardHasTheme(card, "断刃") && this.hasCore(player, "blade_scaffold")) atk += 200;
+      if (cardHasTheme(card, "電脳") && this.hasCore(player, "cyber_network")) atk += 100;
+      if (cardHasTheme(card, "双彩") && this.hasCore(player, "sosai_pop_stage") && this.hasSosaiPairMate(player, unit.id)) atk += 300;
+      if (cardHasTheme(card, "星導") && this.hasCore(player, "drive_star_core")) atk += 300;
+      if (cardHasTheme(card, "黒機") && this.hasCore(player, "drive_black_core")) atk += 300;
+      if (cardHasTheme(card, "断刃") && this.hasCore(player, "drive_blade_core")) atk += 300;
+      if (cardHasTheme(card, "電脳") && this.hasCore(player, "drive_cyber_core")) atk += 200;
+      if (cardHasTheme(card, "双彩") && this.hasCore(player, "drive_sosai_core") && this.hasSosaiPairMate(player, unit.id)) atk += 500;
       return atk;
-    }
-
-    getEnvironmentAtkMod() {
-      const environment = cards[this.currentEnvironment];
-      if (!environment || environment.type !== "環境") return 0;
-      if (environment.family === "晴れ") return environment.level * 100;
-      if (environment.family === "雪") return environment.level * -100;
-      return 0;
-    }
-
-    getEnvironmentDamageReduction() {
-      const environment = cards[this.currentEnvironment];
-      if (!environment || environment.type !== "環境") return 0;
-      if (environment.family === "雨") return environment.level * 100;
-      return 0;
     }
 
     checkGameEnd() {
@@ -888,14 +1471,18 @@
     return Boolean(entry && typeof entry === "object" && entry.revealed);
   }
 
+  function baseDriveType(type = "") {
+    return String(type).replace("ドライブ", "");
+  }
+
+  function cardHasTheme(card, theme) {
+    return Boolean(card && (card.theme === theme || card.name.includes(theme)));
+  }
+
   function preferredOpenSlot(list, preferredSlot) {
     const slot = Number(preferredSlot);
     if (Number.isInteger(slot) && slot >= 0 && slot < list.length && !list[slot]) return slot;
     return list.findIndex((entry) => !entry);
-  }
-
-  function expandCounts(counts) {
-    return Object.entries(counts).flatMap(([id, count]) => Array(count).fill(id));
   }
 
   function pause(ms) {

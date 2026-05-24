@@ -3,13 +3,13 @@
 
   const {
     DECK_SIZE,
-    ENVIRONMENT_DECK_PER_LEVEL,
+    DRIVE_DECK_SIZE,
     MAX_LP,
     cards,
     attrClass,
     typeClass,
     cpuDeck,
-    cpuEnvironmentDeck,
+    cpuDriveDeck,
     DuelGame,
     CardRenderer,
     SoundEffects,
@@ -46,6 +46,12 @@
       this.els.restartDuelButton.addEventListener("click", () => this.restart?.());
       this.els.playerGravePile.addEventListener("click", () => this.openGraveList("player"));
       this.els.enemyGravePile.addEventListener("click", () => this.openGraveList("enemy"));
+      this.els.playerDrivePile?.addEventListener("click", () => this.openDriveDeck({ showAll: true }));
+      this.els.playerDrivePile?.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        this.openDriveDeck({ showAll: true });
+      });
       this.els.selectedCardPanel.addEventListener("click", (event) => CardZoom.openFromEvent(event));
       this.bindHandDropTargets();
     }
@@ -66,21 +72,21 @@
       target.addEventListener("drop", (event) => this.handleHandDrop(event, dropZone));
     }
 
-    start(deckList, environmentDeck) {
+    start(deckList, driveDeckList = []) {
       if (deckList.length !== DECK_SIZE) {
         this.toast("40枚デッキにすると対戦できます。");
         this.setView("builder");
         return;
       }
-      if (!environmentDeck || environmentDeck.length !== ENVIRONMENT_DECK_PER_LEVEL * 3) {
-        this.toast("環境カードをLv1/Lv2/Lv3それぞれ3枚にしてください。");
+      if (driveDeckList.length !== DRIVE_DECK_SIZE) {
+        this.toast("ドライブデッキを10枚にすると対戦できます。");
         this.setView("builder");
         return;
       }
 
       this.cancelHandPointerDrag();
       this.game?.dispose?.();
-      this.restart = () => this.start(deckList, environmentDeck);
+      this.restart = () => this.start(deckList, driveDeckList);
       this.selectedContext = null;
       this.handSnapshot = null;
       this.handDrag = null;
@@ -88,9 +94,9 @@
       this.boardSoundSnapshot = null;
       this.game = new DuelGame({
         playerDeck: deckList,
+        playerDriveDeck: driveDeckList,
         cpuDeck: expandDeck(cpuDeck),
-        playerEnvironmentDeck: environmentDeck,
-        cpuEnvironmentDeck: expandDeck(cpuEnvironmentDeck),
+        cpuDriveDeck: expandDeck(cpuDriveDeck),
         onChange: () => this.render(),
         onResult: (won) => this.showResult(won),
         requestReaction: (options, event) => this.requestReactionChoice(options, event),
@@ -168,7 +174,6 @@
     }
 
     renderZones() {
-      this.renderEnvironment();
       this.renderCharge(this.game.player, this.els.playerCharge, false);
       this.renderCharge(this.game.enemy, this.els.enemyCharge, false);
       this.renderCardZones(this.game.player.cores, this.els.playerCoreZones, "コア", "playerCore");
@@ -179,33 +184,13 @@
       this.renderCardZones(this.game.enemy.reactions, this.els.enemyReactionZones, "リアクション", "enemyReaction", true, true);
     }
 
-    renderEnvironment() {
-      if (!this.els.environmentZone) return;
-      this.els.environmentZone.replaceChildren();
-      const id = this.game.currentEnvironment;
-      const card = cards[id];
-      if (!card) {
-        const empty = document.createElement("div");
-        empty.className = "environment-empty";
-        empty.textContent = "環境なし";
-        this.els.environmentZone.append(empty);
-        return;
-      }
-      const button = CardRenderer.tcgCard(id, {
-        small: true,
-        interactive: true,
-        selected: this.isSelected("environment", 0),
-      });
-      button.classList.add("environment-card");
-      button.addEventListener("click", () => this.selectCard(id, { zone: "environment", index: 0, owner: "shared" }));
-      this.els.environmentZone.append(button);
-    }
-
     renderPiles() {
       this.updateDeckPile(this.els.playerDeckPile, this.game.player.deck.length, "自分の山札");
       this.updateDeckPile(this.els.enemyDeckPile, this.game.enemy.deck.length, "相手の山札");
       this.updateGravePile(this.els.playerGravePile, this.game.player.grave, "自分の捨て札");
       this.updateGravePile(this.els.enemyGravePile, this.game.enemy.grave, "相手の捨て札");
+      this.updateDrivePile(this.els.playerDrivePile, this.game.player, "自分のドライブデッキ", true);
+      this.updateDrivePile(this.els.enemyDrivePile, this.game.enemy, "相手のドライブデッキ", false);
     }
 
     updateDeckPile(element, count, label) {
@@ -231,6 +216,26 @@
       topCard.classList.add("pile-top-card");
       topCard.setAttribute("aria-hidden", "true");
       element.append(topCard);
+    }
+
+    updateDrivePile(element, player, label, inspectable) {
+      if (!element) return;
+      element.replaceChildren();
+      const count = Array.isArray(player.driveDeck) ? player.driveDeck.length : 0;
+      const usable = player === this.game.player && this.game.canPlayerAct()
+        ? this.usableNormalDriveIds()
+        : [];
+      element.classList.toggle("has-cards", count > 0);
+      element.classList.toggle("is-empty", count === 0);
+      element.classList.toggle("is-inspectable", Boolean(inspectable));
+      element.classList.toggle("has-usable-drive", usable.length > 0);
+      element.setAttribute("aria-label", `${label} ${count}枚`);
+      element.setAttribute("aria-disabled", inspectable ? "false" : "true");
+
+      const countLabel = document.createElement("span");
+      countLabel.className = "drive-pile-count";
+      countLabel.textContent = `D ${count}`;
+      element.append(countLabel);
     }
 
     renderCharge(player, element, hiddenNames) {
@@ -294,7 +299,7 @@
             element.append(slot);
             continue;
           }
-          const atkMod = value.id && card.type === "ユニット" ? this.game.getUnitAtk(player, value) - card.atk : 0;
+          const atkMod = value.id && CardRenderer.hasAtk(card) ? this.game.getUnitAtk(player, value) - card.atk : 0;
           const cardButton = CardRenderer.tcgCard(cardId, {
             small: true,
             interactive: true,
@@ -847,7 +852,8 @@
         this.renderWaitingActionNotice();
         return;
       }
-      if (!this.game || !this.selectedContext || this.game.finished) return;
+      if (!this.game || this.game.finished) return;
+      if (!this.selectedContext) return;
       if (this.selectedContext.owner !== "player" || !this.game.canPlayerAct()) return;
 
       if (this.selectedContext.zone === "hand") {
@@ -903,8 +909,87 @@
       const player = context.owner === "player" ? this.game.player : this.game.enemy;
       const unit = player.units[context.index];
       const card = cards[unit?.id];
-      if (!unit || !card || card.type !== "ユニット") return {};
+      if (!unit || !card || !CardRenderer.hasAtk(card)) return {};
       return { atkMod: this.game.getUnitAtk(player, unit) - card.atk };
+    }
+
+    usableNormalDriveIds() {
+      if (!this.game || typeof this.game.usableDriveCards !== "function") return [];
+      return this.game.usableDriveCards(this.game.player)
+        .filter((id) => cards[id]?.driveKind !== "reaction");
+    }
+
+    openDriveDeck(options = {}) {
+      if (!this.game || typeof this.game.usableDriveCards !== "function") return;
+      const showAll = Boolean(options.showAll);
+      const usableIds = new Set(this.usableNormalDriveIds());
+      const sourceIds = showAll ? this.game.player.driveDeck : [...usableIds];
+      const candidates = sourceIds.map((id, index) => ({
+        id,
+        index: showAll ? `${id}:${index}` : id,
+        playable: usableIds.has(id) && cards[id]?.driveKind !== "reaction",
+      }));
+      let selected = candidates.find((entry) => entry.playable) || candidates[0] || null;
+      const modal = document.createElement("div");
+      modal.className = "modal-dialog grave-dialog drive-deck-dialog";
+      modal.innerHTML = `
+        <div class="grave-dialog-head">
+          <div>
+            <h2>ドライブデッキ</h2>
+            <p class="small-note">残りドライブカード一覧です。リアクションドライブは発動タイミングで選択します。</p>
+          </div>
+          <button class="ghost-button" type="button">閉じる</button>
+        </div>
+        <div class="drive-deck-body">
+          <div class="grave-list drive-deck-list"></div>
+          <div class="drive-focus-panel">
+            <div class="choice-focus drive-focus"></div>
+            <div class="drive-focus-actions">
+              <button class="primary-button" type="button">ドライブ</button>
+            </div>
+          </div>
+        </div>
+      `;
+      modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
+      const list = modal.querySelector(".drive-deck-list");
+      const focus = modal.querySelector(".drive-focus");
+      const driveButton = modal.querySelector(".drive-focus-actions .primary-button");
+      focus.addEventListener("click", (event) => CardZoom.openFromEvent(event));
+      const rendered = [];
+      const updateSelection = () => {
+        rendered.forEach(({ entry, card }) => {
+          card.classList.toggle("selected", selected?.index === entry.index);
+        });
+        CardRenderer.focus(selected?.id, focus);
+        driveButton.disabled = !selected?.playable;
+        driveButton.textContent = selected?.playable ? "ドライブ" : "条件未達成";
+      };
+      driveButton.addEventListener("click", async () => {
+        if (!selected?.playable) return;
+        const id = selected.id;
+        this.closeModal();
+        if (await this.game.playDriveCard(id) !== false) this.playPlaceSound();
+      });
+      if (candidates.length === 0) {
+        list.innerHTML = `<div class="small-note">${showAll ? "ドライブデッキにカードは残っていません。" : "今使えるドライブカードはありません。"}</div>`;
+        driveButton.disabled = true;
+        driveButton.textContent = "ドライブ";
+      } else {
+        candidates.forEach((entry) => {
+          const card = CardRenderer.tcgCard(entry.id, { interactive: true });
+          card.classList.add("grave-list-card");
+          card.classList.toggle("drive-card-unusable", !entry.playable);
+          if (!entry.playable) card.setAttribute("aria-disabled", "true");
+          card.addEventListener("click", () => {
+            selected = entry;
+            updateSelection();
+          });
+          rendered.push({ entry, card });
+          list.append(card);
+        });
+        updateSelection();
+      }
+      this.openModal(modal);
     }
 
     addAction(label, handler, enabled = true) {
@@ -961,7 +1046,7 @@
     requestReactionChoice(options, event) {
       return this.requestCardChoice({
         title: "リアクション",
-        message: `${event.source?.name || "相手の行動"}に対応できます。使うリアクションカードを選んでください。`,
+        message: `${event.source?.name || "相手の行動"}に対応できます。使うリアクションカードまたはリアクションドライブを選んでください。`,
         candidates: options,
         allowPass: true,
         confirmLabel: "発動",

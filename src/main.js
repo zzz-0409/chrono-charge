@@ -3,6 +3,7 @@
 
   const {
     DECK_SIZE,
+    DRIVE_DECK_SIZE,
     DeckStore,
     DeckBuilderView,
     DuelView,
@@ -36,27 +37,18 @@
     searchInput: document.querySelector("#searchInput"),
     typeFilter: document.querySelector("#typeFilter"),
     attrFilter: document.querySelector("#attrFilter"),
-    environmentLevelTabs: document.querySelector("#environmentLevelTabs"),
-    environmentLevel1Button: document.querySelector("#environmentLevel1Button"),
-    environmentLevel2Button: document.querySelector("#environmentLevel2Button"),
-    environmentLevel3Button: document.querySelector("#environmentLevel3Button"),
     poolCount: document.querySelector("#poolCount"),
     collectionGrid: document.querySelector("#collectionGrid"),
+    mainDeckModeButton: document.querySelector("#mainDeckModeButton"),
+    driveDeckModeButton: document.querySelector("#driveDeckModeButton"),
     deckPanelEyebrow: document.querySelector("#deckPanelEyebrow"),
     deckPanelTitle: document.querySelector("#deckPanelTitle"),
-    mainDeckModeButton: document.querySelector("#mainDeckModeButton"),
-    environmentDeckModeButton: document.querySelector("#environmentDeckModeButton"),
     deckCount: document.querySelector("#deckCount"),
     deckStats: document.querySelector("#deckStats"),
     themeRate: document.querySelector("#themeRate"),
     avgCost: document.querySelector("#avgCost"),
     reactionCount: document.querySelector("#reactionCount"),
     deckList: document.querySelector("#deckList"),
-    environmentDeckCount: document.querySelector("#environmentDeckCount"),
-    environmentLevel1Count: document.querySelector("#environmentLevel1Count"),
-    environmentLevel2Count: document.querySelector("#environmentLevel2Count"),
-    environmentLevel3Count: document.querySelector("#environmentLevel3Count"),
-    environmentDeckList: document.querySelector("#environmentDeckList"),
     cardPreview: document.querySelector("#cardPreview"),
     previewDeckControls: document.querySelector("#previewDeckControls"),
     enemyLp: document.querySelector("#enemyLp"),
@@ -71,6 +63,8 @@
     enemyGravePile: document.querySelector("#enemyGravePile"),
     playerDeckPile: document.querySelector("#playerDeckPile"),
     playerGravePile: document.querySelector("#playerGravePile"),
+    enemyDrivePile: document.querySelector("#enemyDrivePile"),
+    playerDrivePile: document.querySelector("#playerDrivePile"),
     enemyCharge: document.querySelector("#enemyCharge"),
     playerCharge: document.querySelector("#playerCharge"),
     enemyHandZone: document.querySelector("#enemyHandZone"),
@@ -80,7 +74,6 @@
     playerUnitZones: document.querySelector("#playerUnitZones"),
     enemyReactionZones: document.querySelector("#enemyReactionZones"),
     playerReactionZones: document.querySelector("#playerReactionZones"),
-    environmentZone: document.querySelector("#environmentZone"),
     handZone: document.querySelector("#handZone"),
     handInfo: document.querySelector("#handInfo"),
     selectedCardPanel: document.querySelector("#selectedCardPanel"),
@@ -122,22 +115,23 @@
     store,
     els,
     toast,
-    onStartDuel: () => duelView.start(store.list, store.environmentList),
+    onStartDuel: () => duelView.start(store.list, store.driveList),
   });
 
   const requireDeck = () => {
     const deck = store.list;
+    const driveDeck = store.driveList;
     if (deck.length !== DECK_SIZE) {
-      toast("40枚デッキにするとオンライン対戦できます。");
+      toast("通常デッキを40枚にしてください。");
       setView("builder");
       return null;
     }
-    if (!store.environmentReady) {
-      toast("環境カードをLv1/Lv2/Lv3それぞれ3枚にしてください。");
+    if (driveDeck.length !== DRIVE_DECK_SIZE) {
+      toast("ドライブデッキを10枚にしてください。");
       setView("builder");
       return null;
     }
-    return { deck, environmentDeck: store.environmentList };
+    return { deck, driveDeck };
   };
 
   const canUseOnline = () => {
@@ -156,7 +150,7 @@
     const deckSet = requireDeck();
     if (!deckSet) return;
     try {
-      const client = await OnlineClient.createRoom(deckSet.deck, deckSet.environmentDeck);
+      const client = await OnlineClient.createRoom(deckSet.deck, deckSet.driveDeck);
       startOnlineDuel(client);
       toast(`ルーム ${client.roomId} を作成しました。`);
     } catch (error) {
@@ -171,7 +165,7 @@
     const roomId = window.prompt("参加するルームIDを入力してください。");
     if (!roomId) return;
     try {
-      const client = await OnlineClient.joinRoom(roomId, deckSet.deck, deckSet.environmentDeck);
+      const client = await OnlineClient.joinRoom(roomId, deckSet.deck, deckSet.driveDeck);
       startOnlineDuel(client);
       toast(`ルーム ${client.roomId} に参加しました。`);
     } catch (error) {
@@ -181,7 +175,7 @@
 
   els.builderTab.addEventListener("click", () => setView("builder"));
   els.duelTab.addEventListener("click", () => {
-    if (!duelView.game) duelView.start(store.list, store.environmentList);
+    if (!duelView.game) duelView.start(store.list, store.driveList);
     else setView("duel");
   });
 

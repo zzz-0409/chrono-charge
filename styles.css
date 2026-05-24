@@ -41,7 +41,6 @@
   --spell-frame: #4fbde2;
   --reaction-frame: #d7a84f;
   --core-frame: #8fce7a;
-  --environment-frame: #b9d7ff;
 }
 
 * {
@@ -358,40 +357,6 @@ button:disabled {
   gap: 8px;
 }
 
-.environment-level-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 52px);
-  gap: 5px;
-}
-
-.environment-level-tabs[hidden] {
-  display: none !important;
-}
-
-.level-tab {
-  min-height: 30px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 0 7px;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.03);
-  font-size: 0.72rem;
-  font-weight: 900;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.level-tab.active {
-  color: #081113;
-  border-color: rgba(112, 223, 230, 0.74);
-  background: var(--teal);
-}
-
-.level-tab:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-}
-
 .panel-head.compact {
   min-height: 28px;
   margin-bottom: 8px;
@@ -531,11 +496,32 @@ select {
   --card-frame-image: url("assets/cards/frames/core-bg-new.png");
 }
 
-.type-environment {
-  --card-frame: var(--environment-frame);
-  --card-glow: rgba(185, 215, 255, 0.2);
-  --card-top: rgba(185, 215, 255, 0.16);
-  --card-frame-image: url("assets/cards/frames/environment-bg-new.png");
+.type-unit-drive {
+  --card-frame: var(--unit-frame);
+  --card-glow: rgba(255, 75, 64, 0.26);
+  --card-top: rgba(255, 75, 64, 0.18);
+  --card-frame-image: url("assets/cards/frames/unit-drive-bg.png");
+}
+
+.type-reaction-drive {
+  --card-frame: var(--reaction-frame);
+  --card-glow: rgba(255, 205, 70, 0.28);
+  --card-top: rgba(255, 205, 70, 0.18);
+  --card-frame-image: url("assets/cards/frames/reaction-drive-bg.png");
+}
+
+.type-spell-drive {
+  --card-frame: var(--spell-frame);
+  --card-glow: rgba(78, 183, 255, 0.26);
+  --card-top: rgba(78, 183, 255, 0.18);
+  --card-frame-image: url("assets/cards/frames/spell-drive-bg.png");
+}
+
+.type-core-drive {
+  --card-frame: var(--core-frame);
+  --card-glow: rgba(64, 226, 174, 0.26);
+  --card-top: rgba(64, 226, 174, 0.18);
+  --card-frame-image: url("assets/cards/frames/core-drive-bg.png");
 }
 
 .library-card {
@@ -749,31 +735,6 @@ select {
   fill: var(--teal);
 }
 
-.attr-sun .card-art svg,
-.attr-sun .card-symbol {
-  fill: var(--gold);
-}
-
-.attr-rain .card-art svg,
-.attr-rain .card-symbol {
-  fill: var(--blue);
-}
-
-.attr-wind .card-art svg,
-.attr-wind .card-symbol {
-  fill: var(--teal);
-}
-
-.attr-snow .card-art svg,
-.attr-snow .card-symbol {
-  fill: #d9f3ff;
-}
-
-.attr-starfield .card-art svg,
-.attr-starfield .card-symbol {
-  fill: var(--violet);
-}
-
 .type-line,
 .card-effect,
 .deck-row-sub,
@@ -874,6 +835,70 @@ select {
 
 .game-card .battle-stats .stat-mod {
   font-size: 0.56rem;
+}
+
+.game-card.drive-card-type .card-mini-top {
+  top: 9.2%;
+  left: 11.6%;
+  width: 76.2%;
+  height: 8.9%;
+}
+
+.game-card.drive-card-type {
+  background-size: cover, 107%, cover;
+  background-position: center, center, center;
+}
+
+.game-card.drive-card-type .card-art {
+  top: 21.4%;
+  left: 10.8%;
+  width: 78.4%;
+  height: 46.2%;
+}
+
+.game-card.drive-card-type .rules-box {
+  top: 71.0%;
+  left: 14.1%;
+  width: 71.8%;
+  height: 18.8%;
+}
+
+.game-card.drive-card-type .battle-stats {
+  bottom: 3.0%;
+}
+
+.game-card.drive-card-type .card-face .card-name {
+  padding-left: 5.5%;
+  font-size: 0.94rem;
+}
+
+.game-card.drive-card-type .card-face .type-line {
+  font-size: 0.68rem;
+  line-height: 1.18;
+}
+
+.game-card.drive-card-type .card-face .card-effect {
+  font-size: 0.72rem;
+  line-height: 1.08;
+}
+
+.game-card.drive-card-type .card-face .card-effect.effect-sm {
+  font-size: 0.66rem;
+  line-height: 1.06;
+}
+
+.game-card.drive-card-type .card-face .card-effect.effect-xs {
+  font-size: 0.58rem;
+  line-height: 1.03;
+}
+
+.game-card.drive-card-type .card-face .card-effect.effect-xxs {
+  font-size: 0.50rem;
+  line-height: 1;
+}
+
+.game-card.drive-card-type .deck-row-sub {
+  bottom: 2.2%;
 }
 
 .game-card .deck-row-sub {
@@ -989,8 +1014,28 @@ select {
   grid-row: 1;
 }
 
-.deck-panel > .deck-mode-tabs {
+.deck-mode-tabs {
   grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.deck-mode-button {
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.deck-mode-button.active {
+  border-color: rgba(240, 185, 92, 0.78);
+  color: var(--gold);
+  background: rgba(240, 185, 92, 0.12);
 }
 
 .deck-panel-stats {
@@ -1012,99 +1057,14 @@ select {
   gap: 9px;
 }
 
-.deck-panel.is-editing-environment {
-  grid-template-rows: auto auto minmax(0, 1fr);
-}
-
 .deck-panel [hidden] {
   display: none !important;
-}
-
-.deck-mode-tabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.deck-mode-button {
-  min-height: 34px;
-  border: 0;
-  border-radius: 6px;
-  color: var(--muted);
-  background: transparent;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.deck-mode-button.active {
-  color: #081113;
-  background: var(--teal);
 }
 
 .deck-panel > .deck-list {
   grid-row: 4;
   height: auto;
   min-height: 0;
-}
-
-.deck-panel.is-editing-environment > .environment-deck-panel {
-  grid-row: 3;
-}
-
-.environment-deck-panel {
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 7px;
-}
-
-.compact-count {
-  font-size: 0.95rem;
-}
-
-.environment-levels {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-}
-
-.environment-levels div {
-  min-height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 6px 8px;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.03);
-  font-size: 0.72rem;
-  font-weight: 900;
-}
-
-.environment-levels strong {
-  display: block;
-  margin-top: 2px;
-  color: var(--text);
-}
-
-.environment-deck-list {
-  height: auto;
-  min-height: 0;
-}
-
-.level-chip {
-  min-width: 30px;
-  min-height: 24px;
-  border: 1px solid rgba(185, 215, 255, 0.46);
-  border-radius: 999px;
-  display: inline-grid;
-  place-items: center;
-  color: #e6f0ff;
-  background: rgba(185, 215, 255, 0.08);
-  font-size: 0.72rem;
-  font-weight: 900;
 }
 
 .deck-row {
@@ -1843,6 +1803,71 @@ select {
   border-color: var(--card-frame);
 }
 
+.drive-pile-field {
+  position: relative;
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  align-self: center;
+  width: var(--card-field-width);
+  aspect-ratio: var(--card-ratio);
+  border: 1px solid rgba(111, 136, 214, 0.66);
+  border-radius: 7px;
+  overflow: visible;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 12, 0.02), rgba(5, 8, 12, 0.18)),
+    url("assets/cards/card-back.png");
+  background-size: cover;
+  background-position: center;
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.32),
+    0 0 16px rgba(111, 136, 214, 0.18);
+}
+
+.drive-pile-field.is-inspectable {
+  cursor: pointer;
+}
+
+.drive-pile-field.has-usable-drive {
+  border-color: rgba(240, 185, 92, 0.88);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.32),
+    0 0 20px rgba(240, 185, 92, 0.38);
+}
+
+.drive-pile-field.is-empty {
+  filter: saturate(0.4);
+  opacity: 0.48;
+}
+
+.opponent-drive-pile {
+  opacity: 0.82;
+}
+
+.drive-pile-count {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  z-index: 2;
+  min-width: 34px;
+  border: 1px solid rgba(240, 185, 92, 0.56);
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: #fff0b6;
+  background: rgba(5, 8, 12, 0.86);
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  box-shadow: 0 0 12px rgba(240, 185, 92, 0.16);
+}
+
+.grave-list-card.drive-card-unusable {
+  cursor: default;
+  filter: grayscale(0.28) brightness(0.82);
+  opacity: 0.52;
+}
+
 .enemy-hand-zone {
   grid-column: 1;
   grid-row: 1;
@@ -1947,44 +1972,9 @@ select {
   justify-content: center;
   min-height: 66px;
   display: grid;
-  grid-template-columns: minmax(86px, auto) auto auto;
+  grid-template-columns: auto auto;
   align-items: center;
   justify-items: center;
-}
-
-.environment-zone {
-  width: 96px;
-  min-height: 66px;
-  display: grid;
-  place-items: center;
-}
-
-.environment-empty {
-  min-width: 82px;
-  min-height: 42px;
-  border: 1px solid rgba(185, 215, 255, 0.3);
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  background: rgba(4, 9, 13, 0.24);
-  font-size: 0.72rem;
-  font-weight: 900;
-}
-
-.environment-card.tcg-card.small {
-  --card-width: 48px;
-  --card-height: 72px;
-  padding: 4px;
-  box-shadow: 0 0 18px rgba(185, 215, 255, 0.18), 0 10px 20px rgba(0, 0, 0, 0.28);
-}
-
-.environment-card.tcg-card.small .card-effect {
-  font-size: 0.2rem;
-}
-
-.environment-card.tcg-card.small .card-name {
-  font-size: 0.46rem;
 }
 
 .hand-zone {
@@ -2840,13 +2830,13 @@ select {
   --card-render-scale: 0.229508;
 }
 
-.environment-card.tcg-card.small {
-  --card-render-scale: 0.196721;
-}
-
 .game-card .card-face .card-name {
   font-size: 1.02rem;
   line-height: 1;
+}
+
+.game-card:not(.drive-card-type) .card-face .card-name {
+  transform: translateX(8%);
 }
 
 .game-card .card-face .cost-chip {
@@ -2921,6 +2911,66 @@ select {
   font-size: 0.56rem;
 }
 
+.game-card.drive-card-type .card-face .card-mini-top {
+  top: 7%;
+  left: 11.7%;
+  width: 77.2%;
+  height: 8.9%;
+}
+
+.game-card.drive-card-type .card-face .card-name {
+  font-size: 0.94rem;
+}
+
+.game-card.drive-card-type .card-face .cost-chip {
+  height: 92%;
+  font-size: 1rem;
+  transform: translate(33%, -8%);
+}
+
+.game-card.drive-card-type .card-face .card-art {
+  top: 19.5%;
+  left: 14%;
+  width: 72%;
+  height: auto;
+}
+
+.game-card.drive-card-type .card-face .rules-box {
+  top: 71%;
+  left: 11.4%;
+  width: 75.6%;
+  height: 18.8%;
+}
+
+.game-card.drive-card-type .card-face .type-line {
+  font-size: 0.70rem;
+  line-height: 1.18;
+}
+
+.game-card.drive-card-type .card-face .card-effect {
+  font-size: 0.72rem;
+  line-height: 1.06;
+}
+
+.game-card.drive-card-type .card-face .card-effect.effect-sm {
+  font-size: 0.66rem;
+  line-height: 1.04;
+}
+
+.game-card.drive-card-type .card-face .card-effect.effect-xs {
+  font-size: 0.58rem;
+  line-height: 1.02;
+}
+
+.game-card.drive-card-type .card-face .card-effect.effect-xxs {
+  font-size: 0.50rem;
+  line-height: 1;
+}
+
+.game-card.drive-card-type .card-face .battle-stats {
+  bottom: 1.5%;
+}
+
 .core-row .tcg-card.small .card-face .card-art,
 .reaction-row .tcg-card.small .card-face .card-art {
   display: grid;
@@ -2985,6 +3035,40 @@ select {
   top: 0;
 }
 
+.drive-deck-dialog {
+  width: min(960px, calc(100% - 24px));
+}
+
+.drive-deck-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 14px;
+}
+
+.drive-deck-list {
+  border: 1px solid rgba(112, 223, 230, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(7, 12, 17, 0.32);
+}
+
+.drive-focus-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.drive-focus-actions {
+  display: flex;
+  justify-content: stretch;
+}
+
+.drive-focus-actions .primary-button {
+  width: 100%;
+}
+
 .choice-actions {
   display: flex;
   justify-content: end;
@@ -3011,6 +3095,16 @@ select {
 
 .modal-dialog h2 {
   margin-bottom: 8px;
+}
+
+@media (max-width: 820px) {
+  .drive-deck-body {
+    grid-template-columns: 1fr;
+  }
+
+  .drive-focus-panel {
+    min-height: 360px;
+  }
 }
 
 .modal-dialog p {

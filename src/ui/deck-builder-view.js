@@ -3,10 +3,11 @@
 
   const {
     DECK_SIZE,
-    ENVIRONMENT_DECK_PER_LEVEL,
+    DRIVE_DECK_SIZE,
     MAX_COPIES,
+    MAX_DRIVE_COPIES,
     cardPool,
-    environmentPool,
+    drivePool,
     cards,
     CardRenderer,
     CardZoom,
@@ -18,9 +19,8 @@
       this.els = options.els;
       this.toast = options.toast;
       this.onStartDuel = options.onStartDuel;
-      this.selectedCardId = "star_scout";
       this.deckMode = "main";
-      this.environmentLevel = 1;
+      this.selectedCardId = "star_scout";
       this.bindEvents();
       this.render();
     }
@@ -36,7 +36,7 @@
       });
       this.els.loadDeckButton.addEventListener("click", () => {
         if (!this.store.loadPreset(this.els.deckPresetSelect.value)) return;
-        this.selectedCardId = Object.keys(this.store.counts)[0] || "star_scout";
+        this.selectedCardId = this.firstSelectedId();
         this.render();
         this.toast(`${this.store.activeDeck.name}を読み込みました。`);
       });
@@ -48,20 +48,20 @@
           this.toast("最後のプリセットは削除できません。");
           return;
         }
-        this.selectedCardId = Object.keys(this.store.counts)[0] || "star_scout";
+        this.selectedCardId = this.firstSelectedId();
         this.render();
         this.toast("プリセットを削除しました。");
       });
       this.els.changeAccountButton.addEventListener("click", () => {
         const account = this.store.switchAccount(this.els.accountNameInput.value);
-        this.selectedCardId = Object.keys(this.store.counts)[0] || "star_scout";
+        this.selectedCardId = this.firstSelectedId();
         this.render();
         this.toast(`${account.name}に変更しました。`);
       });
       this.els.deckPresetSelect.addEventListener("change", () => this.renderProfilePanel());
       this.els.autoBuildButton.addEventListener("click", () => {
         const label = this.store.autoBuild(this.els.autoBuildMode.value);
-        this.selectedCardId = Object.keys(this.store.counts)[0] || "star_scout";
+        this.selectedCardId = this.firstSelectedId();
         this.els.deckPresetSelect.value = this.store.activeDeckId;
         this.render();
         this.toast(`${label}を作成しました。保存するとプリセットに反映されます。`);
@@ -70,33 +70,21 @@
       this.els.searchInput.addEventListener("input", () => this.render());
       this.els.typeFilter.addEventListener("change", () => this.render());
       this.els.attrFilter.addEventListener("change", () => this.render());
-      this.els.mainDeckModeButton.addEventListener("click", () => this.setDeckMode("main"));
-      this.els.environmentDeckModeButton.addEventListener("click", () => this.setDeckMode("environment"));
-      this.els.environmentLevel1Button.addEventListener("click", () => this.setEnvironmentLevel(1));
-      this.els.environmentLevel2Button.addEventListener("click", () => this.setEnvironmentLevel(2));
-      this.els.environmentLevel3Button.addEventListener("click", () => this.setEnvironmentLevel(3));
       this.els.cardPreview.addEventListener("click", (event) => CardZoom.openFromEvent(event));
+      this.els.mainDeckModeButton?.addEventListener("click", () => this.setDeckMode("main"));
+      this.els.driveDeckModeButton?.addEventListener("click", () => this.setDeckMode("drive"));
     }
 
     setDeckMode(mode) {
       if (this.deckMode === mode) return;
       this.deckMode = mode;
       this.els.typeFilter.value = "all";
-      this.els.attrFilter.value = "all";
-      this.selectedCardId = mode === "environment"
-        ? Object.keys(this.store.environmentCounts)[0] || environmentPool[0]?.id
-        : Object.keys(this.store.counts)[0] || "star_scout";
+      this.selectedCardId = this.firstSelectedId();
       this.render();
     }
 
-    setEnvironmentLevel(level) {
-      if (!this.canEditEnvironmentLevel(level)) return;
-      this.environmentLevel = level;
-      this.selectedCardId = this.environmentCardIdsForLevel(level)[0] || environmentPool.find((card) => card.level === level)?.id || this.selectedCardId;
-      this.render({ preserveLibraryScroll: false });
-    }
-
     render(options = {}) {
+      this.ensureSelectedCard();
       this.renderProfilePanel();
       this.renderLibrary({ preserveScroll: Boolean(options.preserveLibraryScroll) });
       this.renderDeckPanel();
@@ -144,20 +132,19 @@
       const query = this.els.searchInput.value.trim().toLowerCase();
       const type = this.els.typeFilter.value;
       const attr = this.els.attrFilter.value;
-      this.ensureEnvironmentLevelIsEditable();
-      this.renderEnvironmentLevelTabs();
-      const sourcePool = this.deckMode === "environment" ? this.environmentPoolForActiveLevel() : cardPool;
-      const filtered = sourcePool.filter((card) => {
+      const filtered = this.activePool().filter((card) => {
         const matchesQuery = card.name.toLowerCase().includes(query);
-        const matchesType = this.deckMode === "environment" || type === "all" || card.type === type;
+        const matchesType = type === "all" || card.type === type;
         const matchesAttr = attr === "all" || card.attr === attr;
         return matchesQuery && matchesType && matchesAttr;
       });
 
       this.els.poolCount.textContent = `${filtered.length}種`;
+      this.els.mainDeckModeButton?.classList.toggle("active", this.deckMode === "main");
+      this.els.driveDeckModeButton?.classList.toggle("active", this.deckMode === "drive");
       this.els.collectionGrid.replaceChildren();
       filtered.forEach((card) => {
-        const count = card.type === "環境" ? this.store.environmentCounts[card.id] || 0 : this.store.counts[card.id] || 0;
+        const count = this.activeCounts()[card.id] || 0;
         const button = CardRenderer.libraryCard(card, count, this.selectedCardId === card.id);
         button.addEventListener("click", () => this.handleCardClick(card.id));
         this.els.collectionGrid.append(button);
@@ -179,19 +166,19 @@
         return;
       }
 
-      const editingEnvironment = this.deckMode === "environment";
-      const count = card.type === "環境" ? this.store.environmentCounts[this.selectedCardId] || 0 : this.store.counts[this.selectedCardId] || 0;
-      const limit = card.type === "環境" ? 1 : MAX_COPIES;
-      const canUseInMode = editingEnvironment ? card.type === "環境" : card.type !== "環境";
-      const canAdd = canUseInMode && this.canAddSelectedCard(card, count);
-      const canRemove = canUseInMode && count > 0;
-      const meta = card.type === "環境" ? `Lv${card.level} / ${card.family}系統` : `${card.type} / ${card.attr}`;
+      const counts = this.activeCounts();
+      const limit = this.deckMode === "drive" ? MAX_DRIVE_COPIES : MAX_COPIES;
+      const total = this.deckMode === "drive" ? this.store.driveTotal : this.store.total;
+      const size = this.deckMode === "drive" ? DRIVE_DECK_SIZE : DECK_SIZE;
+      const count = counts[this.selectedCardId] || 0;
+      const canAdd = count < limit && total < size;
+      const canRemove = count > 0;
 
       target.innerHTML = `
         <div class="preview-control-copy">
           <span>投入枚数</span>
           <strong>${count} / ${limit}</strong>
-          <small>${meta}</small>
+          <small>${card.type} / ${card.attr}</small>
         </div>
         <div class="preview-count-stepper">
           <button class="mini-button" type="button" data-action="preview-remove">-</button>
@@ -208,114 +195,82 @@
       addButton.addEventListener("click", () => this.addCardToDeck(this.selectedCardId));
     }
 
-    canAddSelectedCard(card, count) {
-      if (card.type === "環境") {
-        return count < 1 && this.canEditEnvironmentLevel(card.level) && card.level === this.environmentLevel;
-      }
-      return count < MAX_COPIES && this.store.total < DECK_SIZE;
-    }
-
     addCardToDeck(id) {
       const card = cards[id];
       if (!card) return;
-      const result = card?.type === "環境" ? this.store.addEnvironment(id) : this.store.add(id);
-      this.toastDeckResult(result, card);
+      const result = this.deckMode === "drive" ? this.store.addDrive(id) : this.store.add(id);
+      this.toastDeckResult(result);
       this.selectedCardId = id;
       this.render({ preserveLibraryScroll: true });
     }
 
     removeCardFromDeck(id) {
-      const card = cards[id];
-      if (!card) return;
-      if (card.type === "環境") this.store.removeEnvironment(id);
+      if (!cards[id]) return;
+      if (this.deckMode === "drive") this.store.removeDrive(id);
       else this.store.remove(id);
       this.selectedCardId = id;
       this.render({ preserveLibraryScroll: true });
     }
 
-    toastDeckResult(result, card) {
+    toastDeckResult(result) {
       if (result.ok) return;
+      if (this.deckMode === "drive") {
+        if (result.reason === "full") this.toast("ドライブデッキは10枚までです。");
+        if (result.reason === "copies") this.toast(`ドライブカードは各${MAX_DRIVE_COPIES}枚までです。`);
+        return;
+      }
       if (result.reason === "full") this.toast("デッキは40枚までです。");
-      if (result.reason === "copies") this.toast(card?.type === "環境" ? "同じ環境カードは1枚までです。" : "同名カードは3枚までです。");
-      if (result.reason === "levelFull") this.toast(`環境Lv${card.level}は${ENVIRONMENT_DECK_PER_LEVEL}枚までです。`);
-      if (result.reason === "levelLocked") this.toast("前のLvを3枚選ぶと追加できます。");
-      if (result.reason === "familyLocked") this.toast("Lv1で選んだ系統だけ追加できます。");
-      if (result.reason === "familyLevelUsed") this.toast(`Lv${card.level}の${card.family}系統は1枚までです。`);
+      if (result.reason === "copies") this.toast("同名カードは3枚までです。");
     }
 
     renderDeckPanel() {
+      const driveMode = this.deckMode === "drive";
+      const labels = this.els.deckStats.querySelectorAll("span");
+      if (driveMode) {
+        const stats = this.store.driveStats;
+        this.els.deckPanelEyebrow.textContent = "Drive Deck";
+        this.els.deckPanelTitle.textContent = "ドライブデッキ";
+        this.els.deckCount.textContent = `${this.store.driveTotal} / ${DRIVE_DECK_SIZE}`;
+        this.els.deckCount.style.color = this.store.driveReady ? "var(--gold)" : "var(--red)";
+        if (labels[0]) labels[0].textContent = "テーマ純度";
+        if (labels[1]) labels[1].textContent = "平均コスト";
+        if (labels[2]) labels[2].textContent = "メインテーマ";
+        this.els.themeRate.textContent = `${stats.themeRate}%`;
+        this.els.avgCost.textContent = stats.avgCost.toFixed(1);
+        this.els.reactionCount.textContent = stats.mainTheme;
+        this.renderDeckRows(this.store.driveCounts);
+        return;
+      }
+
       const stats = this.store.stats;
+      this.els.deckPanelEyebrow.textContent = "Main Deck";
+      this.els.deckPanelTitle.textContent = "構築デッキ";
+      this.els.deckCount.textContent = `${this.store.total} / ${DECK_SIZE}`;
+      this.els.deckCount.style.color = this.store.total === DECK_SIZE ? "var(--gold)" : "var(--red)";
+      if (labels[0]) labels[0].textContent = "テーマ純度";
+      if (labels[1]) labels[1].textContent = "平均コスト";
+      if (labels[2]) labels[2].textContent = "メインテーマ";
       this.els.themeRate.textContent = `${stats.themeRate}%`;
       this.els.avgCost.textContent = stats.avgCost.toFixed(1);
-      this.els.reactionCount.textContent = stats.reactions;
-      this.renderEnvironmentDeckPanel();
-      this.renderDeckModeState();
+      this.els.reactionCount.textContent = stats.mainTheme;
+      this.renderDeckRows(this.store.counts);
+    }
 
+    renderDeckRows(counts) {
       this.els.deckList.replaceChildren();
-      Object.entries(this.store.counts)
-        .sort((a, b) => cards[a[0]].cost - cards[b[0]].cost || cards[a[0]].name.localeCompare(cards[b[0]].name, "ja"))
+      Object.entries(counts)
+        .sort((a, b) => sortCardRows(cards[a[0]], cards[b[0]]))
         .forEach(([id, count]) => this.els.deckList.append(this.createDeckRow(id, count)));
-    }
-
-    renderDeckModeState() {
-      const environmentTotal = this.store.environmentStats.reduce((sum, entry) => sum + entry.total, 0);
-      const editingEnvironment = this.deckMode === "environment";
-      this.els.deckPanelEyebrow.textContent = editingEnvironment ? "Environment" : "Main Deck";
-      this.els.deckPanelTitle.textContent = editingEnvironment ? "環境デッキ" : "構築デッキ";
-      this.els.deckCount.textContent = editingEnvironment ? `${environmentTotal} / ${ENVIRONMENT_DECK_PER_LEVEL * 3}` : `${this.store.total} / ${DECK_SIZE}`;
-      this.els.deckCount.style.color = editingEnvironment
-        ? (this.store.environmentReady ? "var(--gold)" : "var(--red)")
-        : (this.store.total === DECK_SIZE ? "var(--gold)" : "var(--red)");
-      this.els.deckList.hidden = editingEnvironment;
-      this.els.deckStats.hidden = editingEnvironment;
-      this.els.environmentDeckList.closest(".environment-deck-panel").hidden = !editingEnvironment;
-      this.els.deckList.closest(".deck-panel").classList.toggle("is-editing-environment", editingEnvironment);
-      this.els.mainDeckModeButton.classList.toggle("active", !editingEnvironment);
-      this.els.environmentDeckModeButton.classList.toggle("active", editingEnvironment);
-    }
-
-    renderEnvironmentLevelTabs() {
-      const editingEnvironment = this.deckMode === "environment";
-      this.els.environmentLevelTabs.hidden = !editingEnvironment;
-      [1, 2, 3].forEach((level) => {
-        const button = this.els[`environmentLevel${level}Button`];
-        const total = this.store.environmentLevelTotal(this.store.environmentCounts, level);
-        button.textContent = `Lv${level} ${total}/${ENVIRONMENT_DECK_PER_LEVEL}`;
-        button.disabled = editingEnvironment ? !this.canEditEnvironmentLevel(level) : true;
-        button.classList.toggle("active", editingEnvironment && this.environmentLevel === level);
-      });
-    }
-
-    ensureEnvironmentLevelIsEditable() {
-      if (this.deckMode !== "environment" || this.canEditEnvironmentLevel(this.environmentLevel)) return;
-      this.environmentLevel = this.canEditEnvironmentLevel(3) ? 3 : this.canEditEnvironmentLevel(2) ? 2 : 1;
-    }
-
-    canEditEnvironmentLevel(level) {
-      if (level === 1) return true;
-      if (level === 2) return this.store.environmentLevelTotal(this.store.environmentCounts, 1) >= ENVIRONMENT_DECK_PER_LEVEL;
-      if (level === 3) return this.store.environmentLevelTotal(this.store.environmentCounts, 2) >= ENVIRONMENT_DECK_PER_LEVEL;
-      return false;
-    }
-
-    environmentPoolForActiveLevel() {
-      const levelOneFamilies = new Set(this.store.environmentFamiliesAtLevel(1));
-      return environmentPool.filter((card) => {
-        if (card.level !== this.environmentLevel) return false;
-        if (card.level === 1) return true;
-        return levelOneFamilies.has(card.family);
-      });
-    }
-
-    environmentCardIdsForLevel(level) {
-      const levelOneFamilies = new Set(this.store.environmentFamiliesAtLevel(1));
-      return environmentPool
-        .filter((card) => card.level === level && (level === 1 || levelOneFamilies.has(card.family)))
-        .map((card) => card.id);
     }
 
     createDeckRow(id, count) {
       const card = cards[id];
+      const driveMode = this.deckMode === "drive";
+      const limit = driveMode ? MAX_DRIVE_COPIES : MAX_COPIES;
+      const total = driveMode ? this.store.driveTotal : this.store.total;
+      const size = driveMode ? DRIVE_DECK_SIZE : DECK_SIZE;
+      const chip = card.cost;
+      const typeLabel = driveMode ? CardRenderer.shortDriveType(card.type) : card.type;
       const row = document.createElement("div");
       row.className = `deck-row main-deck-row${this.selectedCardId === id ? " selected" : ""}`;
       row.innerHTML = `
@@ -323,10 +278,10 @@
           <div class="deck-row-main">
             <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
           </div>
-          <div class="deck-row-sub">${CardRenderer.rubyText(`${card.type} / ${card.attr} / ${count}枚`)}</div>
+          <div class="deck-row-sub">${CardRenderer.rubyText(`${typeLabel} / ${card.attr} / ${count}枚`)}</div>
         </div>
         <div class="deck-row-controls">
-          <span class="cost-chip">${card.cost}</span>
+          <span class="cost-chip">${chip}</span>
           <button class="mini-button" type="button" data-action="remove">-</button>
           <strong>${count}</strong>
           <button class="mini-button" type="button" data-action="add">+</button>
@@ -339,47 +294,7 @@
       row.querySelector('[data-action="add"]').addEventListener("click", () => {
         this.addCardToDeck(id);
       });
-      row.querySelector('[data-action="add"]').disabled = count >= MAX_COPIES || this.store.total >= DECK_SIZE;
-      return row;
-    }
-
-    renderEnvironmentDeckPanel() {
-      if (!this.els.environmentDeckCount || !this.els.environmentDeckList) return;
-      const stats = this.store.environmentStats;
-      const total = stats.reduce((sum, entry) => sum + entry.total, 0);
-      this.els.environmentDeckCount.textContent = `${total} / ${ENVIRONMENT_DECK_PER_LEVEL * 3}`;
-      this.els.environmentDeckCount.style.color = this.store.environmentReady ? "var(--gold)" : "var(--red)";
-      stats.forEach(({ level, total }) => {
-        const element = this.els[`environmentLevel${level}Count`];
-        if (element) element.textContent = `${total} / ${ENVIRONMENT_DECK_PER_LEVEL}`;
-      });
-
-      this.els.environmentDeckList.replaceChildren();
-      Object.entries(this.store.environmentCounts)
-        .sort((a, b) => cards[a[0]].level - cards[b[0]].level || cards[a[0]].family.localeCompare(cards[b[0]].family, "ja") || cards[a[0]].name.localeCompare(cards[b[0]].name, "ja"))
-        .forEach(([id]) => this.els.environmentDeckList.append(this.createEnvironmentRow(id)));
-    }
-
-    createEnvironmentRow(id) {
-      const card = cards[id];
-      const row = document.createElement("div");
-      row.className = `deck-row environment-row${this.selectedCardId === id ? " selected" : ""}`;
-      row.innerHTML = `
-        <div>
-          <div class="deck-row-main">
-            <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
-            <span class="level-chip">Lv${card.level}</span>
-          </div>
-          <div class="deck-row-sub">${CardRenderer.rubyText(`${card.family}系統 / 環境`)}</div>
-        </div>
-        <div class="deck-row-controls">
-          <button class="mini-button" type="button" data-action="remove">-</button>
-        </div>
-      `;
-      this.bindDeckRowSelection(row, id);
-      row.querySelector('[data-action="remove"]').addEventListener("click", () => {
-        this.removeCardFromDeck(id);
-      });
+      row.querySelector('[data-action="add"]').disabled = count >= limit || total >= size;
       return row;
     }
 
@@ -400,6 +315,33 @@
         this.render({ preserveLibraryScroll: true });
       });
     }
+
+    activePool() {
+      return this.deckMode === "drive" ? drivePool : cardPool.filter((card) => card.type !== "環境");
+    }
+
+    activeCounts() {
+      return this.deckMode === "drive" ? this.store.driveCounts : this.store.counts;
+    }
+
+    firstSelectedId() {
+      const counts = this.activeCounts();
+      return Object.keys(counts)[0] || this.activePool()[0]?.id || "star_scout";
+    }
+
+    ensureSelectedCard() {
+      if (this.activePool().some((card) => card.id === this.selectedCardId)) return;
+      this.selectedCardId = this.firstSelectedId();
+    }
+  }
+
+  function sortCardRows(a, b) {
+    if (!a || !b) return 0;
+    const costA = Number.isFinite(a.cost) ? a.cost : 0;
+    const costB = Number.isFinite(b.cost) ? b.cost : 0;
+    if (costA !== costB) return costA - costB;
+    if (a.type !== b.type) return a.type.localeCompare(b.type, "ja");
+    return a.name.localeCompare(b.name, "ja");
   }
 
   window.Chrono.DeckBuilderView = DeckBuilderView;
