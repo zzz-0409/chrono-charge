@@ -199,7 +199,7 @@
   const latinReadings = {
     AP: "エーピー",
     CPU: "シーピーユー",
-    D: "ディー",
+    D: "ドライブ",
     DECK: "デッキ",
     DRIVE: "ドライブ",
     LP: "エルピー",
@@ -381,7 +381,7 @@
     }
 
     static shortDriveType(type) {
-      return String(type || "");
+      return String(type || "").replace("ドライブ", "D");
     }
 
     static effectSizeClass(text) {
