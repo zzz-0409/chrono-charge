@@ -212,10 +212,16 @@
 
     updateDeckPile(element, count, label) {
       if (!element) return;
+      element.replaceChildren();
       element.classList.toggle("has-cards", count > 0);
       element.classList.toggle("is-empty", count === 0);
       element.style.setProperty("--pile-fill", `${Math.min(100, count * 2.5)}%`);
       element.setAttribute("aria-label", `${label} ${count}枚`);
+
+      const countLabel = document.createElement("span");
+      countLabel.className = "deck-pile-count";
+      countLabel.textContent = `${count}`;
+      element.append(countLabel);
     }
 
     updateGravePile(element, grave, label) {

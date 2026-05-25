@@ -2231,9 +2231,22 @@ select {
 
 .drive-pile-field.has-usable-drive {
   border-color: rgba(240, 185, 92, 0.88);
+  animation: drive-pile-ready 1.35s ease-in-out infinite;
   box-shadow:
     0 8px 18px rgba(0, 0, 0, 0.32),
-    0 0 20px rgba(240, 185, 92, 0.38);
+    0 0 8px rgba(255, 239, 166, 0.56),
+    0 0 24px rgba(240, 185, 92, 0.58),
+    0 0 40px rgba(85, 199, 187, 0.26);
+}
+
+.drive-pile-field.has-usable-drive::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  z-index: -1;
+  border-radius: 11px;
+  background: radial-gradient(circle, rgba(240, 185, 92, 0.28), rgba(85, 199, 187, 0));
+  pointer-events: none;
 }
 
 .drive-pile-field.is-empty {
@@ -2261,6 +2274,34 @@ select {
   line-height: 1;
   text-align: center;
   box-shadow: 0 0 12px rgba(240, 185, 92, 0.16);
+}
+
+.deck-pile-count {
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  z-index: 3;
+  min-width: 34px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(112, 223, 230, 0.5);
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: #d5fbff;
+  background: rgba(5, 8, 12, 0.88);
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+@keyframes drive-pile-ready {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.25);
+  }
 }
 
 .grave-list-card.drive-card-unusable {
@@ -2325,7 +2366,7 @@ select {
   aspect-ratio: var(--card-ratio);
   border: 1px solid rgba(112, 223, 230, 0.44);
   border-radius: 7px;
-  overflow: hidden;
+  overflow: visible;
   background: rgba(4, 9, 13, 0.18);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.035),

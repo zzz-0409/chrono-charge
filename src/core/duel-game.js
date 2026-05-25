@@ -1179,6 +1179,7 @@
         if (player.deck.length === 0) {
           player.lp = 0;
           this.log(`${player.name}は山札切れ。`);
+          this.checkGameEnd();
           return;
         }
         player.hand.push(player.deck.pop());
