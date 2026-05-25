@@ -267,6 +267,10 @@
     }
 
     dismantleSelectedCard() {
+      const card = cards[this.selectedCardId];
+      const gain = this.selectedFinish === "royal" ? this.store.royalDustPerDismantle : this.store.dustPerDismantle;
+      const finishLabel = this.selectedFinish === "royal" ? "Rカード " : "";
+      if (card && !window.confirm(`${finishLabel}${card.name}を1枚分解しますか？\n分解石 +${gain}`)) return;
       const result = this.store.dismantleCard(this.selectedCardId, this.selectedFinish);
       if (!result.ok) {
         if (result.reason === "owned") this.toast("4枚以上持っているカードだけ分解できます。");
@@ -285,6 +289,8 @@
         this.render({ preserveLibraryScroll: true });
         return;
       }
+      const card = cards[this.selectedCardId];
+      if (card && !window.confirm(`${card.name}を生成しますか？\n分解石 -${this.store.craftCost}`)) return;
       const result = this.store.craftCard(this.selectedCardId);
       if (!result.ok) {
         if (result.reason === "dust") this.toast("分解アイテムが足りません。");
@@ -592,6 +598,8 @@
     }
 
     bulkDismantleExtras() {
+      const preview = this.bulkDismantlePreview();
+      if (preview.dismantled > 0 && !window.confirm(`余剰カードを一括分解しますか？\n分解 ${preview.dismantled}枚 / 分解石 +${preview.gained}`)) return;
       const result = this.store.bulkDismantleExtras();
       if (!result.ok) {
         this.toast(result.reason === "author" ? "作者アカウントは分解不要です。" : "分解できる余剰カードがありません。");
@@ -600,6 +608,18 @@
       }
       this.toast(`${result.dismantled}枚を一括分解しました。分解石 +${result.gained}`);
       this.render({ preserveLibraryScroll: true });
+    }
+
+    bulkDismantlePreview() {
+      let dismantled = 0;
+      Object.entries(this.store.activeAccountData.collection || {}).forEach(([id, count]) => {
+        if (!cards[id]) return;
+        dismantled += Math.max(0, Math.floor(Number(count) || 0) - 3);
+      });
+      return {
+        dismantled,
+        gained: dismantled * this.store.dustPerDismantle,
+      };
     }
 
     renderDeckRows(counts) {
