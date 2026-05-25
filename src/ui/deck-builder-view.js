@@ -191,6 +191,8 @@
         const limit = this.store.deckLimit(card.id, this.deckMode === "drive");
         const normalCount = this.deckMode === "drive" ? this.store.driveCounts[card.id] || 0 : this.store.counts[card.id] || 0;
         const normalButton = CardRenderer.libraryCard(card, normalCount, this.selectedCardId === card.id && this.selectedFinish !== "royal", { owned, royalOwned, limit });
+        normalButton.dataset.cardId = card.id;
+        normalButton.dataset.finish = "normal";
         normalButton.classList.toggle("unowned-card", owned <= 0 && !this.store.isAuthorAccount);
         normalButton.addEventListener("click", () => this.handleCardClick(card.id, "normal"));
         this.els.collectionGrid.append(normalButton);
@@ -201,6 +203,8 @@
             limit,
             finish: "royal",
           });
+          royalButton.dataset.cardId = card.id;
+          royalButton.dataset.finish = "royal";
           royalButton.addEventListener("click", () => this.handleCardClick(card.id, "royal"));
           this.els.collectionGrid.append(royalButton);
         }
@@ -223,6 +227,23 @@
       this.selectedCardId = id;
       this.selectedFinish = finish;
       this.render({ preserveLibraryScroll: true });
+      this.scrollDeckToCard(id, finish);
+    }
+
+    scrollDeckToCard(id, finish = "normal") {
+      const escapedId = window.CSS?.escape ? CSS.escape(id) : id;
+      const escapedFinish = window.CSS?.escape ? CSS.escape(finish) : finish;
+      const exact = this.els.deckList.querySelector(`[data-card-id="${escapedId}"][data-finish="${escapedFinish}"]`);
+      const fallback = this.els.deckList.querySelector(`[data-card-id="${escapedId}"]`);
+      const target = exact || fallback;
+      if (target) target.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+
+    scrollLibraryToCard(id, finish = "normal") {
+      const escapedId = window.CSS?.escape ? CSS.escape(id) : id;
+      const escapedFinish = window.CSS?.escape ? CSS.escape(finish) : finish;
+      const target = this.els.collectionGrid.querySelector(`[data-card-id="${escapedId}"][data-finish="${escapedFinish}"]`);
+      if (target) target.scrollIntoView({ block: "nearest", inline: "nearest" });
     }
 
     renderPreviewDeckControls() {
@@ -478,6 +499,8 @@
     }
 
     bindDeckRowSelection(row, id, finish = "normal") {
+      row.dataset.cardId = id;
+      row.dataset.finish = finish;
       row.tabIndex = 0;
       row.setAttribute("role", "button");
       row.setAttribute("aria-label", `${cards[id].name}をフォーカス`);
@@ -486,6 +509,7 @@
         this.selectedCardId = id;
         this.selectedFinish = finish;
         this.render({ preserveLibraryScroll: true });
+        this.scrollLibraryToCard(id, finish);
       });
       row.addEventListener("keydown", (event) => {
         if (event.target.closest("[data-action]")) return;
@@ -494,6 +518,7 @@
         this.selectedCardId = id;
         this.selectedFinish = finish;
         this.render({ preserveLibraryScroll: true });
+        this.scrollLibraryToCard(id, finish);
       });
     }
 
