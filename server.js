@@ -8,6 +8,8 @@ const PORT = Number(process.env.PORT || 8787);
 const ACCOUNTS_FILE = path.join(ROOT, "accounts.json");
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const db = createAccountDb();
+const KEEPALIVE_INTERVAL_MS = Math.max(60_000, Number(process.env.KEEPALIVE_INTERVAL_MS || 300_000));
+const KEEPALIVE_URLS = keepAliveUrls();
 const MAX_LP = 8000;
 const UNIT_ZONES = 5;
 const CORE_ZONES = 2;
@@ -50,6 +52,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Chrono Charge server: http://localhost:${PORT}`);
+  startKeepAlive();
 });
 
 function loadChronoData() {
@@ -57,6 +60,38 @@ function loadChronoData() {
   const code = fs.readFileSync(path.join(ROOT, "src", "data", "cards.js"), "utf8");
   vm.runInNewContext(code, context, { filename: "cards.js" });
   return context.window.Chrono;
+}
+
+function keepAliveUrls() {
+  const explicit = process.env.KEEPALIVE_URLS || process.env.KEEPALIVE_URL || "";
+  const publicUrl = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "";
+  const source = explicit || publicUrl;
+  return source
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      if (/\/health(?:\?|$)/.test(entry)) return entry;
+      return `${entry.replace(/\/+$/, "")}/health`;
+    });
+}
+
+function startKeepAlive() {
+  if (KEEPALIVE_URLS.length === 0) return;
+  const ping = async () => {
+    await Promise.allSettled(KEEPALIVE_URLS.map(async (url) => {
+      const started = Date.now();
+      const response = await fetch(url, { cache: "no-store" });
+      console.log(`keepalive ${response.status} ${url} ${Date.now() - started}ms`);
+    }));
+  };
+  setInterval(() => {
+    ping().catch((error) => console.warn("keepalive failed:", error.message));
+  }, KEEPALIVE_INTERVAL_MS).unref?.();
+  setTimeout(() => {
+    ping().catch((error) => console.warn("keepalive failed:", error.message));
+  }, 15_000).unref?.();
+  console.log(`Keepalive enabled every ${Math.round(KEEPALIVE_INTERVAL_MS / 1000)}s: ${KEEPALIVE_URLS.join(", ")}`);
 }
 
 async function handleApi(req, res, url) {
