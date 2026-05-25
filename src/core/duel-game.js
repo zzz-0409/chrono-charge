@@ -260,7 +260,8 @@
         if (!this.canAttack(this.enemy)) break;
         const unit = this.enemy.units[i];
         if (!unit || unit.exhausted || this.finished) continue;
-        const target = this.cpu.chooseAttackTarget(this.player);
+        const target = this.cpu.chooseAttackTarget(unit, this.player);
+        if (target === undefined) continue;
         const negated = await this.resolveReactionWindow({ trigger: "attack", source: cards[unit.id], sourceIndex: i }, this.player, this.enemy);
         if (negated) {
           unit.exhausted = true;

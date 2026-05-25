@@ -63,12 +63,16 @@
       return null;
     }
 
-    chooseAttackTarget(player) {
-      const targets = player.units
+    chooseAttackTarget(attacker, defender) {
+      const attackerAtk = this.game.getUnitAtk(this.game.enemy, attacker);
+      const targets = defender.units
         .map((unit, index) => ({ unit, index }))
         .filter((entry) => entry.unit)
-        .sort((a, b) => this.game.getUnitAtk(player, a.unit) - this.game.getUnitAtk(player, b.unit));
-      return targets.length ? targets[0].index : null;
+        .map((entry) => ({ ...entry, atk: this.game.getUnitAtk(defender, entry.unit) }))
+        .filter((entry) => entry.atk <= attackerAtk)
+        .sort((a, b) => b.atk - a.atk);
+      if (targets.length > 0) return targets[0].index;
+      return defender.units.some((unit) => unit) ? undefined : null;
     }
   }
 
