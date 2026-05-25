@@ -103,6 +103,7 @@
       this.ensureSelectedCard();
       this.renderResources();
       this.renderProfilePanel();
+      this.renderTypeFilterOptions();
       this.renderLibrary({ preserveScroll: Boolean(options.preserveLibraryScroll) });
       this.renderDeckPanel();
       CardRenderer.preview(this.selectedCardId, this.els.cardPreview, { finish: this.selectedFinish });
@@ -205,6 +206,17 @@
         }
       });
       if (options.preserveScroll) this.els.collectionGrid.scrollTop = scrollTop;
+    }
+
+    renderTypeFilterOptions() {
+      const select = this.els.typeFilter;
+      if (!select) return;
+      const current = select.value;
+      const types = [...new Set(this.activePool().map((card) => card.type).filter(Boolean))];
+      select.replaceChildren();
+      select.append(new Option("すべて", "all"));
+      types.forEach((type) => select.append(new Option(type, type)));
+      select.value = types.includes(current) ? current : "all";
     }
 
     handleCardClick(id, finish = "normal") {
