@@ -71,7 +71,7 @@
       this.finished = false;
       this.logItems = [];
       this.player = new Duelist("Player", this.options.playerDeck, this.options.playerDriveDeck || []);
-      this.enemy = new Duelist("CPU: 黒機", this.options.cpuDeck, this.options.cpuDriveDeck || []);
+      this.enemy = new Duelist(this.options.cpuName || "CPU: 黒機", this.options.cpuDeck, this.options.cpuDriveDeck || []);
       this.firstActive = this.active;
       this.completedTurns = 0;
       this.effects = new EffectResolver(this);

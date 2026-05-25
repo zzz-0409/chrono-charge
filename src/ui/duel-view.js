@@ -9,6 +9,7 @@
     attrClass,
     typeClass,
     cpuDeck,
+    cpuDecks,
     cpuDriveDeck,
     DuelGame,
     CardRenderer,
@@ -94,11 +95,13 @@
       this.handDrag = null;
       this.pointerHandDrag = null;
       this.boardSoundSnapshot = null;
+      const cpuChoice = this.chooseCpuDeck();
       this.game = new DuelGame({
         playerDeck: deckList,
         playerDriveDeck: driveDeckList,
-        cpuDeck: expandDeck(cpuDeck),
-        cpuDriveDeck: expandDeck(cpuDriveDeck),
+        cpuName: cpuChoice.name,
+        cpuDeck: expandDeck(cpuChoice.deck),
+        cpuDriveDeck: expandDeck(cpuChoice.driveDeck),
         onChange: () => this.render(),
         onResult: (won) => this.showResult(won),
         requestReaction: (options, event) => this.requestReactionChoice(options, event),
@@ -107,6 +110,13 @@
       });
       this.game.start();
       this.setView("duel");
+    }
+
+    chooseCpuDeck() {
+      const options = Array.isArray(cpuDecks) && cpuDecks.length
+        ? cpuDecks
+        : [{ name: "CPU: 黒機", deck: cpuDeck, driveDeck: cpuDriveDeck }];
+      return options[Math.floor(Math.random() * options.length)] || options[0];
     }
 
     startOnline(game) {
