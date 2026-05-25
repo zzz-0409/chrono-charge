@@ -226,7 +226,7 @@
       theme: "黒機",
       art: "assets/cards/art/black-anchor.png",
       effect: "blackAnchor",
-      text: "通常召喚時：相手ユニット1体を行動済みにする。自分のコアがあるなら、相手に700ダメージ。",
+      text: "通常召喚時：相手ユニット1体を次の相手ターン終了まで行動済みにする。自分のコアがあるなら、相手に700ダメージ。",
     },
     {
       id: "black_tower",
@@ -248,7 +248,7 @@
       theme: "黒機",
       art: "assets/cards/art/black-raid.png",
       effect: "blackRaid",
-      text: "相手に800ダメージ。自分フィールドに「黒機」ユニットがいるなら、相手ユニット1体を行動済みにする。",
+      text: "相手に800ダメージ。自分フィールドに「黒機」ユニットがいるなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
     },
     {
       id: "black_claw",
@@ -272,7 +272,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-tracker.png",
       effect: "bladeTracker",
-      text: "通常召喚時：相手ユニット1体を行動済みにする。できなかったなら、相手に300ダメージ。",
+      text: "通常召喚時：相手ユニット1体を次の相手ターン終了まで行動済みにする。できなかったなら、相手に300ダメージ。",
     },
     {
       id: "blade_marksmith",
@@ -296,7 +296,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-edgeguard.png",
       effect: "bladeEdgeguard",
-      text: "通常召喚時：自分のチャージに「断刃」が2枚以上あるなら、相手ユニット1体を行動済みにする。",
+      text: "通常召喚時：自分のチャージに「断刃」が2枚以上あるなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
     },
     {
       id: "blade_executioner",
@@ -308,7 +308,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-executioner.png",
       effect: "bladeExecutioner",
-      text: "通常召喚時：相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を行動済みにする。",
+      text: "通常召喚時：相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
     },
     {
       id: "blade_arbiter",
@@ -331,7 +331,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-mark.png",
       effect: "bladeMark",
-      text: "相手ユニット1体を行動済みにする。自分フィールドに「断刃」ユニットがいるなら、相手に400ダメージ。",
+      text: "相手ユニット1体を次の相手ターン終了まで行動済みにする。自分フィールドに「断刃」ユニットがいるなら、相手に400ダメージ。",
     },
     {
       id: "blade_cleave",
@@ -342,7 +342,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-cleave.png",
       effect: "bladeCleave",
-      text: "相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を行動済みにする。",
+      text: "相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
     },
     {
       id: "blade_warrant",
@@ -364,7 +364,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-scaffold.png",
       effect: "bladeScaffold",
-      text: "発動時：相手ユニット1体を行動済みにする。自分の「断刃」ユニットはATK+200。",
+      text: "発動時：相手ユニット1体を次の相手ターン終了まで行動済みにする。自分の「断刃」ユニットはATK+200。",
     },
     {
       id: "blade_counter",
@@ -825,7 +825,7 @@
       theme: "",
       art: "assets/cards/art/generic-bind.png",
       effect: "bindUnit",
-      text: "相手ユニット1体を行動済みにする。相手に500ダメージ。",
+      text: "相手ユニット1体を次の相手ターン終了まで行動済みにする。相手に500ダメージ。",
     },
     {
       id: "generic_recall",
@@ -1000,7 +1000,7 @@
       driveKind: "unit",
       driveCost: { materials: [{ theme: "断刃", type: "ユニット", count: 1 }, { theme: "断刃", count: 2 }] },
       driveEffect: "driveBladeUnit",
-      text: "召喚条件：場かチャージの「断刃」ユニット1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。召喚時：相手ユニット1体を行動済みにし、その後、相手の行動済みユニット1体を破壊する。",
+      text: "召喚条件：場かチャージの「断刃」ユニット1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。召喚時：相手ユニット1体を次の相手ターン終了まで行動済みにし、その後、相手の行動済みユニット1体を破壊する。",
     },
     {
       id: "drive_blade_core",
@@ -1013,7 +1013,7 @@
       driveKind: "core",
       driveCost: { materials: [{ theme: "断刃", type: "コア", count: 1 }, { theme: "断刃", count: 2 }] },
       driveEffect: "driveBladeCore",
-      text: "発動条件：場かチャージの「断刃」コア1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。発動時：相手ユニット1体を行動済みにする。自分の「断刃」ユニットはATK+300。",
+      text: "発動条件：場かチャージの「断刃」コア1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。発動時：相手ユニット1体を次の相手ターン終了まで行動済みにする。自分の「断刃」ユニットはATK+300。",
     },
     {
       id: "drive_blade_spell",
@@ -1026,7 +1026,7 @@
       driveKind: "spell",
       driveCost: { materials: [{ theme: "断刃", type: "スペル", count: 1 }, { theme: "断刃", count: 2 }] },
       driveEffect: "driveBladeSpell",
-      text: "発動条件：チャージの「断刃」スペル1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。相手ユニット1体を行動済みにし、行動済みユニット1体を破壊する。",
+      text: "発動条件：チャージの「断刃」スペル1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。相手ユニット1体を次の相手ターン終了まで行動済みにし、行動済みユニット1体を破壊する。",
     },
     {
       id: "drive_blade_react_attack",
@@ -1040,7 +1040,7 @@
       driveKind: "reaction",
       driveCost: { materials: [{ theme: "断刃", type: "リアクション", count: 1 }, { theme: "断刃", count: 2 }] },
       driveEffect: "driveBladeReactAttack",
-      text: "発動条件：相手ユニットの攻撃宣言時、場かチャージの「断刃」リアクション1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。効果：その攻撃を無効にし、そのユニットを行動済みにする。",
+      text: "発動条件：相手ユニットの攻撃宣言時、場かチャージの「断刃」リアクション1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。効果：その攻撃を無効にし、そのユニットを次の相手ターン終了まで行動済みにする。",
     },
     {
       id: "drive_blade_react_effect",
@@ -1054,7 +1054,7 @@
       driveKind: "reaction",
       driveCost: { materials: [{ theme: "断刃", type: "リアクション", count: 1 }, { theme: "断刃", count: 2 }] },
       driveEffect: "driveBladeReactEffect",
-      text: "発動条件：相手がカード効果を発動した時、場かチャージの「断刃」リアクション1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。効果：その効果を無効にし、相手の行動済みユニット1体を破壊する。破壊できなければ相手ユニット1体を行動済みにする。",
+      text: "発動条件：相手がカード効果を発動した時、場かチャージの「断刃」リアクション1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。効果：その効果を無効にし、相手の行動済みユニット1体を破壊する。破壊できなければ相手ユニット1体を次の相手ターン終了まで行動済みにする。",
     },
     {
       id: "drive_cyber_unit",
@@ -1258,7 +1258,7 @@
       driveKind: "spell",
       driveCost: { type: "スペル", charge: 2 },
       driveEffect: "driveGenericSpell",
-      text: "発動条件：チャージのスペル2枚を墓地に送る。相手ユニット1体を行動済みにし、1枚ドロー。",
+      text: "発動条件：チャージのスペル2枚を墓地に送る。相手ユニット1体を次の相手ターン終了まで行動済みにし、1枚ドロー。",
     },
     {
       id: "drive_generic_react_attack",

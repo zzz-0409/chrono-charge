@@ -46,7 +46,7 @@
         charge.tapped = false;
       });
       this.units.forEach((unit) => {
-        if (unit) unit.exhausted = false;
+        if (unit && !unit.exhaustedUntilOwnerTurnEnd) unit.exhausted = false;
       });
       this.chargedThisTurn = false;
       this.drewFromStarCore = false;
@@ -489,8 +489,8 @@
             this.destroyUnit(opponent, targetIndex);
             this.log(`${card.name}で${targetName}を破壊。`);
           } else {
-            opponent.units[targetIndex].exhausted = true;
-            this.log(`${card.name}で${targetName}を行動済みにした。`);
+            this.exhaustUnitUntilOwnerTurnEnd(opponent, targetIndex);
+            this.log(`${card.name}で${targetName}を次のターン終了まで行動済みにした。`);
           }
           return { negates: true };
         }
@@ -590,7 +590,7 @@
         case "driveBladeReactAttack": {
           const sourceIndex = Number(event.sourceIndex);
           if (Number.isInteger(sourceIndex) && opponent.units[sourceIndex]) {
-            opponent.units[sourceIndex].exhausted = true;
+            this.exhaustUnitUntilOwnerTurnEnd(opponent, sourceIndex);
           }
           return;
         }
@@ -1345,6 +1345,12 @@
     }
 
     completeTurn() {
+      const player = this.active === "enemy" ? this.enemy : this.player;
+      player.units.forEach((unit) => {
+        if (!unit?.exhaustedUntilOwnerTurnEnd) return;
+        unit.exhaustedUntilOwnerTurnEnd = false;
+        unit.exhausted = false;
+      });
       this.completedTurns += 1;
     }
 
@@ -1417,8 +1423,16 @@
         .filter((entry) => entry.unit && !entry.unit.exhausted)
         .sort((a, b) => this.getUnitAtk(player, b.unit) - this.getUnitAtk(player, a.unit))[0];
       if (!target) return false;
-      target.unit.exhausted = true;
-      this.log(`${cards[target.unit.id].name}を行動済みにした。`);
+      this.exhaustUnitUntilOwnerTurnEnd(player, target.index);
+      this.log(`${cards[target.unit.id].name}を次のターン終了まで行動済みにした。`);
+      return true;
+    }
+
+    exhaustUnitUntilOwnerTurnEnd(player, index) {
+      const unit = player.units[index];
+      if (!unit) return false;
+      unit.exhausted = true;
+      unit.exhaustedUntilOwnerTurnEnd = true;
       return true;
     }
 
