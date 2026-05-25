@@ -46,7 +46,13 @@
         charge.tapped = false;
       });
       this.units.forEach((unit) => {
-        if (unit && !unit.exhaustedUntilOwnerTurnEnd) unit.exhausted = false;
+        if (!unit) return;
+        if (unit.exhaustedUntilOwnerTurnEnd) {
+          unit.exhausted = true;
+          unit.exhaustedUntilOwnerTurnEndReady = true;
+          return;
+        }
+        unit.exhausted = false;
       });
       this.chargedThisTurn = false;
       this.drewFromStarCore = false;
@@ -438,7 +444,7 @@
         }
         const result = link.drive
           ? await this.applyDriveReactionEffect(link.card, link.player, link.opponent, link.event)
-          : this.applyReactionEffect(link.card, link.player, link.opponent, link.event);
+          : await this.applyReactionEffect(link.card, link.player, link.opponent, link.event);
         if (result?.negates) {
           if (i === 0) baseNegated = true;
           else chain[i - 1].negated = true;
@@ -462,7 +468,7 @@
       return [...normalReactions, ...driveReactions];
     }
 
-    applyReactionEffect(card, player, opponent, event = {}) {
+    async applyReactionEffect(card, player, opponent, event = {}) {
       if (card.effect === "negateAttackDamage") {
         const dealt = this.damage(opponent, 500, { log: false });
         this.log(`${card.name}で攻撃を止め、${dealt}ダメージ。`);
@@ -503,7 +509,7 @@
         return { negates: true };
       }
       if (card.effect === "cyberCounterhack") {
-        if (this.countThemeUnits(player, "電脳") >= 2) this.revealReactions(opponent, 1);
+        if (this.countThemeUnits(player, "電脳") >= 2) await this.revealReactions(opponent, 1);
         this.log(`${card.name}で効果を止めた。`);
         return { negates: true };
       }
@@ -518,7 +524,7 @@
         return { negates: false };
       }
       if (card.effect === "noisePing") {
-        const revealed = this.revealReactions(opponent, 1);
+        const revealed = await this.revealReactions(opponent, 1);
         this.log(revealed > 0
           ? `${card.name}で相手のリアクション1枚を表向きにした。`
           : `${card.name}を発動。表向きにできるリアクションはなかった。`);
@@ -598,7 +604,7 @@
           if (!await this.destroyBestExhaustedUnit(opponent)) await this.exhaustBestUnit(opponent);
           return;
         case "driveCyberUnit":
-          this.revealReactions(opponent, 1);
+          await this.revealReactions(opponent, 1);
           await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "電脳", {
             title: "電脳ユニットを追加召喚",
             message: "手札から追加召喚する電脳ユニットを選んでください。",
@@ -611,11 +617,11 @@
           }, opponent);
           return;
         case "driveCyberSpell":
-          this.revealReactions(opponent, 2);
+          await this.revealReactions(opponent, 2);
           this.drawCards(player, 1);
           return;
         case "driveCyberReactEffect":
-          this.revealReactions(opponent, 1);
+          await this.revealReactions(opponent, 1);
           this.drawCards(player, 1);
           return;
         case "driveSosaiUnit":
@@ -1348,26 +1354,34 @@
       const player = this.active === "enemy" ? this.enemy : this.player;
       player.units.forEach((unit) => {
         if (!unit?.exhaustedUntilOwnerTurnEnd) return;
+        if (!unit.exhaustedUntilOwnerTurnEndReady) return;
         unit.exhaustedUntilOwnerTurnEnd = false;
+        unit.exhaustedUntilOwnerTurnEndReady = false;
         unit.exhausted = false;
       });
       this.completedTurns += 1;
     }
 
-    revealReactions(player, amount) {
+    async revealReactions(player, amount) {
       let revealed = 0;
-      for (let i = 0; i < player.reactions.length && revealed < amount; i += 1) {
-        const entry = player.reactions[i];
-        const id = reactionId(entry);
-        if (!id || reactionRevealed(entry)) continue;
-        player.reactions[i] = { id, revealed: true };
+      for (let i = 0; i < amount; i += 1) {
+        const index = await this.chooseReactionTargetIndex(player, (entry) => reactionId(entry) && !reactionRevealed(entry), {
+          title: "公開するリアクションを選択",
+          message: "公開状態にする相手のセットリアクションを選んでください。",
+        });
+        if (index < 0) break;
+        const id = reactionId(player.reactions[index]);
+        player.reactions[index] = { id, revealed: true };
         revealed += 1;
       }
       return revealed;
     }
 
-    removeRevealedReaction(player) {
-      const index = player.reactions.findIndex((entry) => reactionId(entry) && reactionRevealed(entry));
+    async removeRevealedReaction(player) {
+      const index = await this.chooseReactionTargetIndex(player, (entry) => reactionId(entry) && reactionRevealed(entry), {
+        title: "墓地に送るリアクションを選択",
+        message: "墓地に送る相手の公開リアクションを選んでください。",
+      });
       if (index === -1) return false;
       const id = reactionId(player.reactions[index]);
       player.reactions[index] = null;
@@ -1398,6 +1412,23 @@
         zone: "unitTarget",
         title: choice.title || "対象ユニットを選択",
         message: choice.message || "効果の対象にする相手ユニットを選んでください。",
+        candidates,
+        confirmLabel: choice.confirmLabel || "決定",
+      }, this);
+      const target = candidates.find((entry) => entry.index === selected);
+      return target ? target.index : -1;
+    }
+
+    async chooseReactionTargetIndex(player, predicate = () => true, choice = {}) {
+      const candidates = player.reactions
+        .map((entry, index) => ({ id: reactionId(entry), entry, index }))
+        .filter((candidate) => candidate.id && predicate(candidate.entry, candidate.index));
+      if (candidates.length === 0) return -1;
+      if (player !== this.enemy) return candidates[0].index;
+      const selected = await this.options.requestCardChoice({
+        zone: "reactionTarget",
+        title: choice.title || "対象リアクションを選択",
+        message: choice.message || "効果の対象にする相手リアクションを選んでください。",
         candidates,
         confirmLabel: choice.confirmLabel || "決定",
       }, this);
@@ -1455,6 +1486,7 @@
       if (!unit) return false;
       unit.exhausted = true;
       unit.exhaustedUntilOwnerTurnEnd = true;
+      unit.exhaustedUntilOwnerTurnEndReady = false;
       return true;
     }
 

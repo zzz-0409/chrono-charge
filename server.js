@@ -547,6 +547,8 @@ function applyReactionEffect(game, card, player, opponent, event = {}) {
         log(game, `${card.name}で${targetName}を破壊。`);
       } else {
         opponent.units[targetIndex].exhausted = true;
+        opponent.units[targetIndex].exhaustedUntilOwnerTurnEnd = true;
+        opponent.units[targetIndex].exhaustedUntilOwnerTurnEndReady = false;
         log(game, `${card.name}で${targetName}を行動済みにした。`);
       }
       return { negates: true };
@@ -703,7 +705,58 @@ function chooseExhaustUnit(game, chooser, targetPlayer, after = () => {}) {
     const unit = targetPlayer.units[candidate.index];
     unit.exhausted = true;
     unit.exhaustedUntilOwnerTurnEnd = true;
+    unit.exhaustedUntilOwnerTurnEndReady = false;
     log(game, `${cards[unit.id].name}を次のターン終了まで行動済みにした。`);
+    after(true);
+  }, () => after(false));
+}
+
+function queueReactionTargetChoice(game, chooser, targetPlayer, predicate, choice, handler, emptyHandler = () => {}) {
+  const candidates = targetPlayer.reactions
+    .map((entry, index) => ({ id: reactionId(entry), entry, index }))
+    .filter((candidate) => candidate.id && predicate(candidate.entry, candidate.index));
+  if (candidates.length === 0) {
+    emptyHandler();
+    return false;
+  }
+
+  game.pendingChoice = {
+    id: makeId(8),
+    seat: seatOf(game, chooser),
+    zone: "reactionTarget",
+    title: choice.title,
+    message: choice.message,
+    delayBeforeOpenMs: choice.delayBeforeOpenMs || 0,
+    candidates,
+    confirmLabel: choice.confirmLabel,
+    resolve: handler,
+    afterResolve: null,
+  };
+  return true;
+}
+
+function chooseRevealReaction(game, chooser, targetPlayer, after = () => {}) {
+  return queueReactionTargetChoice(game, chooser, targetPlayer, (entry) => reactionId(entry) && !reactionRevealed(entry), {
+    title: "公開するリアクションを選択",
+    message: "公開状態にする相手のセットリアクションを選んでください。",
+    confirmLabel: "決定",
+  }, (candidate) => {
+    const id = reactionId(targetPlayer.reactions[candidate.index]);
+    targetPlayer.reactions[candidate.index] = { id, revealed: true };
+    after(true);
+  }, () => after(false));
+}
+
+function chooseRemoveRevealedReaction(game, chooser, targetPlayer, after = () => {}) {
+  return queueReactionTargetChoice(game, chooser, targetPlayer, (entry) => reactionId(entry) && reactionRevealed(entry), {
+    title: "墓地に送るリアクションを選択",
+    message: "墓地に送る相手の公開リアクションを選んでください。",
+    confirmLabel: "決定",
+  }, (candidate) => {
+    const id = reactionId(targetPlayer.reactions[candidate.index]);
+    targetPlayer.reactions[candidate.index] = null;
+    targetPlayer.grave.push(id);
+    log(game, `${cards[id].name}を墓地に送った。`);
     after(true);
   }, () => after(false));
 }
@@ -809,7 +862,9 @@ function completeTurn(game) {
   const player = game[game.active];
   player?.units.forEach((unit) => {
     if (!unit?.exhaustedUntilOwnerTurnEnd) return;
+    if (!unit.exhaustedUntilOwnerTurnEndReady) return;
     unit.exhaustedUntilOwnerTurnEnd = false;
+    unit.exhaustedUntilOwnerTurnEndReady = false;
     unit.exhausted = false;
   });
   game.completedTurns += 1;
@@ -1161,7 +1216,15 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
 
 function refreshTurn(player) {
   player.charge.forEach((charge) => { charge.tapped = false; });
-  player.units.forEach((unit) => { if (unit && !unit.exhaustedUntilOwnerTurnEnd) unit.exhausted = false; });
+  player.units.forEach((unit) => {
+    if (!unit) return;
+    if (unit.exhaustedUntilOwnerTurnEnd) {
+      unit.exhausted = true;
+      unit.exhaustedUntilOwnerTurnEndReady = true;
+      return;
+    }
+    unit.exhausted = false;
+  });
   player.chargedThisTurn = false;
   player.drewFromStarCore = false;
   player.shiftedThisTurn = false;

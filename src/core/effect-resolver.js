@@ -182,7 +182,7 @@
           });
           break;
         case "cyberShionSpecial": {
-          const revealed = this.game.revealReactions(opponent, 1);
+          const revealed = await this.game.revealReactions(opponent, 1);
           if (revealed > 0) {
             await this.game.afterEffectStep();
             this.game.damage(opponent, 500);
@@ -206,7 +206,7 @@
             message: "墓地に送るカードを選んでください。",
           });
           await this.game.afterEffectStep();
-          this.game.removeRevealedReaction(opponent);
+          await this.game.removeRevealedReaction(opponent);
           break;
         case "cyberPreview":
           if (await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
@@ -218,7 +218,7 @@
           }
           break;
         case "cyberIntrusion": {
-          const revealed = this.game.revealReactions(opponent, 1);
+          const revealed = await this.game.revealReactions(opponent, 1);
           if (revealed > 0) await this.game.afterEffectStep();
           if (this.game.countThemeUnits(player, "電脳") >= 2) {
             await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.name.includes("電脳"), {
@@ -239,7 +239,7 @@
             title: "リアクションをサーチ",
             message: "デッキから手札に加えるリアクションを選んでください。",
           });
-          this.game.revealReactions(opponent, 1);
+          await this.game.revealReactions(opponent, 1);
           if (opponent.reactions.some((entry) => entry && this.game.reactionRevealed(entry))) {
             await this.game.afterEffectStep(560);
             await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
@@ -249,7 +249,7 @@
           }
           break;
         case "probeDrone":
-          if (this.game.revealReactions(opponent, 1) > 0) {
+          if (await this.game.revealReactions(opponent, 1) > 0) {
             await this.game.afterEffectStep(560);
             await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
               title: "電脳ユニットを追加召喚",
@@ -268,9 +268,9 @@
           }
           break;
         case "sosaiMint": {
-          const revealed = this.game.revealReactions(opponent, 1);
+          const revealed = await this.game.revealReactions(opponent, 1);
           if (revealed > 0) await this.game.afterEffectStep();
-          if (this.game.controlsCard(player, "sosai_hikari")) this.game.removeRevealedReaction(opponent);
+          if (this.game.controlsCard(player, "sosai_hikari")) await this.game.removeRevealedReaction(opponent);
           break;
         }
         case "sosaiNene":
