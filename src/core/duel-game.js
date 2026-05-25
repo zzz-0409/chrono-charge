@@ -324,6 +324,7 @@
       if (card.type === "ユニット") {
         this.summonUnit(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}を召喚。`);
+        this.notify();
         if (!negated && card.effect) {
           await this.effects.resolve(card.effect, player, opponent, card);
           this.afterSummon(player, card.id);
@@ -356,6 +357,7 @@
       if (card.driveKind === "unit") {
         this.summonUnit(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}をドライブ召喚。`);
+        this.notify();
         if (!negated) {
           await this.applyDriveEffect(card, player, opponent);
           this.afterSummon(player, card.id);

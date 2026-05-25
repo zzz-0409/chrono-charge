@@ -1305,6 +1305,7 @@
 
     peekModal() {
       if (this.els.modalRoot.hidden) return;
+      this.render();
       this.els.modalRoot.hidden = true;
       this.showModalPeekButton();
     }
