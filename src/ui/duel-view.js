@@ -974,7 +974,7 @@
       }));
       let selected = candidates.find((entry) => entry.playable) || candidates[0] || null;
       const modal = document.createElement("div");
-      modal.className = "modal-dialog grave-dialog drive-deck-dialog";
+      modal.className = "modal-dialog choice-dialog drive-deck-dialog";
       modal.innerHTML = `
         <div class="grave-dialog-head">
           <div>
@@ -983,15 +983,13 @@
           </div>
           <button class="ghost-button" type="button">閉じる</button>
         </div>
-        <div class="drive-deck-body">
-          <div class="grave-list drive-deck-list"></div>
-          <div class="drive-focus-panel">
-            <div class="choice-focus drive-focus"></div>
-            <div class="drive-focus-actions">
+        <div class="choice-body drive-deck-body">
+          <div class="grave-list choice-list drive-deck-list"></div>
+          <div class="choice-focus drive-focus"></div>
+        </div>
+        <div class="choice-actions drive-focus-actions">
               <button class="primary-button" type="button">ドライブ</button>
             </div>
-          </div>
-        </div>
       `;
       modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
       const list = modal.querySelector(".drive-deck-list");
@@ -1059,17 +1057,20 @@
       const player = owner === "player" ? this.game.player : this.game.enemy;
       const title = owner === "player" ? "自分の捨て札" : "相手の捨て札";
       const modal = document.createElement("div");
-      modal.className = "modal-dialog grave-dialog";
+      modal.className = "modal-dialog choice-dialog grave-dialog";
       modal.innerHTML = `
         <div class="grave-dialog-head">
           <h2>${title}</h2>
           <button class="ghost-button" type="button">閉じる</button>
         </div>
-        <div class="grave-focus"></div>
-        <div class="grave-list"></div>
+        <div class="choice-body">
+          <div class="grave-list choice-list"></div>
+          <div class="grave-focus choice-focus"></div>
+        </div>
       `;
       modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
       const focus = modal.querySelector(".grave-focus");
+      focus.addEventListener("click", (event) => CardZoom.openFromEvent(event));
       const showGraveFocus = (id, originalIndex) => {
         CardRenderer.focus(id, focus, { finish: this.finishFor(id) });
         this.selectCard(id, { zone: "grave", index: originalIndex, owner });

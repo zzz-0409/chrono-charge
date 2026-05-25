@@ -3786,14 +3786,17 @@ select {
 }
 
 .drive-deck-dialog {
-  width: min(960px, calc(100% - 24px));
+  width: min(1050px, calc(100% - 24px));
+  max-height: min(690px, calc(100% - 36px));
 }
 
 .drive-deck-body {
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-  gap: 14px;
+}
+
+.drive-deck-dialog .choice-body,
+.grave-dialog.choice-dialog .choice-body {
+  grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
 }
 
 .drive-deck-list {
@@ -3803,20 +3806,29 @@ select {
   background: rgba(7, 12, 17, 0.32);
 }
 
-.drive-focus-panel {
-  min-height: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 10px;
-}
-
 .drive-focus-actions {
   display: flex;
   justify-content: stretch;
 }
 
 .drive-focus-actions .primary-button {
-  width: 100%;
+  width: auto;
+}
+
+.grave-dialog.choice-dialog {
+  width: min(1050px, calc(100% - 24px));
+  max-height: min(690px, calc(100% - 36px));
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.grave-dialog.choice-dialog .grave-focus {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.grave-dialog.choice-dialog .grave-focus .focus-card-detail {
+  min-height: 360px;
 }
 
 .choice-actions {
