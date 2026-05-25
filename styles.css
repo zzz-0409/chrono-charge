@@ -1914,7 +1914,7 @@ select {
 .board-area {
   min-height: 0;
   display: grid;
-  grid-template-rows: 220px 18px 220px 118px;
+  grid-template-rows: 236px 0 236px 118px;
   gap: 4px;
   align-content: center;
   border: 1px solid rgba(85, 199, 187, 0.38);
@@ -1938,9 +1938,9 @@ select {
   position: relative;
   display: grid;
   grid-template-columns: 176px minmax(0, 1fr) 140px;
-  grid-template-rows: 64px 96px 64px;
+  grid-template-rows: 58px 90px 58px;
   align-items: center;
-  gap: 10px 8px;
+  gap: 14px 8px;
 }
 
 .board-area .side-board,
@@ -2390,6 +2390,10 @@ select {
   justify-items: center;
 }
 
+.center-command[hidden] {
+  display: none !important;
+}
+
 .hand-zone {
   min-height: 0;
   width: min(760px, 100%);
@@ -2820,9 +2824,7 @@ select {
 }
 
 .unit-row .zone-slot {
-  min-height: calc(var(--card-field-height) + 24px);
-  align-items: start;
-  padding-top: 4px;
+  min-height: calc(var(--card-field-height) + 6px);
 }
 
 .field-atk-badge {
