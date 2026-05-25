@@ -2830,7 +2830,6 @@ select {
 .field-atk-badge {
   position: absolute;
   left: 50%;
-  bottom: 3px;
   min-width: 48px;
   transform: translateX(-50%);
   border-radius: 999px;
@@ -2845,6 +2844,42 @@ select {
   text-align: center;
   pointer-events: none;
   z-index: 5;
+}
+
+.field-atk-badge.is-player {
+  bottom: 3px;
+}
+
+.field-atk-badge.is-enemy {
+  top: 3px;
+}
+
+.field-state-badge {
+  position: absolute;
+  left: 50%;
+  min-width: 58px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: #7deef4;
+  background: rgba(6, 18, 22, 0.86);
+  border: 1px solid rgba(125, 238, 244, 0.72);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.34), 0 0 10px rgba(125, 238, 244, 0.18);
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 6;
+}
+
+.field-state-badge.is-player {
+  top: 3px;
+}
+
+.field-state-badge.is-enemy {
+  bottom: 3px;
 }
 
 .core-row .tcg-card.small {

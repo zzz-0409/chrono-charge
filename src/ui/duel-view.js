@@ -338,9 +338,15 @@
           slot.append(cardButton);
           if (contextZone.includes("Unit") && CardRenderer.hasAtk(card)) {
             const atkBadge = document.createElement("div");
-            atkBadge.className = "field-atk-badge";
+            atkBadge.className = `field-atk-badge ${owner === "enemy" ? "is-enemy" : "is-player"}`;
             atkBadge.textContent = String(this.game.getUnitAtk(player, value));
             slot.append(atkBadge);
+            if (value.exhausted) {
+              const exhaustedBadge = document.createElement("div");
+              exhaustedBadge.className = `field-state-badge ${owner === "enemy" ? "is-enemy" : "is-player"}`;
+              exhaustedBadge.textContent = "行動済み";
+              slot.append(exhaustedBadge);
+            }
           }
         } else {
           const empty = document.createElement("div");
