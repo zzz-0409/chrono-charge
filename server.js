@@ -326,7 +326,7 @@ function setReaction(game, player, index, preferredSlot = null) {
   if (!card || card.type !== "リアクション" || slot === -1) return false;
   player.hand.splice(index, 1);
   player.reactions[slot] = { id, revealed: false };
-  log(game, `${card.name}をセット。`);
+  log(game, `${player.name}はリアクションをセット。`);
   return true;
 }
 
