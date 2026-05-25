@@ -6,6 +6,8 @@ const vm = require("vm");
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8787);
 const ACCOUNTS_FILE = path.join(ROOT, "accounts.json");
+const DATABASE_URL = process.env.DATABASE_URL || "";
+const db = createAccountDb();
 const MAX_LP = 8000;
 const UNIT_ZONES = 5;
 const CORE_ZONES = 2;
@@ -143,18 +145,17 @@ async function handleApi(req, res, url) {
 
 async function handleAccountApi(req, res, rawName) {
   const name = normalizeAccountName(rawName);
-  const accounts = loadAccounts();
   if (req.method === "GET") {
-    sendJson(res, 200, { account: accounts[name] || null });
+    sendJson(res, 200, { account: await loadAccount(name) });
     return;
   }
   if (req.method === "PUT" || req.method === "POST") {
     const body = await readJson(req);
     const incoming = sanitizeAccountRecord(name, body.account || body || {});
-    const current = accounts[name] || null;
-    accounts[name] = mergeAccountRecord(name, current, incoming);
-    saveAccounts(accounts);
-    sendJson(res, 200, { account: accounts[name] });
+    const current = await loadAccount(name);
+    const account = mergeAccountRecord(name, current, incoming);
+    await saveAccount(name, account);
+    sendJson(res, 200, { account });
     return;
   }
   sendJson(res, 405, { error: "method not allowed" });
@@ -1455,6 +1456,65 @@ function loadAccounts() {
 
 function saveAccounts(accounts) {
   fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify({ accounts }, null, 2), "utf8");
+}
+
+async function loadAccount(name) {
+  if (db) return db.loadAccount(name);
+  return loadAccounts()[name] || null;
+}
+
+async function saveAccount(name, account) {
+  if (db) {
+    await db.saveAccount(name, account);
+    return;
+  }
+  const accounts = loadAccounts();
+  accounts[name] = account;
+  saveAccounts(accounts);
+}
+
+function createAccountDb() {
+  if (!DATABASE_URL) return null;
+  let Pool;
+  try {
+    ({ Pool } = require("pg"));
+  } catch (error) {
+    console.warn("DATABASE_URL is set, but the pg package is not installed. Falling back to accounts.json.", error.message);
+    return null;
+  }
+
+  const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false },
+  });
+  const ready = pool.query(`
+    create table if not exists chrono_accounts (
+      name text primary key,
+      account jsonb not null,
+      updated_at timestamptz not null default now()
+    )
+  `).catch((error) => {
+    console.error("Failed to initialize Postgres account store:", error.message);
+    throw error;
+  });
+
+  return {
+    async loadAccount(name) {
+      await ready;
+      const result = await pool.query("select account from chrono_accounts where name = $1", [name]);
+      return result.rows[0]?.account || null;
+    },
+    async saveAccount(name, account) {
+      await ready;
+      await pool.query(
+        `insert into chrono_accounts (name, account, updated_at)
+         values ($1, $2::jsonb, now())
+         on conflict (name)
+         do update set account = excluded.account, updated_at = now()`,
+        [name, JSON.stringify(account)],
+      );
+    },
+  };
 }
 
 function sanitizeAccountRecord(name, account = {}) {
