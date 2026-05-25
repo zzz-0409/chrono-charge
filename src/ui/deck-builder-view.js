@@ -344,8 +344,7 @@
       const count = counts[this.selectedCardId] || 0;
       const canAdd = count < limit && total < size;
       const canRemove = count > 0;
-      const selectedOwned = this.selectedFinish === "royal" ? royalOwned : owned;
-      const canDismantle = !this.store.isAuthorAccount && selectedOwned >= 4;
+      const canDismantle = this.store.dismantlableCount(this.selectedCardId, this.selectedFinish) >= 1;
       const canCraft = !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
 
       target.innerHTML = `
@@ -386,7 +385,8 @@
       if (card && !window.confirm(`${finishLabel}${card.name}を1枚分解しますか？\n分解石 +${gain}`)) return;
       const result = this.store.dismantleCard(this.selectedCardId, this.selectedFinish);
       if (!result.ok) {
-        if (result.reason === "owned") this.toast("4枚以上持っているカードだけ分解できます。");
+        if (result.reason === "minimum") this.toast("初期配布分より少なくなるため分解できません。");
+        else if (result.reason === "owned") this.toast("所持しているカードだけ分解できます。");
         else if (result.reason === "author") this.toast("作者アカウントは分解不要です。");
         else this.toast("分解できません。");
         this.render({ preserveLibraryScroll: true });
@@ -654,7 +654,7 @@
       const canRemoveActive = activeFinish === "royal" ? canRemoveRoyal : canRemove;
       const selectedOwned = activeFinish === "royal" ? royalOwned : owned;
       const dismantleGain = activeFinish === "royal" ? this.store.royalDustPerDismantle : this.store.dustPerDismantle;
-      const canDismantle = !this.store.isAuthorAccount && selectedOwned >= 1;
+      const canDismantle = this.store.dismantlableCount(this.selectedCardId, activeFinish) >= 1;
       const canCraft = activeFinish !== "royal" && !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
       const ownedLabel = CardRenderer.metaLabelHtml(card, {
         shortDrive: true,
@@ -734,7 +734,9 @@
       let dismantled = 0;
       Object.entries(this.store.activeAccountData.collection || {}).forEach(([id, count]) => {
         if (!cards[id]) return;
-        dismantled += Math.max(0, Math.floor(Number(count) || 0) - 3);
+        const copyLimit = isDriveCard(cards[id]) ? MAX_DRIVE_COPIES : MAX_COPIES;
+        const keep = Math.max(copyLimit, this.store.minimumOwnedCount(id));
+        dismantled += Math.max(0, Math.floor(Number(count) || 0) - keep);
       });
       return {
         dismantled,
@@ -916,6 +918,10 @@
 
   function normalizeCompareName(name) {
     return String(name || "").trim().replace(/\s+/g, " ");
+  }
+
+  function isDriveCard(card) {
+    return Boolean(card?.driveKind || card?.type?.includes("ドライブ"));
   }
 
   window.Chrono.DeckBuilderView = DeckBuilderView;

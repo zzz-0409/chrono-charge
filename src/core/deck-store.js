@@ -326,7 +326,7 @@
         activeDeckId: DEFAULT_DECK_ID,
         gems: 0,
         dust: 0,
-        collection: this.initialCollection(mainDeck),
+        collection: this.initialCollection(mainDeck, driveDeck),
         collectionRoyal: {},
         updatedAt: new Date().toISOString(),
         decks: {
@@ -731,6 +731,16 @@
       return this.ownedCount(id) + this.ownedCount(id, ROYAL_FINISH);
     }
 
+    minimumOwnedCount(id, finish = "normal") {
+      if (finish === ROYAL_FINISH || !cards[id]) return 0;
+      return Math.max(0, Number(this.initialCollection(starterDeck, starterDriveDeck)[id] || 0));
+    }
+
+    dismantlableCount(id, finish = "normal") {
+      if (!cards[id] || this.isAuthorAccount) return 0;
+      return Math.max(0, this.ownedCount(id, finish) - this.minimumOwnedCount(id, finish));
+    }
+
     deckCount(id, drive = false) {
       return (drive ? this.driveCounts[id] || 0 : this.counts[id] || 0)
         + (drive ? this.driveRoyalCounts[id] || 0 : this.royalCounts[id] || 0);
@@ -788,6 +798,8 @@
       if (this.isAuthorAccount) return { ok: false, reason: "author" };
       const owned = this.ownedCount(id, finish);
       if (owned < 1) return { ok: false, reason: "owned" };
+      const minimum = this.minimumOwnedCount(id, finish);
+      if (owned <= minimum) return { ok: false, reason: "minimum", minimum };
       const collection = finish === ROYAL_FINISH ? this.activeAccountData.collectionRoyal : this.activeAccountData.collection;
       const gained = finish === ROYAL_FINISH ? ROYAL_DUST_PER_DISMANTLE : DUST_PER_DISMANTLE;
       collection[id] = owned - 1;
@@ -811,7 +823,9 @@
       const collection = this.activeAccountData.collection;
       Object.entries(collection || {}).forEach(([id, count]) => {
         if (!cards[id]) return;
-        const extra = Math.max(0, Math.floor(Number(count) || 0) - 3);
+        const copyLimit = isDriveCard(cards[id]) ? MAX_DRIVE_COPIES : MAX_COPIES;
+        const keep = Math.max(copyLimit, this.minimumOwnedCount(id));
+        const extra = Math.max(0, Math.floor(Number(count) || 0) - keep);
         if (extra <= 0) return;
         collection[id] = count - extra;
         dismantled += extra;
@@ -950,9 +964,12 @@
       return `デッキ ${this.deckPresets.length + 1}`;
     }
 
-    initialCollection(mainDeck) {
+    initialCollection(mainDeck = starterDeck, driveDeck = starterDriveDeck) {
       const result = {};
       Object.entries(this.normalizeMain(mainDeck)).forEach(([id, count]) => {
+        result[id] = Math.max(result[id] || 0, Number(count) || 0);
+      });
+      Object.entries(this.normalizeDrive(driveDeck)).forEach(([id, count]) => {
         result[id] = Math.max(result[id] || 0, Number(count) || 0);
       });
       return result;
@@ -965,6 +982,12 @@
         const safeCount = Math.max(0, Math.floor(Number(count) || 0));
         if (safeCount > 0) result[id] = safeCount;
       });
+
+      if (finish !== ROYAL_FINISH) {
+        Object.entries(this.initialCollection(starterDeck, starterDriveDeck)).forEach(([id, count]) => {
+          result[id] = Math.max(result[id] || 0, Number(count) || 0);
+        });
+      }
 
       return result;
     }

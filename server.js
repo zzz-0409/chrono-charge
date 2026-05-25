@@ -1803,7 +1803,7 @@ function createDefaultAccountRecord(username, displayName = "Player") {
     activeDeckId: "main",
     gems: 0,
     dust: 0,
-    collection: initialCollection(chrono.starterDeck || {}),
+    collection: initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {}),
     collectionRoyal: {},
     updatedAt: now,
     decks: {
@@ -1820,10 +1820,17 @@ function createDefaultAccountRecord(username, displayName = "Player") {
   };
 }
 
-function initialCollection(mainDeck = {}) {
+function initialCollection(mainDeck = {}, driveDeck = {}) {
   const result = {};
   Object.entries(mainDeck || {}).forEach(([id, count]) => {
-    if (cards[id]) result[id] = Math.max(result[id] || 0, Math.floor(Number(count) || 0));
+    if (cards[id] && !isDriveCard(cards[id]) && cards[id].type !== "環境") {
+      result[id] = Math.max(result[id] || 0, Math.floor(Number(count) || 0));
+    }
+  });
+  Object.entries(driveDeck || {}).forEach(([id, count]) => {
+    if (isDriveCard(cards[id])) {
+      result[id] = Math.max(result[id] || 0, Math.floor(Number(count) || 0));
+    }
   });
   return result;
 }
@@ -1881,7 +1888,7 @@ function sanitizeAccountRecord(name, account = {}) {
     activeDeckId: sanitizeId(account.activeDeckId || "main"),
     gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
     dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
-    collection: sanitizeCounts(account.collection),
+    collection: sanitizeCollection(account.collection),
     collectionRoyal: sanitizeCounts(account.collectionRoyal),
     updatedAt: String(account.updatedAt || new Date().toISOString()),
     decks: sanitizeDecks(account.decks),
@@ -1982,6 +1989,14 @@ function sanitizeCounts(source = {}) {
     if (!cards[id]) return;
     const safeCount = Math.max(0, Math.floor(Number(count) || 0));
     if (safeCount > 0) result[id] = safeCount;
+  });
+  return result;
+}
+
+function sanitizeCollection(source = {}) {
+  const result = sanitizeCounts(source);
+  Object.entries(initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {})).forEach(([id, count]) => {
+    result[id] = Math.max(result[id] || 0, Number(count) || 0);
   });
   return result;
 }
