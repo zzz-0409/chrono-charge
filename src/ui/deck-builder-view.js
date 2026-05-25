@@ -576,7 +576,10 @@
       const dismantleGain = activeFinish === "royal" ? this.store.royalDustPerDismantle : this.store.dustPerDismantle;
       const canDismantle = !this.store.isAuthorAccount && selectedOwned >= 1;
       const canCraft = activeFinish !== "royal" && !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
-      const ownedLabel = `${card.type} / ${card.attr} / 所持${selectedOwned}`;
+      const ownedLabel = CardRenderer.metaLabelHtml(card, {
+        shortDrive: true,
+        ownedLabel: `所持${selectedOwned}`,
+      });
       const craftLabel = activeFinish === "royal"
         ? "生成不可"
         : `生成 <img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> -${this.store.craftCost}`;
@@ -786,7 +789,11 @@
             <span class="cost-chip">${card.cost}</span>
             <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
           </div>
-          <div class="deck-row-sub">${CardRenderer.rubyText(`${typeLabel} / ${card.attr} / 所持${finishOwned} / 合計${totalCount}/${limit}`)}${isMissingOwned ? ` <span class="missing-owned-label">不足</span>` : ""}</div>
+          <div class="deck-row-sub">${CardRenderer.metaLabelHtml(card, {
+            shortDrive: driveMode,
+            ownedLabel: `所持${finishOwned}`,
+            totalLabel: `合計${totalCount}/${limit}`,
+          })}${isMissingOwned ? ` <span class="missing-owned-label">不足</span>` : ""}</div>
         </div>
         <div class="deck-row-controls">
           <div class="deck-row-stepper">

@@ -397,6 +397,19 @@
       return String(type || "").replace("ドライブ", "D");
     }
 
+    static shortDriveTypeHtml(type) {
+      return this.isDriveType(type) ? ruby("D", "ドライブ") : this.rubyText(type);
+    }
+
+    static metaLabelHtml(card, options = {}) {
+      const typeHtml = options.shortDrive && this.isDriveCard(card)
+        ? this.shortDriveTypeHtml(card.type)
+        : this.rubyText(this.isDriveCard(card) ? this.shortDriveType(card.type) : card.type);
+      const owned = options.ownedLabel ? ` / ${escapeHtml(options.ownedLabel)}` : "";
+      const total = options.totalLabel ? ` / ${escapeHtml(options.totalLabel)}` : "";
+      return `${typeHtml} / ${this.rubyText(card.attr)}${owned}${total}`;
+    }
+
     static effectSizeClass(text) {
       const length = Array.from(text).length;
       if (length >= 78) return "effect-xxs";
@@ -435,6 +448,10 @@
 
     static isDriveCard(card) {
       return Boolean(card?.driveKind || card?.type?.includes("ドライブ"));
+    }
+
+    static isDriveType(type) {
+      return String(type || "").includes("ドライブ");
     }
 
     static hasAtk(card) {
