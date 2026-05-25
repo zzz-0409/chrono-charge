@@ -345,6 +345,7 @@
       const canAdd = count < limit && total < size;
       const canRemove = count > 0;
       const canDismantle = this.store.dismantlableCount(this.selectedCardId, this.selectedFinish) >= 1;
+      const dismantleLabel = canDismantle ? `分解 +${this.store.dustPerDismantle}` : "分解不可";
       const canCraft = !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
 
       target.innerHTML = `
@@ -359,7 +360,7 @@
           <button class="mini-button" type="button" data-action="preview-add">+</button>
         </div>
         <div class="craft-controls">
-          <button class="ghost-button compact-action" type="button" data-action="preview-dismantle">分解 +${this.store.dustPerDismantle}</button>
+          <button class="ghost-button compact-action" type="button" data-action="preview-dismantle">${dismantleLabel}</button>
           <button class="primary-button compact-action" type="button" data-action="preview-craft">購入 ${this.store.craftCost}</button>
         </div>
       `;
@@ -655,6 +656,9 @@
       const selectedOwned = activeFinish === "royal" ? royalOwned : owned;
       const dismantleGain = activeFinish === "royal" ? this.store.royalDustPerDismantle : this.store.dustPerDismantle;
       const canDismantle = this.store.dismantlableCount(this.selectedCardId, activeFinish) >= 1;
+      const dismantleLabel = canDismantle
+        ? `分解 <img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> +${dismantleGain}`
+        : "分解不可";
       const canCraft = activeFinish !== "royal" && !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
       const ownedLabel = CardRenderer.metaLabelHtml(card, {
         shortDrive: true,
@@ -679,7 +683,7 @@
           <button class="mini-button" type="button" data-action="preview-add">+</button>
         </div>
         <div class="craft-controls">
-          <button class="ghost-button compact-action" type="button" data-action="preview-dismantle">分解 <img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> +${dismantleGain}</button>
+          <button class="ghost-button compact-action" type="button" data-action="preview-dismantle">${dismantleLabel}</button>
           <button class="primary-button compact-action" type="button" data-action="preview-craft">${craftLabel}</button>
         </div>
       `;
