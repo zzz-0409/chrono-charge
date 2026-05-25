@@ -1669,8 +1669,8 @@ function mergeAccountRecord(name, current, incoming) {
     ...incoming,
     gems: Math.max(0, Math.floor(Number(incoming.gems) || 0)),
     dust: Math.max(0, Math.floor(Number(incoming.dust) || 0)),
-    collection: mergeMaxCounts(current.collection, incoming.collection),
-    collectionRoyal: mergeMaxCounts(current.collectionRoyal, incoming.collectionRoyal),
+    collection: incoming.collection || current.collection,
+    collectionRoyal: incoming.collectionRoyal || current.collectionRoyal,
     decks: { ...(current.decks || {}), ...(incoming.decks || {}) },
     activeDeckId: incoming.activeDeckId || current.activeDeckId,
   });

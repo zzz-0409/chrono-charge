@@ -818,9 +818,14 @@
     }
 
     initialCollection(mainDeck, driveDeck) {
-      return this.normalizeCollection(undefined, {
-        starter: this.createDeck("starter", "starter", mainDeck, driveDeck),
+      const result = {};
+      Object.entries(this.normalizeMain(mainDeck)).forEach(([id, count]) => {
+        result[id] = Math.max(result[id] || 0, Number(count) || 0);
       });
+      Object.entries(this.normalizeDrive(driveDeck)).forEach(([id, count]) => {
+        result[id] = Math.max(result[id] || 0, Number(count) || 0);
+      });
+      return result;
     }
 
     normalizeCollection(collection = {}, decks = {}, finish = "normal") {
@@ -829,17 +834,6 @@
         if (!cards[id]) return;
         const safeCount = Math.max(0, Math.floor(Number(count) || 0));
         if (safeCount > 0) result[id] = safeCount;
-      });
-
-      Object.values(decks || {}).forEach((deck) => {
-        const mainSource = finish === ROYAL_FINISH ? deck.mainDeckRoyal : deck.mainDeck;
-        const driveSource = finish === ROYAL_FINISH ? deck.driveDeckRoyal : deck.driveDeck;
-        Object.entries(mainSource || {}).forEach(([id, count]) => {
-          if (cards[id]) result[id] = Math.max(result[id] || 0, Number(count) || 0);
-        });
-        Object.entries(driveSource || {}).forEach(([id, count]) => {
-          if (cards[id]) result[id] = Math.max(result[id] || 0, Number(count) || 0);
-        });
       });
 
       return result;
@@ -874,8 +868,8 @@
         ...remote,
         gems: Math.max(Number(local.gems) || 0, Number(remote.gems) || 0),
         dust: Math.max(Number(local.dust) || 0, Number(remote.dust) || 0),
-        collection: mergeMaxCounts(local.collection, remote.collection),
-        collectionRoyal: mergeMaxCounts(local.collectionRoyal, remote.collectionRoyal),
+        collection: remote.collection || local.collection,
+        collectionRoyal: remote.collectionRoyal || local.collectionRoyal,
         decks: mergeDecksByUpdated(local.decks, remote.decks),
         activeDeckId: local.activeDeckId || remote.activeDeckId,
       });
