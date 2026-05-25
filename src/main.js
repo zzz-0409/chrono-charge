@@ -341,6 +341,21 @@
     packView.render();
   });
 
+  let accountSyncTimer = 0;
+  const syncAccountFromServer = () => {
+    window.clearTimeout(accountSyncTimer);
+    accountSyncTimer = window.setTimeout(() => {
+      store.syncActiveAccount().finally(() => {
+        builderView.render({ preserveLibraryScroll: true });
+        packView.render();
+      });
+    }, 120);
+  };
+  window.addEventListener("focus", syncAccountFromServer);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) syncAccountFromServer();
+  });
+
   function escapeHtml(value) {
     return String(value || "").replace(/[&<>"']/g, (char) => ({
       "&": "&amp;",

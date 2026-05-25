@@ -848,6 +848,7 @@
         if (remote?.account) {
           this.mergeRemoteAccount(remote.account);
           this.persistLocalOnly();
+          this.saveRemoteAccount();
         } else {
           this.saveRemoteAccount();
         }
