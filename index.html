@@ -4,20 +4,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Chrono Charge TCG</title>
-    <link rel="stylesheet" href="styles.css?v=20260524m">
-    <script defer src="src/data/cards.js?v=20260524c"></script>
-    <script defer src="src/core/deck-store.js?v=20260524c"></script>
-    <script defer src="src/core/effect-resolver.js?v=20260523e"></script>
+    <link rel="stylesheet" href="styles.css?v=20260525duelflow">
+    <script defer src="src/data/cards.js?v=20260525b"></script>
+    <script defer src="src/core/deck-store.js?v=20260525ownedfix"></script>
+    <script defer src="src/core/effect-resolver.js?v=20260525b"></script>
     <script defer src="src/core/cpu-controller.js?v=20260522a"></script>
-    <script defer src="src/core/duel-game.js?v=20260524d"></script>
+    <script defer src="src/core/duel-game.js?v=20260525b"></script>
     <script defer src="src/ui/scale-manager.js?v=20260524a"></script>
-    <script defer src="src/ui/card-renderer.js?v=20260524e"></script>
+    <script defer src="src/ui/card-renderer.js?v=20260525pack"></script>
     <script defer src="src/ui/sound-effects.js?v=20260522h"></script>
     <script defer src="src/ui/card-zoom.js?v=20260522k"></script>
-    <script defer src="src/ui/deck-builder-view.js?v=20260524d"></script>
-    <script defer src="src/net/online-client.js?v=20260524c"></script>
-    <script defer src="src/ui/duel-view.js?v=20260524d"></script>
-    <script defer src="src/main.js?v=20260524d"></script>
+    <script defer src="src/ui/deck-builder-view.js?v=20260525duelflow"></script>
+    <script defer src="src/ui/pack-view.js?v=20260525zoom"></script>
+    <script defer src="src/net/online-client.js?v=20260525b"></script>
+    <script defer src="src/ui/duel-view.js?v=20260525b"></script>
+    <script defer src="src/main.js?v=20260525duelflow"></script>
   </head>
   <body>
     <svg class="sprite-sheet" aria-hidden="true">
@@ -73,13 +74,12 @@
         </div>
         <nav class="view-tabs" aria-label="画面切替">
           <button id="builderTab" class="tab-button active" type="button">デッキ編集</button>
+          <button id="packTab" class="tab-button" type="button">パック開封</button>
           <button id="duelTab" class="tab-button" type="button">デュエル</button>
         </nav>
-        <div class="header-actions">
-          <button id="saveDeckButton" class="ghost-button" type="button">保存</button>
-          <button id="createRoomButton" class="ghost-button" type="button">ルーム作成</button>
-          <button id="joinRoomButton" class="ghost-button" type="button">ルーム参加</button>
-          <button id="newDuelButton" class="primary-button" type="button">対戦開始</button>
+        <div class="header-actions resource-strip" aria-label="所持アイテム">
+          <span class="resource-pill" title="ガチャ石"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> <strong id="headerGachaStoneCount">0</strong></span>
+          <span class="resource-pill" title="分解石"><img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> <strong id="headerDustCount">0</strong></span>
         </div>
       </header>
 
@@ -92,6 +92,7 @@
                 <h2>カード一覧</h2>
               </div>
               <div class="pool-actions">
+                <button id="bulkDismantleButton" class="ghost-button compact-action" type="button">一括分解</button>
                 <span id="poolCount" class="soft-badge">0種</span>
               </div>
             </div>
@@ -124,6 +125,7 @@
                   <option value="無">無</option>
                 </select>
               </label>
+              <button id="ownedOnlyToggle" class="filter-toggle-button" type="button" aria-pressed="false">全カード</button>
             </div>
             <div id="collectionGrid" class="collection-grid" aria-label="カード一覧"></div>
           </section>
@@ -134,7 +136,10 @@
                 <p id="deckPanelEyebrow" class="eyebrow">Main Deck</p>
                 <h2 id="deckPanelTitle">構築デッキ</h2>
               </div>
-              <strong id="deckCount" class="deck-count">40 / 40</strong>
+              <div class="deck-panel-actions">
+                <strong id="deckCount" class="deck-count">40 / 40</strong>
+                <button id="saveDeckButton" class="ghost-button" type="button">保存</button>
+              </div>
             </div>
             <div class="deck-mode-tabs" aria-label="デッキ編集切替">
               <button id="mainDeckModeButton" class="deck-mode-button active" type="button">通常デッキ</button>
@@ -193,6 +198,29 @@
           </aside>
         </section>
 
+        <section id="packView" class="view pack-view" hidden>
+          <section class="pack-selection-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Card Pack</p>
+                <h2>パック開封</h2>
+              </div>
+            </div>
+            <div id="packList" class="pack-list" aria-label="パック一覧"></div>
+          </section>
+
+          <section class="pack-open-panel">
+            <div class="panel-head">
+              <div>
+                <p id="selectedPackEyebrow" class="eyebrow">Selected Pack</p>
+                <h2 id="selectedPackTitle">パックを選択</h2>
+              </div>
+              <button id="openSelectedPackButton" class="primary-button" type="button">100で開封</button>
+            </div>
+            <div id="packResultGrid" class="pack-result-list pack-page-results" aria-label="開封結果"></div>
+          </section>
+        </section>
+
         <section id="duelView" class="view duel-view" hidden>
           <section class="duel-topline">
             <div class="duelist-summary">
@@ -203,6 +231,11 @@
             <div class="phase-strip">
               <span id="turnBadge" class="soft-badge">Turn 1</span>
               <span id="phaseBadge" class="phase-badge">自分ターン</span>
+              <div class="duel-actions">
+                <button id="createRoomButton" class="ghost-button" type="button">ルーム作成</button>
+                <button id="joinRoomButton" class="ghost-button" type="button">ルーム参加</button>
+                <button id="newDuelButton" class="primary-button" type="button">対戦開始</button>
+              </div>
             </div>
             <div class="duelist-summary player">
               <span class="nameplate">Player</span>

@@ -19,8 +19,12 @@
       this.els = options.els;
       this.toast = options.toast;
       this.onStartDuel = options.onStartDuel;
+      this.onAccountChange = options.onAccountChange || (() => {});
+      this.confirmDeleteDeck = options.confirmDeleteDeck || (() => Promise.resolve(false));
       this.deckMode = "main";
       this.selectedCardId = "star_scout";
+      this.selectedFinish = "normal";
+      this.ownedOnly = false;
       this.bindEvents();
       this.render();
     }
@@ -40,10 +44,10 @@
         this.render();
         this.toast(`${this.store.activeDeck.name}を読み込みました。`);
       });
-      this.els.deletePresetButton.addEventListener("click", () => {
+      this.els.deletePresetButton.addEventListener("click", async () => {
         const deck = this.store.activeAccountData.decks[this.els.deckPresetSelect.value];
         if (!deck) return;
-        if (!window.confirm(`${deck.name}を削除しますか？`)) return;
+        if (!(await this.confirmDeleteDeck(deck.name))) return;
         if (!this.store.deletePreset(deck.id)) {
           this.toast("最後のプリセットは削除できません。");
           return;
@@ -52,8 +56,9 @@
         this.render();
         this.toast("プリセットを削除しました。");
       });
-      this.els.changeAccountButton.addEventListener("click", () => {
+      this.els.changeAccountButton.addEventListener("click", async () => {
         const account = this.store.switchAccount(this.els.accountNameInput.value);
+        await this.onAccountChange(account);
         this.selectedCardId = this.firstSelectedId();
         this.render();
         this.toast(`${account.name}に変更しました。`);
@@ -64,12 +69,23 @@
         this.selectedCardId = this.firstSelectedId();
         this.els.deckPresetSelect.value = this.store.activeDeckId;
         this.render();
+        if (this.store.total < DECK_SIZE || this.store.driveTotal < DRIVE_DECK_SIZE) {
+          this.toast(`${label}を作成しましたが、所持カード不足で枚数が足りません。`);
+          return;
+        }
         this.toast(`${label}を作成しました。保存するとプリセットに反映されます。`);
       });
+      this.els.openPackButton?.addEventListener("click", () => this.openPack());
+      this.els.bulkDismantleButton?.addEventListener("click", () => this.bulkDismantleExtras());
       this.els.newDuelButton.addEventListener("click", () => this.onStartDuel());
       this.els.searchInput.addEventListener("input", () => this.render());
       this.els.typeFilter.addEventListener("change", () => this.render());
       this.els.attrFilter.addEventListener("change", () => this.render());
+      this.els.ownedOnlyToggle?.addEventListener("click", () => {
+        this.ownedOnly = !this.ownedOnly;
+        this.els.ownedOnlyToggle.setAttribute("aria-pressed", String(this.ownedOnly));
+        this.render();
+      });
       this.els.cardPreview.addEventListener("click", (event) => CardZoom.openFromEvent(event));
       this.els.mainDeckModeButton?.addEventListener("click", () => this.setDeckMode("main"));
       this.els.driveDeckModeButton?.addEventListener("click", () => this.setDeckMode("drive"));
@@ -85,11 +101,17 @@
 
     render(options = {}) {
       this.ensureSelectedCard();
+      this.renderResources();
       this.renderProfilePanel();
       this.renderLibrary({ preserveScroll: Boolean(options.preserveLibraryScroll) });
       this.renderDeckPanel();
-      CardRenderer.preview(this.selectedCardId, this.els.cardPreview);
+      CardRenderer.preview(this.selectedCardId, this.els.cardPreview, { finish: this.selectedFinish });
       this.renderPreviewDeckControls();
+    }
+
+    renderResources() {
+      if (this.els.headerGachaStoneCount) this.els.headerGachaStoneCount.textContent = this.store.isAuthorAccount ? "作者" : String(this.store.gems);
+      if (this.els.headerDustCount) this.els.headerDustCount.textContent = String(this.store.dust);
     }
 
     saveActiveDeck() {
@@ -97,6 +119,18 @@
       this.els.deckPresetSelect.value = this.store.activeDeckId;
       this.render({ preserveLibraryScroll: true });
       this.toast(`${deck.name}を保存しました。`);
+      return deck;
+    }
+
+    hasUnsavedChanges() {
+      const deck = this.store.activeDeck;
+      if (!deck) return false;
+      const currentName = normalizeCompareName(this.els.deckNameInput.value || deck.name);
+      if (currentName !== normalizeCompareName(deck.name)) return true;
+      return !sameCounts(this.store.counts, deck.mainDeck)
+        || !sameCounts(this.store.royalCounts, deck.mainDeckRoyal)
+        || !sameCounts(this.store.driveCounts, deck.driveDeck)
+        || !sameCounts(this.store.driveRoyalCounts, deck.driveDeckRoyal);
     }
 
     renderProfilePanel() {
@@ -136,24 +170,46 @@
         const matchesQuery = card.name.toLowerCase().includes(query);
         const matchesType = type === "all" || card.type === type;
         const matchesAttr = attr === "all" || card.attr === attr;
-        return matchesQuery && matchesType && matchesAttr;
+        const matchesOwned = !this.ownedOnly || this.store.totalOwnedCount(card.id) > 0;
+        return matchesQuery && matchesType && matchesAttr && matchesOwned;
       });
 
-      this.els.poolCount.textContent = `${filtered.length}種`;
+      const visibleCount = filtered.reduce((sum, card) => sum + (this.store.ownedCount(card.id, "royal") > 0 ? 2 : 1), 0);
+      this.els.poolCount.textContent = `${visibleCount}種`;
+      if (this.els.ownedOnlyToggle) {
+        this.els.ownedOnlyToggle.textContent = this.ownedOnly ? "所持済み" : "全カード";
+        this.els.ownedOnlyToggle.classList.toggle("active", this.ownedOnly);
+        this.els.ownedOnlyToggle.setAttribute("aria-pressed", String(this.ownedOnly));
+      }
       this.els.mainDeckModeButton?.classList.toggle("active", this.deckMode === "main");
       this.els.driveDeckModeButton?.classList.toggle("active", this.deckMode === "drive");
       this.els.collectionGrid.replaceChildren();
       filtered.forEach((card) => {
-        const count = this.activeCounts()[card.id] || 0;
-        const button = CardRenderer.libraryCard(card, count, this.selectedCardId === card.id);
-        button.addEventListener("click", () => this.handleCardClick(card.id));
-        this.els.collectionGrid.append(button);
+        const owned = this.store.ownedCount(card.id);
+        const royalOwned = this.store.ownedCount(card.id, "royal");
+        const limit = this.store.deckLimit(card.id, this.deckMode === "drive");
+        const normalCount = this.deckMode === "drive" ? this.store.driveCounts[card.id] || 0 : this.store.counts[card.id] || 0;
+        const normalButton = CardRenderer.libraryCard(card, normalCount, this.selectedCardId === card.id && this.selectedFinish !== "royal", { owned, royalOwned, limit });
+        normalButton.classList.toggle("unowned-card", owned <= 0 && !this.store.isAuthorAccount);
+        normalButton.addEventListener("click", () => this.handleCardClick(card.id, "normal"));
+        this.els.collectionGrid.append(normalButton);
+        if (royalOwned > 0) {
+          const royalCount = this.deckMode === "drive" ? this.store.driveRoyalCounts[card.id] || 0 : this.store.royalCounts[card.id] || 0;
+          const royalButton = CardRenderer.libraryCard(card, royalCount, this.selectedCardId === card.id && this.selectedFinish === "royal", {
+            owned: royalOwned,
+            limit,
+            finish: "royal",
+          });
+          royalButton.addEventListener("click", () => this.handleCardClick(card.id, "royal"));
+          this.els.collectionGrid.append(royalButton);
+        }
       });
       if (options.preserveScroll) this.els.collectionGrid.scrollTop = scrollTop;
     }
 
-    handleCardClick(id) {
+    handleCardClick(id, finish = "normal") {
       this.selectedCardId = id;
+      this.selectedFinish = finish;
       this.render({ preserveLibraryScroll: true });
     }
 
@@ -167,32 +223,73 @@
       }
 
       const counts = this.activeCounts();
-      const limit = this.deckMode === "drive" ? MAX_DRIVE_COPIES : MAX_COPIES;
+      const copyLimit = this.deckMode === "drive" ? MAX_DRIVE_COPIES : MAX_COPIES;
+      const owned = this.store.ownedCount(this.selectedCardId);
+      const limit = this.store.deckLimit(this.selectedCardId, this.deckMode === "drive");
       const total = this.deckMode === "drive" ? this.store.driveTotal : this.store.total;
       const size = this.deckMode === "drive" ? DRIVE_DECK_SIZE : DECK_SIZE;
       const count = counts[this.selectedCardId] || 0;
       const canAdd = count < limit && total < size;
       const canRemove = count > 0;
+      const selectedOwned = this.selectedFinish === "royal" ? royalOwned : owned;
+      const canDismantle = !this.store.isAuthorAccount && selectedOwned >= 4;
+      const canCraft = !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
 
       target.innerHTML = `
         <div class="preview-control-copy">
           <span>投入枚数</span>
           <strong>${count} / ${limit}</strong>
-          <small>${card.type} / ${card.attr}</small>
+          <small>${card.type} / ${card.attr} / 所持 ${owned}${this.store.isAuthorAccount ? " (作者)" : ""} / ${copyLimit} / 分解 ${this.store.dust}</small>
         </div>
         <div class="preview-count-stepper">
           <button class="mini-button" type="button" data-action="preview-remove">-</button>
           <strong>${count}</strong>
           <button class="mini-button" type="button" data-action="preview-add">+</button>
         </div>
+        <div class="craft-controls">
+          <button class="ghost-button compact-action" type="button" data-action="preview-dismantle">分解 +${this.store.dustPerDismantle}</button>
+          <button class="primary-button compact-action" type="button" data-action="preview-craft">購入 ${this.store.craftCost}</button>
+        </div>
       `;
 
       const removeButton = target.querySelector('[data-action="preview-remove"]');
       const addButton = target.querySelector('[data-action="preview-add"]');
+      const dismantleButton = target.querySelector('[data-action="preview-dismantle"]');
+      const craftButton = target.querySelector('[data-action="preview-craft"]');
       removeButton.disabled = !canRemove;
       addButton.disabled = !canAdd;
+      dismantleButton.disabled = !canDismantle;
+      craftButton.disabled = !canCraft;
       removeButton.addEventListener("click", () => this.removeCardFromDeck(this.selectedCardId));
       addButton.addEventListener("click", () => this.addCardToDeck(this.selectedCardId));
+      dismantleButton.addEventListener("click", () => this.dismantleSelectedCard());
+      craftButton.addEventListener("click", () => this.craftSelectedCard());
+    }
+
+    dismantleSelectedCard() {
+      const result = this.store.dismantleCard(this.selectedCardId, this.selectedFinish);
+      if (!result.ok) {
+        if (result.reason === "owned") this.toast("4枚以上持っているカードだけ分解できます。");
+        else if (result.reason === "author") this.toast("作者アカウントは分解不要です。");
+        else this.toast("分解できません。");
+        this.render({ preserveLibraryScroll: true });
+        return;
+      }
+      this.toast(`${this.selectedFinish === "royal" ? "ロイヤル " : ""}${cards[this.selectedCardId].name}を分解しました。分解アイテム +${result.gained}`);
+      this.render({ preserveLibraryScroll: true });
+    }
+
+    craftSelectedCard() {
+      const result = this.store.craftCard(this.selectedCardId);
+      if (!result.ok) {
+        if (result.reason === "dust") this.toast("分解アイテムが足りません。");
+        else if (result.reason === "author") this.toast("作者アカウントは全カードを持っています。");
+        else this.toast("購入できません。");
+        this.render({ preserveLibraryScroll: true });
+        return;
+      }
+      this.toast(`${cards[this.selectedCardId].name}を購入しました。`);
+      this.render({ preserveLibraryScroll: true });
     }
 
     addCardToDeck(id) {
@@ -214,6 +311,10 @@
 
     toastDeckResult(result) {
       if (result.ok) return;
+      if (result.reason === "owned") {
+        this.toast("所持枚数が足りません。パックで入手してください。");
+        return;
+      }
       if (this.deckMode === "drive") {
         if (result.reason === "full") this.toast("ドライブデッキは10枚までです。");
         if (result.reason === "copies") this.toast(`ドライブカードは各${MAX_DRIVE_COPIES}枚までです。`);
@@ -266,7 +367,7 @@
     createDeckRow(id, count) {
       const card = cards[id];
       const driveMode = this.deckMode === "drive";
-      const limit = driveMode ? MAX_DRIVE_COPIES : MAX_COPIES;
+      const limit = this.store.deckLimit(id, driveMode);
       const total = driveMode ? this.store.driveTotal : this.store.total;
       const size = driveMode ? DRIVE_DECK_SIZE : DECK_SIZE;
       const chip = card.cost;
@@ -278,13 +379,18 @@
           <div class="deck-row-main">
             <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
           </div>
-          <div class="deck-row-sub">${CardRenderer.rubyText(`${typeLabel} / ${card.attr} / ${count}枚`)}</div>
+          <div class="deck-row-sub">${CardRenderer.rubyText(`${typeLabel} / ${card.attr} / 所持${this.store.ownedCount(id)}`)}</div>
         </div>
         <div class="deck-row-controls">
           <span class="cost-chip">${chip}</span>
-          <button class="mini-button" type="button" data-action="remove">-</button>
-          <strong>${count}</strong>
-          <button class="mini-button" type="button" data-action="add">+</button>
+          <div class="deck-row-count-editor" aria-label="投入枚数">
+            <span>投入枚数</span>
+            <div>
+              <button class="mini-button" type="button" data-action="remove">-</button>
+              <strong>${count}</strong>
+              <button class="mini-button" type="button" data-action="add">+</button>
+            </div>
+          </div>
         </div>
       `;
       this.bindDeckRowSelection(row, id);
@@ -298,13 +404,64 @@
       return row;
     }
 
-    bindDeckRowSelection(row, id) {
+    openPack() {
+      const results = this.store.openPack("standard");
+      this.render({ preserveLibraryScroll: true });
+      const modal = this.els.modalRoot;
+      modal.hidden = false;
+      modal.innerHTML = `
+        <div class="modal-dialog pack-dialog" role="dialog" aria-modal="true" aria-label="パック開封結果">
+          <div class="grave-dialog-head">
+            <div>
+              <h2>パック開封</h2>
+              <p class="small-note">入手したカードはこのアカウントの所持枚数に追加されます。</p>
+            </div>
+            <button class="ghost-button" type="button" data-action="close-pack">閉じる</button>
+          </div>
+          <div class="pack-result-list"></div>
+          <div class="choice-actions">
+            <button class="ghost-button" type="button" data-action="open-more">もう1パック</button>
+            <button class="primary-button" type="button" data-action="close-pack">完了</button>
+          </div>
+        </div>
+      `;
+
+      const list = modal.querySelector(".pack-result-list");
+      results.forEach((result, index) => {
+        const card = CardRenderer.tcgCard(result.id, { interactive: true });
+        card.classList.add("pack-result-card");
+        card.style.setProperty("--pack-index", index);
+        const badge = document.createElement("div");
+        badge.className = "pack-owned-badge";
+        badge.textContent = result.isNew ? `NEW / 所持 ${result.after}` : `所持 ${result.before} -> ${result.after}`;
+        const slot = document.createElement("div");
+        slot.className = "pack-result-slot";
+        slot.append(card, badge);
+        card.addEventListener("click", () => {
+          this.selectedCardId = result.id;
+          this.render({ preserveLibraryScroll: true });
+        });
+        list.append(slot);
+      });
+
+      modal.querySelectorAll('[data-action="close-pack"]').forEach((button) => {
+        button.addEventListener("click", () => {
+          modal.hidden = true;
+          modal.replaceChildren();
+        });
+      });
+      modal.querySelector('[data-action="open-more"]')?.addEventListener("click", () => this.openPack());
+      this.toast("パックを開封しました。");
+    }
+
+    bindDeckRowSelection(row, id, finish = "normal") {
       row.tabIndex = 0;
       row.setAttribute("role", "button");
       row.setAttribute("aria-label", `${cards[id].name}をフォーカス`);
       row.addEventListener("click", (event) => {
         if (event.target.closest("[data-action]")) return;
         this.selectedCardId = id;
+        this.selectedFinish = finish;
         this.render({ preserveLibraryScroll: true });
       });
       row.addEventListener("keydown", (event) => {
@@ -312,6 +469,7 @@
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
         this.selectedCardId = id;
+        this.selectedFinish = finish;
         this.render({ preserveLibraryScroll: true });
       });
     }
@@ -330,8 +488,257 @@
     }
 
     ensureSelectedCard() {
-      if (this.activePool().some((card) => card.id === this.selectedCardId)) return;
+      if (this.activePool().some((card) => card.id === this.selectedCardId)) {
+        if (this.selectedFinish === "royal" && this.store.ownedCount(this.selectedCardId, "royal") <= 0) this.selectedFinish = "normal";
+        return;
+      }
       this.selectedCardId = this.firstSelectedId();
+      this.selectedFinish = "normal";
+    }
+
+    renderPreviewDeckControls() {
+      const target = this.els.previewDeckControls;
+      if (!target) return;
+      const card = cards[this.selectedCardId];
+      if (!card) {
+        target.innerHTML = `<div class="preview-control-empty">カード未選択</div>`;
+        return;
+      }
+
+      const driveMode = this.deckMode === "drive";
+      const normalCounts = driveMode ? this.store.driveCounts : this.store.counts;
+      const royalCounts = driveMode ? this.store.driveRoyalCounts : this.store.royalCounts;
+      const copyLimit = driveMode ? MAX_DRIVE_COPIES : MAX_COPIES;
+      const owned = this.store.ownedCount(this.selectedCardId);
+      const royalOwned = this.store.ownedCount(this.selectedCardId, "royal");
+      const limit = this.store.deckLimit(this.selectedCardId, driveMode);
+      const total = driveMode ? this.store.driveTotal : this.store.total;
+      const size = driveMode ? DRIVE_DECK_SIZE : DECK_SIZE;
+      const count = normalCounts[this.selectedCardId] || 0;
+      const royalCount = royalCounts[this.selectedCardId] || 0;
+      const totalCount = count + royalCount;
+      const canAdd = count < owned && totalCount < limit && total < size;
+      const canAddRoyal = royalCount < royalOwned && totalCount < limit && total < size;
+      const canRemove = count > 0;
+      const canRemoveRoyal = royalCount > 0;
+      const activeFinish = this.selectedFinish === "royal" ? "royal" : "normal";
+      const activeCount = activeFinish === "royal" ? royalCount : count;
+      const canAddActive = activeFinish === "royal" ? canAddRoyal : canAdd;
+      const canRemoveActive = activeFinish === "royal" ? canRemoveRoyal : canRemove;
+      const canDismantle = !this.store.isAuthorAccount && owned >= 4;
+      const canCraft = !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
+
+      target.innerHTML = `
+        <div class="preview-control-copy">
+          <span>投入枚数</span>
+          <strong>${totalCount} / ${limit}</strong>
+          <small>${card.type} / ${card.attr} / 所持 ${owned}${royalOwned > 0 ? ` / ロイヤル ${royalOwned}` : ""}${this.store.isAuthorAccount ? " (作者)" : ""} / ${copyLimit}</small>
+        </div>
+        <div class="preview-count-stepper">
+          <button class="mini-button" type="button" data-action="preview-remove">-</button>
+          <span class="deck-row-count-stack">
+            <span class="finish-row-label">${activeFinish === "royal" ? "R" : "N"}</span>
+            <strong>${activeCount}</strong>
+          </span>
+          <button class="mini-button" type="button" data-action="preview-add">+</button>
+        </div>
+        <div class="craft-controls">
+          <button class="ghost-button compact-action" type="button" data-action="preview-dismantle"><img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> +${this.store.dustPerDismantle}</button>
+          <button class="primary-button compact-action" type="button" data-action="preview-craft"><img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> ${this.store.craftCost}</button>
+        </div>
+      `;
+
+      const removeButton = target.querySelector('[data-action="preview-remove"]');
+      const addButton = target.querySelector('[data-action="preview-add"]');
+      const dismantleButton = target.querySelector('[data-action="preview-dismantle"]');
+      const craftButton = target.querySelector('[data-action="preview-craft"]');
+      removeButton.disabled = !canRemoveActive;
+      addButton.disabled = !canAddActive;
+      dismantleButton.disabled = !canDismantle;
+      craftButton.disabled = !canCraft;
+      removeButton.addEventListener("click", () => this.removeCardFromDeck(this.selectedCardId, activeFinish));
+      addButton.addEventListener("click", () => this.addCardToDeck(this.selectedCardId, activeFinish));
+      dismantleButton.addEventListener("click", () => this.dismantleSelectedCard());
+      craftButton.addEventListener("click", () => this.craftSelectedCard());
+    }
+
+    addCardToDeck(id, finish = "normal") {
+      const card = cards[id];
+      if (!card) return;
+      const result = this.deckMode === "drive" ? this.store.addDrive(id, finish) : this.store.add(id, finish);
+      this.toastDeckResult(result);
+      this.selectedCardId = id;
+      this.selectedFinish = finish;
+      this.render({ preserveLibraryScroll: true });
+    }
+
+    removeCardFromDeck(id, finish = "normal") {
+      if (!cards[id]) return;
+      if (this.deckMode === "drive") this.store.removeDrive(id, finish);
+      else this.store.remove(id, finish);
+      this.selectedCardId = id;
+      this.selectedFinish = finish;
+      this.render({ preserveLibraryScroll: true });
+    }
+
+    bulkDismantleExtras() {
+      const result = this.store.bulkDismantleExtras();
+      if (!result.ok) {
+        this.toast(result.reason === "author" ? "作者アカウントは分解不要です。" : "分解できる余剰カードがありません。");
+        this.render({ preserveLibraryScroll: true });
+        return;
+      }
+      this.toast(`${result.dismantled}枚を一括分解しました。分解石 +${result.gained}`);
+      this.render({ preserveLibraryScroll: true });
+    }
+
+    renderDeckRows(counts) {
+      const normalCounts = this.deckMode === "drive" ? this.store.driveCounts : this.store.counts;
+      const royalCounts = this.deckMode === "drive" ? this.store.driveRoyalCounts : this.store.royalCounts;
+      const rows = [
+        ...Object.entries(normalCounts).filter(([, count]) => count > 0).map(([id, count]) => ({ id, count, finish: "normal" })),
+        ...Object.entries(royalCounts).filter(([, count]) => count > 0).map(([id, count]) => ({ id, count, finish: "royal" })),
+      ].sort((a, b) => sortCardRows(cards[a.id], cards[b.id]) || a.finish.localeCompare(b.finish));
+      this.els.deckList.replaceChildren();
+      rows.forEach((entry) => this.els.deckList.append(this.createDeckRow(entry.id, entry.count, entry.finish)));
+    }
+
+    createDeckRowLegacy(id, normalCount = 0, royalCount = 0) {
+      const card = cards[id];
+      const driveMode = this.deckMode === "drive";
+      const limit = this.store.deckLimit(id, driveMode);
+      const total = driveMode ? this.store.driveTotal : this.store.total;
+      const size = driveMode ? DRIVE_DECK_SIZE : DECK_SIZE;
+      const typeLabel = driveMode ? CardRenderer.shortDriveType(card.type) : card.type;
+      const totalCount = normalCount + royalCount;
+      const owned = this.store.ownedCount(id);
+      const royalOwned = this.store.ownedCount(id, "royal");
+      const focusFinish = normalCount > 0 || royalCount <= 0 ? "normal" : "royal";
+      const row = document.createElement("div");
+      row.className = `deck-row main-deck-row${this.selectedCardId === id ? " selected" : ""}`;
+      row.innerHTML = `
+        <div>
+          <div class="deck-row-main">
+            <span class="card-name">${isRoyal ? `<span class="finish-label">R</span> ` : ""}${CardRenderer.rubyText(card.name)}</span>
+          </div>
+          <div class="deck-row-sub">${CardRenderer.rubyText(`${typeLabel} / ${card.attr} / 所持${this.store.ownedCount(id, finish)}`)}</div>
+        </div>
+        <div class="deck-row-controls">
+          <span class="cost-chip">${card.cost}</span>
+          <div class="deck-row-count-editor" aria-label="投入枚数">
+            <span>投入枚数</span>
+            <div>
+              <button class="mini-button" type="button" data-action="remove">-</button>
+              <strong>${count}</strong>
+              <button class="mini-button" type="button" data-action="add">+</button>
+            </div>
+          </div>
+        </div>
+      `;
+      this.bindDeckRowSelection(row, id, finish);
+      row.querySelector('[data-action="remove"]').addEventListener("click", () => this.removeCardFromDeck(id, finish));
+      row.querySelector('[data-action="add"]').addEventListener("click", () => this.addCardToDeck(id, finish));
+      row.querySelector('[data-action="add"]').disabled = this.store.deckCount(id, driveMode) >= limit || total >= size;
+      return row;
+    }
+
+    createDeckRow(id, normalCount = 0, royalCount = 0) {
+      const card = cards[id];
+      const driveMode = this.deckMode === "drive";
+      const limit = this.store.deckLimit(id, driveMode);
+      const total = driveMode ? this.store.driveTotal : this.store.total;
+      const size = driveMode ? DRIVE_DECK_SIZE : DECK_SIZE;
+      const typeLabel = driveMode ? CardRenderer.shortDriveType(card.type) : card.type;
+      const totalCount = normalCount + royalCount;
+      const owned = this.store.ownedCount(id);
+      const royalOwned = this.store.ownedCount(id, "royal");
+      const focusFinish = normalCount > 0 || royalCount <= 0 ? "normal" : "royal";
+      const row = document.createElement("div");
+      row.className = `deck-row main-deck-row${this.selectedCardId === id ? " selected" : ""}`;
+      row.innerHTML = `
+        <div class="deck-row-summary">
+          <div class="deck-row-sub">${CardRenderer.rubyText(`${typeLabel} / ${card.attr} / 所持 N ${owned} / R ${royalOwned} / ${totalCount}/${limit}`)}</div>
+        </div>
+        <div class="deck-row-finish-stack">
+          <div class="deck-finish-entry" aria-label="normal count">
+            <span class="finish-row-label">N</span>
+            <div class="deck-finish-line">
+              <span class="cost-chip">${card.cost}</span>
+              <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
+              <button class="mini-button" type="button" data-action="remove-normal">-</button>
+              <strong>${normalCount}</strong>
+              <button class="mini-button" type="button" data-action="add-normal">+</button>
+            </div>
+          </div>
+          <div class="deck-finish-entry royal-finish-entry" aria-label="royal count">
+            <span class="finish-row-label">R</span>
+            <div class="deck-finish-line">
+              <span class="cost-chip">${card.cost}</span>
+              <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
+              <button class="mini-button" type="button" data-action="remove-royal">-</button>
+              <strong>${royalCount}</strong>
+              <button class="mini-button" type="button" data-action="add-royal">+</button>
+            </div>
+          </div>
+        </div>
+      `;
+      this.bindDeckRowSelection(row, id, focusFinish);
+      const removeNormal = row.querySelector('[data-action="remove-normal"]');
+      const addNormal = row.querySelector('[data-action="add-normal"]');
+      const removeRoyal = row.querySelector('[data-action="remove-royal"]');
+      const addRoyal = row.querySelector('[data-action="add-royal"]');
+      removeNormal.addEventListener("click", () => this.removeCardFromDeck(id));
+      addNormal.addEventListener("click", () => this.addCardToDeck(id));
+      removeRoyal.addEventListener("click", () => this.removeCardFromDeck(id, "royal"));
+      addRoyal.addEventListener("click", () => this.addCardToDeck(id, "royal"));
+      removeNormal.disabled = normalCount <= 0;
+      addNormal.disabled = normalCount >= owned || totalCount >= limit || total >= size;
+      removeRoyal.disabled = royalCount <= 0;
+      addRoyal.disabled = royalCount >= royalOwned || totalCount >= limit || total >= size;
+      return row;
+    }
+
+    createDeckRow(id, count = 0, finish = "normal") {
+      const card = cards[id];
+      const driveMode = this.deckMode === "drive";
+      const limit = this.store.deckLimit(id, driveMode);
+      const total = driveMode ? this.store.driveTotal : this.store.total;
+      const size = driveMode ? DRIVE_DECK_SIZE : DECK_SIZE;
+      const typeLabel = driveMode ? CardRenderer.shortDriveType(card.type) : card.type;
+      const normalCounts = driveMode ? this.store.driveCounts : this.store.counts;
+      const royalCounts = driveMode ? this.store.driveRoyalCounts : this.store.royalCounts;
+      const totalCount = (normalCounts[id] || 0) + (royalCounts[id] || 0);
+      const finishOwned = this.store.ownedCount(id, finish);
+      const isRoyal = finish === "royal";
+      const row = document.createElement("div");
+      row.className = `deck-row main-deck-row split-finish-row${isRoyal ? " royal-deck-row" : ""}${this.selectedCardId === id && this.selectedFinish === finish ? " selected" : ""}`;
+      row.innerHTML = `
+        <div>
+          <div class="deck-row-main">
+            <span class="cost-chip">${card.cost}</span>
+            <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
+          </div>
+          <div class="deck-row-sub">${CardRenderer.rubyText(`${typeLabel} / ${card.attr} / 所持${finishOwned} / 合計${totalCount}/${limit}`)}</div>
+        </div>
+        <div class="deck-row-controls">
+          <div class="deck-row-stepper">
+            <button class="mini-button" type="button" data-action="remove">-</button>
+            <span class="deck-row-count-stack">
+              <span class="finish-row-label">${isRoyal ? "R" : "N"}</span>
+              <strong>${count}</strong>
+            </span>
+            <button class="mini-button" type="button" data-action="add">+</button>
+          </div>
+        </div>
+      `;
+      this.bindDeckRowSelection(row, id, finish);
+      const removeButton = row.querySelector('[data-action="remove"]');
+      const addButton = row.querySelector('[data-action="add"]');
+      removeButton.addEventListener("click", () => this.removeCardFromDeck(id, finish));
+      addButton.addEventListener("click", () => this.addCardToDeck(id, finish));
+      removeButton.disabled = count <= 0;
+      addButton.disabled = count >= finishOwned || totalCount >= limit || total >= size;
+      return row;
     }
   }
 
@@ -342,6 +749,18 @@
     if (costA !== costB) return costA - costB;
     if (a.type !== b.type) return a.type.localeCompare(b.type, "ja");
     return a.name.localeCompare(b.name, "ja");
+  }
+
+  function sameCounts(a = {}, b = {}) {
+    const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+    for (const key of keys) {
+      if ((Number(a[key]) || 0) !== (Number(b[key]) || 0)) return false;
+    }
+    return true;
+  }
+
+  function normalizeCompareName(name) {
+    return String(name || "").trim().replace(/\s+/g, " ");
   }
 
   window.Chrono.DeckBuilderView = DeckBuilderView;

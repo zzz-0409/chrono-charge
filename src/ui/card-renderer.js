@@ -241,29 +241,35 @@
       return `<div class="card-face">${content}</div>`;
     }
 
-    static libraryCard(card, count, selected) {
-      const limit = this.isDriveCard(card) ? window.Chrono.MAX_DRIVE_COPIES : window.Chrono.MAX_COPIES;
+    static libraryCard(card, count, selected, options = {}) {
+      const defaultLimit = this.isDriveCard(card) ? window.Chrono.MAX_DRIVE_COPIES : window.Chrono.MAX_COPIES;
+      const limit = Number.isFinite(options.limit) ? options.limit : defaultLimit;
+      const owned = Number.isFinite(options.owned) ? options.owned : limit;
+      const royalOwned = Number.isFinite(options.royalOwned) ? options.royalOwned : 0;
+      const finish = options.finish || "normal";
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `library-card game-card ${typeClass[card.type]} ${attrClass[card.attr]}${selected ? " selected" : ""}`;
+      button.className = `library-card game-card ${typeClass[card.type]} ${attrClass[card.attr]} ${this.finishClass(finish)}${selected ? " selected" : ""}`;
       button.innerHTML = this.cardFace(`
         ${this.cardHeader(card)}
         ${this.cardArt(card)}
         ${this.rulesBox(card)}
         ${this.unitStats(card)}
-        <div class="deck-row-sub">投入 ${count} / ${limit}</div>
+        <div class="deck-row-sub">${finish === "royal" ? "ROYAL ・ " : ""}投入 ${count} / ${limit} ・ 所持 ${owned}${finish !== "royal" && royalOwned > 0 ? ` ・ R ${royalOwned}` : ""}</div>
       `);
       return button;
     }
 
-    static preview(id, target) {
+    static preview(value, target, options = {}) {
+      const id = this.cardId(value);
+      const finish = options.finish || this.cardFinish(value);
       const card = cards[id];
       if (!card) {
         target.innerHTML = `<div class="small-note">カード未選択</div>`;
         return;
       }
       target.innerHTML = `
-        <div class="preview-card game-card zoomable-card ${typeClass[card.type]} ${attrClass[card.attr]}" data-zoom-card data-card-id="${card.id}">
+        <div class="preview-card game-card zoomable-card ${typeClass[card.type]} ${attrClass[card.attr]} ${this.finishClass(finish)}" data-zoom-card data-card-id="${card.id}" data-card-finish="${finish}">
           ${this.cardFace(`
             ${this.cardHeader(card, "h3")}
             ${this.cardArt(card, true)}
@@ -274,7 +280,9 @@
       `;
     }
 
-    static focus(id, target, options = {}) {
+    static focus(value, target, options = {}) {
+      const id = this.cardId(value);
+      const finish = options.finish || this.cardFinish(value);
       const card = cards[id];
       if (!card) {
         target.innerHTML = `<div class="small-note">カード未選択</div>`;
@@ -292,7 +300,7 @@
             </div>
             <div class="focus-effect-text">${this.rubyText(card.text)}</div>
           </div>
-          <div class="focus-mini-card game-card zoomable-card ${typeClass[card.type]} ${attrClass[card.attr]}" data-zoom-card data-card-id="${card.id}">
+          <div class="focus-mini-card game-card zoomable-card ${typeClass[card.type]} ${attrClass[card.attr]} ${this.finishClass(finish)}" data-zoom-card data-card-id="${card.id}" data-card-finish="${finish}">
             ${this.cardFace(`
               ${this.cardHeader(card)}
               ${this.cardArt(card)}
@@ -319,7 +327,9 @@
       `;
     }
 
-    static tcgCard(id, options = {}) {
+    static tcgCard(value, options = {}) {
+      const id = this.cardId(value);
+      const finish = options.finish || this.cardFinish(value);
       const card = cards[id];
       const button = document.createElement("button");
       button.type = "button";
@@ -330,7 +340,10 @@
       }
 
       const atk = this.hasAtk(card) ? card.atk + (options.atkMod || 0) : 0;
-      button.className = `tcg-card game-card ${typeClass[card.type]} ${attrClass[card.attr]} ${options.small ? "small" : ""} ${options.interactive ? "interactive" : ""} ${options.selected ? "selected" : ""}`;
+      button.className = `tcg-card game-card ${typeClass[card.type]} ${attrClass[card.attr]} ${this.finishClass(finish)} ${options.small ? "small" : ""} ${options.interactive ? "interactive" : ""} ${options.selected ? "selected" : ""}`;
+      button.dataset.zoomCard = "";
+      button.dataset.cardId = card.id;
+      button.dataset.cardFinish = finish;
       button.innerHTML = this.cardFace(`
         ${this.cardHeader(card)}
         ${this.cardArt(card)}
@@ -426,6 +439,18 @@
 
     static hasAtk(card) {
       return card?.type === "ユニット" || card?.type === "ユニットドライブ";
+    }
+
+    static cardId(value) {
+      return typeof value === "string" ? value : value?.id;
+    }
+
+    static cardFinish(value) {
+      return typeof value === "object" && value?.finish === "royal" ? "royal" : "normal";
+    }
+
+    static finishClass(finish) {
+      return finish === "royal" ? "finish-royal" : "";
     }
   }
 

@@ -8,15 +8,33 @@
     MAX_DRIVE_COPIES,
     STORAGE_KEY,
     cards,
+    cardPool,
     drivePool,
     starterDeck,
     starterDriveDeck,
   } = window.Chrono;
 
-  const STORE_VERSION = 4;
+  const STORE_VERSION = 6;
   const DEFAULT_ACCOUNT = "Player";
   const DEFAULT_DECK_ID = "main";
   const MAIN_THEME_THRESHOLD = 10;
+  const AUTHOR_ACCOUNT = "zzz0409";
+  const PACK_SIZE = 5;
+  const PACK_COST = 100;
+  const CPU_WIN_GEMS = 200;
+  const CPU_LOSS_GEMS = 100;
+  const DUST_PER_DISMANTLE = 10;
+  const CRAFT_COST = 100;
+  const ROYAL_FINISH = "royal";
+  const ROYAL_RATE = 0.01;
+  const ROYAL_PACK_RATE = 0.001;
+  const PACK_COVERS = {
+    "星導": { image: "assets/packs/star-pack.png", ace: "star_dragon" },
+    "黒機": { image: "assets/packs/black-pack.png", ace: "black_anchor" },
+    "断刃": { image: "assets/packs/blade-pack.png", ace: "blade_arbiter" },
+    "電脳": { image: "assets/packs/cyber-pack.png", ace: "cyber_akari" },
+    "双彩": { image: "assets/packs/sosai-pack.png", ace: "sosai_hikari" },
+  };
 
   const driveDecks = {
     star: themedDriveDeck("星導"),
@@ -87,13 +105,14 @@
         cyber_preview: 3,
         cyber_intrusion: 3,
         cyber_network: 3,
+        cyber_backchannel: 3,
         cyber_shield: 3,
         cyber_counterhack: 3,
-        generic_transfer: 3,
+        generic_probe_drone: 3,
         generic_code: 2,
         generic_wall: 2,
-        generic_zero: 2,
-        generic_bind: 2,
+        generic_zero: 1,
+        generic_bind: 1,
       },
       drive: driveDecks.cyber,
     },
@@ -124,10 +143,12 @@
         star_scout: 2,
         star_lux: 2,
         star_mira: 2,
-        star_guard: 2,
+        star_guard: 1,
         star_dragon: 1,
+        star_navigator: 1,
         star_invite: 2,
         star_link: 2,
+        star_chart: 1,
         star_orbit: 2,
         star_wall: 2,
         star_interference: 1,
@@ -136,12 +157,12 @@
         black_anchor: 2,
         black_tower: 2,
         black_raid: 2,
-        black_claw: 2,
+        black_claw: 1,
         generic_code: 2,
         generic_wall: 2,
         generic_transfer: 2,
         generic_bind: 2,
-        generic_recall: 1,
+        generic_field_notes: 1,
         generic_zero: 1,
       },
       drive: driveDecks.balance,
@@ -156,7 +177,9 @@
       this.activeAccount = loaded.activeAccount;
       this.activeDeckId = loaded.activeDeckId;
       this.counts = loaded.counts;
+      this.royalCounts = loaded.royalCounts;
       this.driveCounts = loaded.driveCounts;
+      this.driveRoyalCounts = loaded.driveRoyalCounts;
     }
 
     load() {
@@ -201,7 +224,9 @@
         activeAccount: data.activeAccount,
         activeDeckId: activeAccount.activeDeckId,
         counts: this.normalizeMain(activeDeck.mainDeck),
+        royalCounts: this.normalizeMain(activeDeck.mainDeckRoyal),
         driveCounts: this.normalizeDrive(activeDeck.driveDeck),
+        driveRoyalCounts: this.normalizeDrive(activeDeck.driveDeckRoyal || {}),
       };
     }
 
@@ -220,6 +245,10 @@
       return {
         name: accountName,
         activeDeckId: decks[activeDeckId] ? activeDeckId : Object.keys(decks)[0],
+        gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
+        dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
+        collection: this.normalizeCollection(account.collection, decks),
+        collectionRoyal: this.normalizeCollection(account.collectionRoyal, decks, ROYAL_FINISH),
         decks,
       };
     }
@@ -230,6 +259,8 @@
         deck.name || "メインデッキ",
         deck.mainDeck || deck.counts || {},
         deck.driveDeck || deck.driveCounts || starterDriveDeck,
+        deck.mainDeckRoyal || deck.royalCounts || {},
+        deck.driveDeckRoyal || deck.driveRoyalCounts || {},
         deck.updatedAt
       );
     }
@@ -248,7 +279,9 @@
         activeAccount: DEFAULT_ACCOUNT,
         activeDeckId: DEFAULT_DECK_ID,
         counts: this.normalizeMain(mainDeck),
+        royalCounts: {},
         driveCounts: this.normalizeDrive(driveDeck),
+        driveRoyalCounts: {},
       };
     }
 
@@ -256,18 +289,24 @@
       return {
         name: DEFAULT_ACCOUNT,
         activeDeckId: DEFAULT_DECK_ID,
+        gems: 0,
+        dust: 0,
+        collection: this.initialCollection(mainDeck, driveDeck),
+        collectionRoyal: {},
         decks: {
-          [DEFAULT_DECK_ID]: this.createDeck(DEFAULT_DECK_ID, "メインデッキ", mainDeck, driveDeck),
+          [DEFAULT_DECK_ID]: this.createDeck(DEFAULT_DECK_ID, "メインデッキ", mainDeck, driveDeck, {}, {}),
         },
       };
     }
 
-    createDeck(id, name, mainDeck, driveDeck, updatedAt = new Date().toISOString()) {
+    createDeck(id, name, mainDeck, driveDeck, mainDeckRoyal = {}, driveDeckRoyal = {}, updatedAt = new Date().toISOString()) {
       return {
         id,
         name: normalizeDeckName(name),
         mainDeck: this.normalizeMain(mainDeck),
         driveDeck: this.normalizeDrive(driveDeck),
+        mainDeckRoyal: this.normalizeMain(mainDeckRoyal),
+        driveDeckRoyal: this.normalizeDrive(driveDeckRoyal || {}),
         updatedAt,
       };
     }
@@ -301,7 +340,7 @@
 
     saveActiveDeck(name = this.activeDeck?.name) {
       const account = this.activeAccountData;
-      const deck = this.createDeck(this.activeDeckId, name, this.counts, this.driveCounts);
+      const deck = this.createDeck(this.activeDeckId, name, this.counts, this.driveCounts, this.royalCounts, this.driveRoyalCounts);
       account.decks[this.activeDeckId] = deck;
       account.activeDeckId = this.activeDeckId;
       return deck;
@@ -312,7 +351,7 @@
       const id = uniqueDeckId(account.decks);
       this.activeDeckId = id;
       account.activeDeckId = id;
-      const deck = this.createDeck(id, name || this.nextDeckName(), this.counts, this.driveCounts);
+      const deck = this.createDeck(id, name || this.nextDeckName(), this.counts, this.driveCounts, this.royalCounts, this.driveRoyalCounts);
       account.decks[id] = deck;
       this.persist();
       return deck;
@@ -325,7 +364,9 @@
       this.activeDeckId = id;
       account.activeDeckId = id;
       this.counts = this.normalizeMain(deck.mainDeck);
+      this.royalCounts = this.normalizeMain(deck.mainDeckRoyal);
       this.driveCounts = this.normalizeDrive(deck.driveDeck);
+      this.driveRoyalCounts = this.normalizeDrive(deck.driveDeckRoyal || {});
       this.persist();
       return true;
     }
@@ -357,26 +398,33 @@
       this.activeDeckId = account.activeDeckId;
       const deck = account.decks[this.activeDeckId];
       this.counts = this.normalizeMain(deck.mainDeck);
+      this.royalCounts = this.normalizeMain(deck.mainDeckRoyal);
       this.driveCounts = this.normalizeDrive(deck.driveDeck);
+      this.driveRoyalCounts = this.normalizeDrive(deck.driveDeckRoyal || {});
       this.persist();
       return account;
     }
 
     autoBuild(mode = "star") {
       const template = autoDeckTemplates[mode] || autoDeckTemplates.star;
-      this.counts = this.completeMainDeck(template.main);
-      this.driveCounts = this.completeDriveDeck(template.drive);
+      const mainDeck = this.preferRoyalCopies(this.completeMainDeck(template.main), false);
+      const driveDeck = this.preferRoyalCopies(this.completeDriveDeck(template.drive), true);
+      this.counts = mainDeck.normal;
+      this.royalCounts = mainDeck.royal;
+      this.driveCounts = driveDeck.normal;
+      this.driveRoyalCounts = driveDeck.royal;
       return template.label;
     }
 
     completeMainDeck(source) {
-      const result = this.normalizeMain(source);
+      const result = this.normalizeMainForOwned(source);
       const candidates = Object.values(cards)
         .filter((card) => !isDriveCard(card) && card.type !== "環境")
         .sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name, "ja"));
 
       for (const card of candidates) {
-        while ((result[card.id] || 0) < MAX_COPIES && deckTotal(result) < DECK_SIZE) {
+        const limit = this.deckLimit(card.id, false);
+        while ((result[card.id] || 0) < limit && deckTotal(result) < DECK_SIZE) {
           result[card.id] = (result[card.id] || 0) + 1;
         }
         if (deckTotal(result) >= DECK_SIZE) break;
@@ -386,13 +434,53 @@
     }
 
     completeDriveDeck(source) {
-      const result = this.normalizeDrive(source);
+      const result = this.normalizeDriveForOwned(source);
       for (const card of drivePool) {
         if (deckTotal(result) >= DRIVE_DECK_SIZE) break;
-        if (result[card.id]) continue;
+        if (result[card.id] || this.deckLimit(card.id, true) <= 0) continue;
         result[card.id] = 1;
       }
       return result;
+    }
+
+    preferRoyalCopies(source = {}, drive = false) {
+      const normal = {};
+      const royal = {};
+      Object.entries(source).forEach(([id, rawCount]) => {
+        const count = Math.max(0, Math.floor(Number(rawCount) || 0));
+        if (count <= 0) return;
+        const royalCount = Math.min(count, this.ownedCount(id, ROYAL_FINISH));
+        const normalCount = count - royalCount;
+        if (normalCount > 0) normal[id] = normalCount;
+        if (royalCount > 0) royal[id] = royalCount;
+      });
+      return {
+        normal: drive ? this.normalizeDrive(normal) : this.normalizeMain(normal),
+        royal: drive ? this.normalizeDrive(royal) : this.normalizeMain(royal),
+      };
+    }
+
+    normalizeMainForOwned(source = {}) {
+      const result = {};
+      Object.entries(source).forEach(([id, count]) => {
+        if (!cards[id] || cards[id].driveKind || cards[id].type === "環境") return;
+        const limit = this.deckLimit(id, false);
+        const safeCount = Math.max(0, Math.min(limit, Number(count) || 0));
+        if (safeCount > 0) result[id] = safeCount;
+      });
+      return trimDeck(result, DECK_SIZE);
+    }
+
+    normalizeDriveForOwned(source = starterDriveDeck) {
+      const result = {};
+      const entries = Array.isArray(source) ? Object.entries(countIds(source)) : Object.entries(source || {});
+      entries.forEach(([id, count]) => {
+        if (!isDriveCard(cards[id])) return;
+        const limit = this.deckLimit(id, true);
+        const safeCount = Math.max(0, Math.min(limit, Number(count) || 0));
+        if (safeCount > 0) result[id] = safeCount;
+      });
+      return trimDeck(result, DRIVE_DECK_SIZE);
     }
 
     persist() {
@@ -402,64 +490,296 @@
         activeAccount: this.activeAccount,
         accounts: this.data.accounts,
       }));
+      this.saveRemoteAccount();
     }
 
     reset() {
       this.counts = { ...starterDeck };
+      this.royalCounts = {};
       this.driveCounts = { ...starterDriveDeck };
+      this.driveRoyalCounts = {};
     }
 
     clear() {
       this.counts = {};
+      this.royalCounts = {};
       this.driveCounts = {};
+      this.driveRoyalCounts = {};
     }
 
-    add(id) {
+    add(id, finish = "normal") {
       if (!cards[id] || isDriveCard(cards[id]) || cards[id].type === "環境") return { ok: false, reason: "unknown" };
       if (this.total >= DECK_SIZE) return { ok: false, reason: "full" };
-      if ((this.counts[id] || 0) >= MAX_COPIES) return { ok: false, reason: "copies" };
-      this.counts[id] = (this.counts[id] || 0) + 1;
+      const limit = this.deckLimit(id, false);
+      if (this.deckCount(id, false) >= limit) return { ok: false, reason: limit >= MAX_COPIES ? "copies" : "owned" };
+      if (finish === ROYAL_FINISH) {
+        if ((this.royalCounts[id] || 0) >= this.ownedCount(id, ROYAL_FINISH)) return { ok: false, reason: "owned" };
+        this.royalCounts[id] = (this.royalCounts[id] || 0) + 1;
+      } else {
+        if ((this.counts[id] || 0) >= this.ownedCount(id)) return { ok: false, reason: "owned" };
+        this.counts[id] = (this.counts[id] || 0) + 1;
+      }
       return { ok: true };
     }
 
-    remove(id) {
-      if (!this.counts[id]) return;
-      this.counts[id] -= 1;
-      if (this.counts[id] <= 0) delete this.counts[id];
+    remove(id, finish = "normal") {
+      const counts = finish === ROYAL_FINISH ? this.royalCounts : this.counts;
+      if (!counts[id]) return;
+      counts[id] -= 1;
+      if (counts[id] <= 0) delete counts[id];
     }
 
-    addDrive(id) {
+    addDrive(id, finish = "normal") {
       if (!isDriveCard(cards[id])) return { ok: false, reason: "unknown" };
       if (this.driveTotal >= DRIVE_DECK_SIZE) return { ok: false, reason: "full" };
-      if ((this.driveCounts[id] || 0) >= MAX_DRIVE_COPIES) return { ok: false, reason: "copies" };
-      this.driveCounts[id] = (this.driveCounts[id] || 0) + 1;
+      const limit = this.deckLimit(id, true);
+      if (this.deckCount(id, true) >= limit) return { ok: false, reason: limit >= MAX_DRIVE_COPIES ? "copies" : "owned" };
+      if (finish === ROYAL_FINISH) {
+        if ((this.driveRoyalCounts[id] || 0) >= this.ownedCount(id, ROYAL_FINISH)) return { ok: false, reason: "owned" };
+        this.driveRoyalCounts[id] = (this.driveRoyalCounts[id] || 0) + 1;
+      } else {
+        if ((this.driveCounts[id] || 0) >= this.ownedCount(id)) return { ok: false, reason: "owned" };
+        this.driveCounts[id] = (this.driveCounts[id] || 0) + 1;
+      }
       return { ok: true };
     }
 
-    removeDrive(id) {
-      if (!this.driveCounts[id]) return;
-      this.driveCounts[id] -= 1;
-      if (this.driveCounts[id] <= 0) delete this.driveCounts[id];
+    removeDrive(id, finish = "normal") {
+      const counts = finish === ROYAL_FINISH ? this.driveRoyalCounts : this.driveCounts;
+      if (!counts[id]) return;
+      counts[id] -= 1;
+      if (counts[id] <= 0) delete counts[id];
+    }
+
+    openPack(packId) {
+      const pack = this.packDefinitions.find((entry) => entry.id === packId) || this.packDefinitions[0];
+      if (!pack) return { ok: false, reason: "empty", results: [] };
+      if (!this.isAuthorAccount && this.gems < PACK_COST) {
+        return { ok: false, reason: "gems", results: [], gems: this.gems };
+      }
+      if (!this.isAuthorAccount) this.activeAccountData.gems = Math.max(0, this.gems - PACK_COST);
+      const allPool = packPool(allPackCards());
+      const themePool = packPool(pack.cards);
+      const results = [];
+      const royalPack = Math.random() < ROYAL_PACK_RATE;
+      for (let i = 0; i < PACK_SIZE - 1; i += 1) {
+        const card = pickWeighted(allPool);
+        if (!card) continue;
+        results.push(this.addPackResult(card, false, royalPack));
+      }
+      const guaranteed = pickWeighted(themePool);
+      if (guaranteed) results.push(this.addPackResult(guaranteed, true, royalPack));
+      this.persist();
+      return { ok: true, pack, results, royalPack, gems: this.gems, cost: this.isAuthorAccount ? 0 : PACK_COST };
+    }
+
+    addPackResult(card, guaranteed = false, forceRoyal = false) {
+      const finish = forceRoyal || Math.random() < ROYAL_RATE ? ROYAL_FINISH : "normal";
+      const before = this.ownedCount(card.id, finish);
+      this.addOwned(card.id, 1, finish);
+      return {
+        id: card.id,
+        finish,
+        royalPack: forceRoyal,
+        before,
+        after: this.ownedCount(card.id, finish),
+        isNew: before === 0,
+        guaranteed,
+      };
+    }
+
+    addOwned(id, count = 1, finish = "normal") {
+      if (!cards[id]) return 0;
+      const account = this.activeAccountData;
+      const collection = finish === ROYAL_FINISH ? (account.collectionRoyal ||= {}) : account.collection;
+      collection[id] = Math.max(0, Number(collection[id] || 0) + count);
+      return collection[id];
+    }
+
+    ownedCount(id, finish = "normal") {
+      if (!cards[id]) return 0;
+      if (this.isAuthorAccount) return isDriveCard(cards[id]) ? MAX_DRIVE_COPIES : MAX_COPIES;
+      const collection = finish === ROYAL_FINISH ? this.activeAccountData.collectionRoyal : this.activeAccountData.collection;
+      return Math.max(0, Number(collection?.[id] || 0));
+    }
+
+    totalOwnedCount(id) {
+      return this.ownedCount(id) + this.ownedCount(id, ROYAL_FINISH);
+    }
+
+    deckCount(id, drive = false) {
+      return (drive ? this.driveCounts[id] || 0 : this.counts[id] || 0)
+        + (drive ? this.driveRoyalCounts[id] || 0 : this.royalCounts[id] || 0);
+    }
+
+    deckLimit(id, drive = false) {
+      const copyLimit = drive ? MAX_DRIVE_COPIES : MAX_COPIES;
+      if (!cards[id]) return 0;
+      if (this.isAuthorAccount) return copyLimit;
+      return Math.min(copyLimit, this.totalOwnedCount(id));
+    }
+
+    validateActiveDeckOwnership() {
+      const missing = [
+        ...this.deckOwnershipIssues(this.counts, false),
+        ...this.deckOwnershipIssues(this.royalCounts, false, ROYAL_FINISH),
+        ...this.deckOwnershipIssues(this.driveCounts, true),
+        ...this.deckOwnershipIssues(this.driveRoyalCounts, true, ROYAL_FINISH),
+      ];
+      return {
+        ok: missing.length === 0,
+        missing,
+      };
+    }
+
+    deckOwnershipIssues(source, drive = false, finish = "normal") {
+      return Object.entries(source || {})
+        .map(([id, count]) => {
+          const owned = this.ownedCount(id, finish);
+          const copyLimit = drive ? MAX_DRIVE_COPIES : MAX_COPIES;
+          const limit = this.isAuthorAccount ? copyLimit : Math.min(copyLimit, owned);
+          return {
+            id,
+            name: cards[id]?.name || id,
+            count: Number(count) || 0,
+            owned,
+            drive,
+            finish,
+            limit,
+          };
+        })
+        .filter((entry) => entry.count > entry.limit);
+    }
+
+    addGems(amount) {
+      const gained = Math.max(0, Math.floor(Number(amount) || 0));
+      if (gained <= 0) return this.gems;
+      this.activeAccountData.gems = this.gems + gained;
+      this.persist();
+      return this.gems;
+    }
+
+    dismantleCard(id, finish = "normal") {
+      if (!cards[id]) return { ok: false, reason: "unknown" };
+      if (this.isAuthorAccount) return { ok: false, reason: "author" };
+      const owned = this.ownedCount(id, finish);
+      if (owned < 4) return { ok: false, reason: "owned" };
+      const collection = finish === ROYAL_FINISH ? this.activeAccountData.collectionRoyal : this.activeAccountData.collection;
+      collection[id] = owned - 1;
+      this.activeAccountData.dust = this.dust + DUST_PER_DISMANTLE;
+      this.persist();
+      return {
+        ok: true,
+        id,
+        finish,
+        ownedBefore: owned,
+        ownedAfter: this.ownedCount(id, finish),
+        gained: DUST_PER_DISMANTLE,
+        dust: this.dust,
+      };
+    }
+
+    bulkDismantleExtras() {
+      if (this.isAuthorAccount) return { ok: false, reason: "author", dismantled: 0, gained: 0 };
+      let dismantled = 0;
+      [this.activeAccountData.collection, this.activeAccountData.collectionRoyal].forEach((collection) => {
+        Object.entries(collection || {}).forEach(([id, count]) => {
+          if (!cards[id]) return;
+          const extra = Math.max(0, Math.floor(Number(count) || 0) - 3);
+          if (extra <= 0) return;
+          collection[id] = count - extra;
+          dismantled += extra;
+        });
+      });
+      if (dismantled <= 0) return { ok: false, reason: "empty", dismantled: 0, gained: 0 };
+      const gained = dismantled * DUST_PER_DISMANTLE;
+      this.activeAccountData.dust = this.dust + gained;
+      this.persist();
+      return { ok: true, dismantled, gained, dust: this.dust };
+    }
+
+    craftCard(id) {
+      if (!cards[id]) return { ok: false, reason: "unknown" };
+      if (this.isAuthorAccount) return { ok: false, reason: "author" };
+      if (this.dust < CRAFT_COST) return { ok: false, reason: "dust" };
+      this.activeAccountData.dust = this.dust - CRAFT_COST;
+      this.addOwned(id, 1);
+      this.persist();
+      return {
+        ok: true,
+        id,
+        cost: CRAFT_COST,
+        owned: this.ownedCount(id),
+        dust: this.dust,
+      };
+    }
+
+    rewardCpuResult(won) {
+      const gained = won ? CPU_WIN_GEMS : CPU_LOSS_GEMS;
+      this.addGems(gained);
+      return gained;
     }
 
     get total() {
-      return deckTotal(this.counts);
+      return deckTotal(this.counts) + deckTotal(this.royalCounts);
     }
 
     get driveTotal() {
-      return deckTotal(this.driveCounts);
+      return deckTotal(this.driveCounts) + deckTotal(this.driveRoyalCounts);
     }
 
     get list() {
-      return Object.entries(this.counts).flatMap(([id, count]) => Array(count).fill(id));
+      return [
+        ...Object.entries(this.counts).flatMap(([id, count]) => Array(count).fill(id)),
+        ...Object.entries(this.royalCounts).flatMap(([id, count]) => Array(count).fill(id)),
+      ];
     }
 
     get driveList() {
-      return Object.entries(this.driveCounts).flatMap(([id, count]) => Array(count).fill(id));
+      return [
+        ...Object.entries(this.driveCounts).flatMap(([id, count]) => Array(count).fill(id)),
+        ...Object.entries(this.driveRoyalCounts).flatMap(([id, count]) => Array(count).fill(id)),
+      ];
+    }
+
+    get royalBattleIds() {
+      return Object.keys(this.royalCounts).filter((id) => this.royalCounts[id] > 0);
+    }
+
+    get driveRoyalBattleIds() {
+      return Object.keys(this.driveRoyalCounts).filter((id) => this.driveRoyalCounts[id] > 0);
     }
 
     get driveReady() {
       return this.driveTotal === DRIVE_DECK_SIZE;
+    }
+
+    get isAuthorAccount() {
+      return String(this.activeAccount || "").trim().toLowerCase() === AUTHOR_ACCOUNT;
+    }
+
+    get gems() {
+      return Math.max(0, Math.floor(Number(this.activeAccountData.gems) || 0));
+    }
+
+    get dust() {
+      return Math.max(0, Math.floor(Number(this.activeAccountData.dust) || 0));
+    }
+
+    get dustPerDismantle() {
+      return DUST_PER_DISMANTLE;
+    }
+
+    get craftCost() {
+      return CRAFT_COST;
+    }
+
+    get packCost() {
+      return this.isAuthorAccount ? 0 : PACK_COST;
+    }
+
+    get packDefinitions() {
+      return themePacks();
     }
 
     get activeAccountData() {
@@ -481,6 +801,100 @@
 
     nextDeckName() {
       return `デッキ ${this.deckPresets.length + 1}`;
+    }
+
+    initialCollection(mainDeck, driveDeck) {
+      return this.normalizeCollection(undefined, {
+        starter: this.createDeck("starter", "starter", mainDeck, driveDeck),
+      });
+    }
+
+    normalizeCollection(collection = {}, decks = {}, finish = "normal") {
+      const result = {};
+      Object.entries(collection || {}).forEach(([id, count]) => {
+        if (!cards[id]) return;
+        const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+        if (safeCount > 0) result[id] = safeCount;
+      });
+
+      Object.values(decks || {}).forEach((deck) => {
+        const mainSource = finish === ROYAL_FINISH ? deck.mainDeckRoyal : deck.mainDeck;
+        const driveSource = finish === ROYAL_FINISH ? deck.driveDeckRoyal : deck.driveDeck;
+        Object.entries(mainSource || {}).forEach(([id, count]) => {
+          if (cards[id]) result[id] = Math.max(result[id] || 0, Number(count) || 0);
+        });
+        Object.entries(driveSource || {}).forEach(([id, count]) => {
+          if (cards[id]) result[id] = Math.max(result[id] || 0, Number(count) || 0);
+        });
+      });
+
+      return result;
+    }
+
+    async syncActiveAccount() {
+      if (!canUseRemoteSync()) return this.activeAccountData;
+      try {
+        const response = await fetch(`/api/accounts?name=${encodeURIComponent(this.activeAccount)}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("account sync failed");
+        const remote = await response.json();
+        if (remote?.account) {
+          this.mergeRemoteAccount(remote.account);
+          this.persistLocalOnly();
+        } else {
+          this.saveRemoteAccount();
+        }
+      } catch {
+        return this.activeAccountData;
+      }
+      return this.activeAccountData;
+    }
+
+    mergeRemoteAccount(remote) {
+      const accountName = normalizeAccountName(remote.name || this.activeAccount);
+      const local = this.data.accounts[accountName] || this.defaultAccount(starterDeck, starterDriveDeck);
+      const merged = this.normalizeAccount(accountName, {
+        ...local,
+        ...remote,
+        gems: Math.max(Number(local.gems) || 0, Number(remote.gems) || 0),
+        dust: Math.max(Number(local.dust) || 0, Number(remote.dust) || 0),
+        collection: mergeMaxCounts(local.collection, remote.collection),
+        collectionRoyal: mergeMaxCounts(local.collectionRoyal, remote.collectionRoyal),
+        decks: mergeDecksByUpdated(local.decks, remote.decks),
+        activeDeckId: local.activeDeckId || remote.activeDeckId,
+      });
+      this.data.accounts[accountName] = merged;
+      this.activeAccount = accountName;
+      this.data.activeAccount = accountName;
+      this.activeDeckId = merged.activeDeckId;
+      const deck = merged.decks[this.activeDeckId];
+      this.counts = this.normalizeMain(deck.mainDeck);
+      this.royalCounts = this.normalizeMain(deck.mainDeckRoyal);
+      this.driveCounts = this.normalizeDrive(deck.driveDeck);
+      this.driveRoyalCounts = this.normalizeDrive(deck.driveDeckRoyal || {});
+    }
+
+    persistLocalOnly() {
+      this.data.activeAccount = this.activeAccount;
+      this.storage.setItem(STORAGE_KEY, JSON.stringify({
+        version: STORE_VERSION,
+        activeAccount: this.activeAccount,
+        accounts: this.data.accounts,
+      }));
+    }
+
+    saveRemoteAccount() {
+      if (!canUseRemoteSync()) return;
+      const account = this.activeAccountData;
+      window.clearTimeout(this.remoteSaveTimer);
+      this.remoteSaveTimer = window.setTimeout(() => {
+        fetch(`/api/accounts?name=${encodeURIComponent(this.activeAccount)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ account }),
+        }).catch(() => {});
+      }, 80);
     }
 
     get stats() {
@@ -572,11 +986,77 @@
     return Object.values(source).reduce((sum, count) => sum + count, 0);
   }
 
+  function allPackCards() {
+    return [...cardPool.filter((card) => card.type !== "環境"), ...drivePool];
+  }
+
+  function themePacks() {
+    const themes = [...new Set(allPackCards().map((card) => card.theme).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "ja"));
+    return themes.map((theme) => {
+      const themeCards = allPackCards().filter((card) => card.theme === theme);
+      const ace = PACK_COVERS[theme]?.ace || themeAceCard(themeCards)?.id || themeCards[0]?.id || "";
+      return {
+        id: themePackId(theme),
+        theme,
+        name: `${theme}パック`,
+        description: `5枚目は${theme}カード確定`,
+        cover: PACK_COVERS[theme]?.image || cards[ace]?.art || "",
+        ace,
+        cards: themeCards,
+        count: themeCards.length,
+      };
+    });
+  }
+
+  function themePackId(theme) {
+    return `theme_${Array.from(theme).map((char) => char.charCodeAt(0).toString(16)).join("_")}`;
+  }
+
+  function themeAceCard(themeCards) {
+    return themeCards
+      .filter((card) => card.type?.includes("ユニット"))
+      .sort((a, b) => (Number(b.cost) || 0) - (Number(a.cost) || 0) || (Number(b.atk) || 0) - (Number(a.atk) || 0))[0];
+  }
+
+  function packPool(source) {
+    return source.map((card) => ({
+      card,
+      weight: packWeight(card),
+    }));
+  }
+
+  function packWeight(card) {
+    if (!card) return 0;
+    if (isDriveCard(card)) return 8;
+    const cost = Number(card.cost) || 0;
+    if (cost >= 4) return 4;
+    if (cost >= 3) return 8;
+    if (cost >= 2) return 14;
+    return 22;
+  }
+
+  function pickWeighted(entries) {
+    const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
+    if (total <= 0) return null;
+    let roll = Math.random() * total;
+    for (const entry of entries) {
+      roll -= entry.weight;
+      if (roll <= 0) return entry.card;
+    }
+    return entries[entries.length - 1]?.card;
+  }
+
   function countIds(list) {
     return list.reduce((result, id) => {
-      result[id] = (result[id] || 0) + 1;
+      const key = cardIdOf(id);
+      result[key] = (result[key] || 0) + 1;
       return result;
     }, {});
+  }
+
+  function cardIdOf(entry) {
+    return typeof entry === "string" ? entry : entry?.id;
   }
 
   function normalizeAccountName(name) {
@@ -597,6 +1077,29 @@
     let id = `deck_${Date.now().toString(36)}`;
     while (decks[id]) id = `deck_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}`;
     return id;
+  }
+
+  function mergeMaxCounts(a = {}, b = {}) {
+    const result = {};
+    [...Object.keys(a || {}), ...Object.keys(b || {})].forEach((id) => {
+      if (!cards[id]) return;
+      const count = Math.max(Number(a[id]) || 0, Number(b[id]) || 0);
+      if (count > 0) result[id] = count;
+    });
+    return result;
+  }
+
+  function mergeDecksByUpdated(local = {}, remote = {}) {
+    const result = { ...(remote || {}) };
+    Object.entries(local || {}).forEach(([id, deck]) => {
+      const existing = result[id];
+      if (!existing || String(deck.updatedAt || "") >= String(existing.updatedAt || "")) result[id] = deck;
+    });
+    return result;
+  }
+
+  function canUseRemoteSync() {
+    return window.location.protocol !== "file:" && typeof fetch === "function";
   }
 
   window.Chrono.DeckStore = DeckStore;

@@ -21,6 +21,7 @@
       this.els = options.els;
       this.toast = options.toast;
       this.setView = options.setView;
+      this.onCpuResult = options.onCpuResult || (() => 0);
       this.sounds = options.sounds || SoundEffects;
       this.game = null;
       this.selectedCardId = "star_scout";
@@ -72,7 +73,7 @@
       target.addEventListener("drop", (event) => this.handleHandDrop(event, dropZone));
     }
 
-    start(deckList, driveDeckList = []) {
+    start(deckList, driveDeckList = [], finishInfo = {}) {
       if (deckList.length !== DECK_SIZE) {
         this.toast("40枚デッキにすると対戦できます。");
         this.setView("builder");
@@ -86,7 +87,8 @@
 
       this.cancelHandPointerDrag();
       this.game?.dispose?.();
-      this.restart = () => this.start(deckList, driveDeckList);
+      this.royalBattleIds = new Set([...(finishInfo.mainRoyalIds || []), ...(finishInfo.driveRoyalIds || [])]);
+      this.restart = () => this.start(deckList, driveDeckList, finishInfo);
       this.selectedContext = null;
       this.handSnapshot = null;
       this.handDrag = null;
@@ -117,12 +119,17 @@
       this.pointerHandDrag = null;
       this.boardSoundSnapshot = null;
       this.game = game;
+      this.royalBattleIds = new Set();
       this.game.onChange = () => this.render();
       this.game.onResult = (won) => this.showResult(won);
       this.game.requestCardChoice = (choice) => this.requestCardChoice(choice);
       this.game.showActivation = (activation) => this.showActivation(activation);
       this.game.start();
       this.setView("duel");
+    }
+
+    finishFor(id) {
+      return this.royalBattleIds?.has(id) ? "royal" : "normal";
     }
 
     render() {
@@ -212,7 +219,7 @@
       if (count === 0) return;
 
       const topCardId = grave[count - 1];
-      const topCard = CardRenderer.tcgCard(topCardId, { small: true });
+      const topCard = CardRenderer.tcgCard(topCardId, { small: true, finish: this.finishFor(topCardId) });
       topCard.classList.add("pile-top-card");
       topCard.setAttribute("aria-hidden", "true");
       element.append(topCard);
@@ -249,6 +256,7 @@
           interactive: true,
           facedown: hiddenNames,
           selected: this.isSelected("charge", index),
+          finish: this.finishFor(cardId),
         });
         button.classList.add("charge-card", typeClass[card.type], attrClass[card.attr]);
         button.classList.toggle("tapped", charge.tapped);
@@ -278,12 +286,13 @@
           const isHiddenReaction = value?.facedown || (facedown && owner === "enemy" && !value.revealed);
           const isFacedown = isHiddenReaction;
           if (isFacedown) {
-            const cardButton = CardRenderer.tcgCard(cardId, {
-              small: true,
-              interactive: true,
-              selected: this.isSelected(contextZone, i),
-              facedown: true,
-            });
+          const cardButton = CardRenderer.tcgCard(cardId, {
+            small: true,
+            interactive: true,
+            selected: this.isSelected(contextZone, i),
+            facedown: true,
+            finish: this.finishFor(cardId),
+          });
             cardButton.setAttribute("aria-label", `${label}のセットカード ${i + 1}`);
             cardButton.addEventListener("click", () => this.selectFacedownCard({ zone: contextZone, index: i, owner }));
             slot.append(cardButton);
@@ -306,6 +315,7 @@
             selected: this.isSelected(contextZone, i),
             stateTag: value.exhausted ? "行動済み" : "",
             atkMod,
+            finish: this.finishFor(cardId),
           });
           cardButton.addEventListener("click", () => this.selectCard(cardId, { zone: contextZone, index: i, owner }));
           slot.append(cardButton);
@@ -341,6 +351,7 @@
         const card = CardRenderer.tcgCard(id, {
           interactive: true,
           selected: this.isSelected("hand", index),
+          finish: this.finishFor(id),
         });
         if (index >= playerHandCount - playerDrawn) this.applyDrawAnimation(card, index - (playerHandCount - playerDrawn), "player");
         if (this.canDragHandCard(index)) {
@@ -845,7 +856,7 @@
       if (this.selectedContext?.hidden) {
         CardRenderer.facedownFocus(this.els.selectedCardPanel);
       } else {
-        CardRenderer.focus(this.selectedCardId, this.els.selectedCardPanel, this.selectedFocusStats());
+        CardRenderer.focus(this.selectedCardId, this.els.selectedCardPanel, { ...this.selectedFocusStats(), finish: this.finishFor(this.selectedCardId) });
       }
       this.els.contextActions.replaceChildren();
       if (this.game?.waitingChoice) {
@@ -920,14 +931,16 @@
     }
 
     openDriveDeck(options = {}) {
-      if (!this.game || typeof this.game.usableDriveCards !== "function") return;
+      if (!this.game) return;
       const showAll = Boolean(options.showAll);
-      const usableIds = new Set(this.usableNormalDriveIds());
+      const supportsDriveCheck = typeof this.game.usableDriveCards === "function";
+      const supportsDrivePlay = supportsDriveCheck && typeof this.game.playDriveCard === "function";
+      const usableIds = new Set(supportsDriveCheck ? this.usableNormalDriveIds() : []);
       const sourceIds = showAll ? this.game.player.driveDeck : [...usableIds];
       const candidates = sourceIds.map((id, index) => ({
         id,
         index: showAll ? `${id}:${index}` : id,
-        playable: usableIds.has(id) && cards[id]?.driveKind !== "reaction",
+        playable: supportsDrivePlay && usableIds.has(id) && cards[id]?.driveKind !== "reaction",
       }));
       let selected = candidates.find((entry) => entry.playable) || candidates[0] || null;
       const modal = document.createElement("div");
@@ -960,9 +973,9 @@
         rendered.forEach(({ entry, card }) => {
           card.classList.toggle("selected", selected?.index === entry.index);
         });
-        CardRenderer.focus(selected?.id, focus);
+        CardRenderer.focus(selected?.id, focus, { finish: this.finishFor(selected?.id) });
         driveButton.disabled = !selected?.playable;
-        driveButton.textContent = selected?.playable ? "ドライブ" : "条件未達成";
+        driveButton.textContent = selected?.playable ? "ドライブ" : supportsDrivePlay ? "条件未達成" : "表示のみ";
       };
       driveButton.addEventListener("click", async () => {
         if (!selected?.playable) return;
@@ -973,10 +986,10 @@
       if (candidates.length === 0) {
         list.innerHTML = `<div class="small-note">${showAll ? "ドライブデッキにカードは残っていません。" : "今使えるドライブカードはありません。"}</div>`;
         driveButton.disabled = true;
-        driveButton.textContent = "ドライブ";
+        driveButton.textContent = supportsDrivePlay ? "ドライブ" : "表示のみ";
       } else {
         candidates.forEach((entry) => {
-          const card = CardRenderer.tcgCard(entry.id, { interactive: true });
+          const card = CardRenderer.tcgCard(entry.id, { interactive: true, finish: this.finishFor(entry.id) });
           card.classList.add("grave-list-card");
           card.classList.toggle("drive-card-unusable", !entry.playable);
           if (!entry.playable) card.setAttribute("aria-disabled", "true");
@@ -1031,7 +1044,7 @@
       } else {
         player.grave.slice().reverse().forEach((id, displayIndex) => {
           const originalIndex = player.grave.length - 1 - displayIndex;
-          const card = CardRenderer.tcgCard(id, { interactive: true });
+          const card = CardRenderer.tcgCard(id, { interactive: true, finish: this.finishFor(id) });
           card.classList.add("grave-list-card");
           card.addEventListener("click", () => {
             this.selectCard(id, { zone: "grave", index: originalIndex, owner });
@@ -1124,11 +1137,11 @@
             card.classList.toggle("selected", selected?.index === entry.index);
           });
           decide.disabled = !selected;
-          CardRenderer.focus(selected?.id, focus);
+          CardRenderer.focus(selected?.id, focus, { finish: this.finishFor(selected?.id) });
         };
 
         candidates.forEach((entry) => {
-          const card = CardRenderer.tcgCard(entry.id, { interactive: true });
+          const card = CardRenderer.tcgCard(entry.id, { interactive: true, finish: this.finishFor(entry.id) });
           card.classList.add("grave-list-card");
           card.addEventListener("click", () => {
             selected = entry;
@@ -1179,7 +1192,7 @@
 
         const cardSlot = document.createElement("div");
         cardSlot.className = "activation-card-slot";
-        CardRenderer.preview(id, cardSlot);
+        CardRenderer.preview(id, cardSlot, { finish: this.finishFor(id) });
 
         burst.append(label, cardSlot);
         overlay.append(burst);
@@ -1202,12 +1215,14 @@
 
     showResult(won) {
       const online = Boolean(this.game?.isOnline);
+      const reward = online ? 0 : this.onCpuResult(won);
       const modal = document.createElement("div");
       modal.className = "modal-dialog";
       modal.innerHTML = `
         <p class="eyebrow">${won ? "Victory" : "Defeat"}</p>
         <h2>${won ? "勝利" : "敗北"}</h2>
         <p>${resultMessage(won, online)}</p>
+        ${online ? "" : `<p class="result-reward"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> +${reward}</p>`}
         <div class="modal-actions">
           ${online ? "" : `<button id="resultRestart" class="primary-button" type="button">再戦</button>`}
           <button id="resultBuilder" class="ghost-button" type="button">デッキ編集</button>

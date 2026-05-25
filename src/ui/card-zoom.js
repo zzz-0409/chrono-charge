@@ -44,7 +44,7 @@
       if (options.facedown || !id) {
         shell.innerHTML = `<div class="tcg-card facedown card-zoom-facedown" aria-label="伏せカード"></div>`;
       } else {
-        CardRenderer.preview(id, shell);
+        CardRenderer.preview(id, shell, { finish: options.finish });
       }
 
       overlay.addEventListener("click", () => this.close());
@@ -94,6 +94,7 @@
       event.stopPropagation();
       this.open(target.dataset.cardId, {
         facedown: target.dataset.zoomFacedown === "true",
+        finish: target.dataset.cardFinish,
       });
       return true;
     }

@@ -5,6 +5,7 @@ const vm = require("vm");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8787);
+const ACCOUNTS_FILE = path.join(ROOT, "accounts.json");
 const MAX_LP = 8000;
 const UNIT_ZONES = 5;
 const CORE_ZONES = 2;
@@ -19,6 +20,11 @@ const SOSAI_PAIRS = [
   ["sosai_hikari", "sosai_mint"],
   ["sosai_nene", "sosai_ruri"],
   ["sosai_coco", "sosai_luna"],
+];
+const SOSAI_DRIVE_PAIR_IDS = [
+  "drive_sosai_unit",
+  "drive_sosai_nene_ruri_unit",
+  "drive_sosai_coco_luna_unit",
 ];
 
 const rooms = new Map();
@@ -52,6 +58,17 @@ function loadChronoData() {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/accounts") {
+    await handleAccountApi(req, res, url.searchParams.get("name"));
+    return;
+  }
+
+  const accountMatch = url.pathname.match(/^\/api\/accounts\/([^/]+)$/);
+  if (accountMatch) {
+    await handleAccountApi(req, res, decodeURIComponent(accountMatch[1]));
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/rooms") {
     const body = await readJson(req);
     const deck = validateDeck(body.deck);
@@ -122,6 +139,25 @@ async function handleApi(req, res, url) {
   }
 
   sendJson(res, 404, { error: "not found" });
+}
+
+async function handleAccountApi(req, res, rawName) {
+  const name = normalizeAccountName(rawName);
+  const accounts = loadAccounts();
+  if (req.method === "GET") {
+    sendJson(res, 200, { account: accounts[name] || null });
+    return;
+  }
+  if (req.method === "PUT" || req.method === "POST") {
+    const body = await readJson(req);
+    const incoming = sanitizeAccountRecord(name, body.account || body || {});
+    const current = accounts[name] || null;
+    accounts[name] = mergeAccountRecord(name, current, incoming);
+    saveAccounts(accounts);
+    sendJson(res, 200, { account: accounts[name] });
+    return;
+  }
+  sendJson(res, 405, { error: "method not allowed" });
 }
 
 function createRoom(deck, driveDeck) {
@@ -341,14 +377,18 @@ function resolveAttack(game, player, opponent, attackerIndex, targetIndex) {
   const defenderCard = cards[defender.id];
   const defenderAtk = getUnitAtk(opponent, defender, game);
   const diff = Math.abs(attackerAtk - defenderAtk);
-  if (attackerAtk >= defenderAtk) {
+  if (attackerAtk > defenderAtk) {
     destroyUnit(opponent, targetIndex);
-    const dealt = diff > 0 ? damage(game, opponent, diff) : 0;
+    const dealt = damage(game, opponent, diff);
     log(game, `${attackerCard.name}が${defenderCard.name}を破壊。${dealt}ダメージ。`);
-  } else {
+  } else if (attackerAtk < defenderAtk) {
     destroyUnit(player, attackerIndex);
     const dealt = damage(game, player, diff);
     log(game, `${attackerCard.name}は戦闘で破壊された。${dealt}ダメージ。`);
+  } else {
+    destroyUnit(player, attackerIndex);
+    destroyUnit(opponent, targetIndex);
+    log(game, `${attackerCard.name}と${defenderCard.name}は相打ち。`);
   }
   return true;
 }
@@ -484,6 +524,18 @@ function applyReactionEffect(game, card, player, opponent, event = {}) {
     log(game, `${card.name}で効果を止めた。`);
     return { negates: true };
   }
+  if (card.effect === "watchSignal") {
+    drawCards(player, 1, game);
+    log(game, `${card.name}で1枚ドロー。攻撃は継続する。`);
+    return { negates: false };
+  }
+  if (card.effect === "noisePing") {
+    const revealed = revealReactions(opponent, 1);
+    log(game, revealed > 0
+      ? `${card.name}で相手のリアクション1枚を表向きにした。`
+      : `${card.name}を発動。表向きにできるリアクションはなかった。`);
+    return { negates: false };
+  }
   log(game, `${card.name}で止めた。`);
   return { negates: true };
 }
@@ -549,6 +601,24 @@ function chooseFromGrave(game, player, predicate, choice, after = () => {}) {
     const [id] = player.grave.splice(candidate.index, 1);
     player.hand.push(id);
     log(game, `${cards[id].name}を墓地から戻した。`);
+    after(true);
+  }, () => after(false));
+}
+
+function chooseFromHandToCharge(game, player, predicate, choice, after = () => {}) {
+  return queueChoice(game, player, "hand", player.hand, predicate, choice, (candidate) => {
+    const [id] = player.hand.splice(candidate.index, 1);
+    player.charge.push({ id, tapped: false });
+    log(game, `${cards[id].name}をチャージに置いた。`);
+    after(true);
+  }, () => after(false));
+}
+
+function chooseFromGraveToCharge(game, player, predicate, choice, after = () => {}) {
+  return queueChoice(game, player, "grave", player.grave, predicate, choice, (candidate) => {
+    const [id] = player.grave.splice(candidate.index, 1);
+    player.charge.push({ id, tapped: false });
+    log(game, `${cards[id].name}を墓地からチャージに置いた。`);
     after(true);
   }, () => after(false));
 }
@@ -708,6 +778,24 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       }, () => {
         untapOneCharge(player, (card) => card.name.includes("星導"));
       });
+    case "starNavigator":
+      return chooseFromHandToCharge(game, player, (card) => card.name.includes("星導"), {
+        title: "星導カードをチャージ",
+        message: "手札からチャージに置く「星導」カードを選んでください。",
+      }, (moved) => {
+        if (!moved) return;
+        chooseFromDeck(game, player, (card) => card.name.includes("星導"), {
+          title: "星導カードをサーチ",
+          message: "デッキから手札に加える「星導」カードを選んでください。",
+        });
+      });
+    case "starChart":
+      return chooseFromGraveToCharge(game, player, (card) => card.name.includes("星導"), {
+        title: "星導カードをチャージ",
+        message: "墓地からチャージに置く「星導」カードを選んでください。",
+      }, () => {
+        if (controlsThemeUnit(player, "星導")) untapOneCharge(player);
+      });
     case "starOrbit":
       drawCards(player, 1, game);
       break;
@@ -822,6 +910,29 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "電脳ユニットを追加召喚",
         message: "手札から追加召喚するユニットを選んでください。",
       }, opponent);
+    case "cyberBackchannel":
+      return chooseFromDeck(game, player, (card) => card.type === "リアクション" && (card.theme === "電脳" || !card.theme), {
+        title: "リアクションをサーチ",
+        message: "デッキから手札に加えるリアクションを選んでください。",
+      }, () => {
+        revealReactions(opponent, 1);
+        if (opponent.reactions.some((entry) => reactionId(entry) && reactionRevealed(entry))) {
+          chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+            title: "電脳ユニットを追加召喚",
+            message: "手札から追加召喚する「電脳」ユニットを選んでください。",
+            delayBeforeOpenMs: 560,
+          }, opponent);
+        }
+      });
+    case "probeDrone":
+      if (revealReactions(opponent, 1) > 0) {
+        return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+          title: "電脳ユニットを追加召喚",
+          message: "手札から追加召喚する「電脳」ユニットを選んでください。",
+          delayBeforeOpenMs: 560,
+        }, opponent);
+      }
+      break;
     case "sosaiHikari":
       return chooseFromDeck(game, player, (card) => card.id === "sosai_mint", {
         title: "ミントをサーチ",
@@ -889,6 +1000,15 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         message: "墓地に送るカードを選んでください。",
         delayBeforeOpenMs: 560,
       });
+    case "genericFieldNotes":
+      drawCards(player, 1, game);
+      if (!player.units.some(Boolean)) {
+        return chooseFromHandToCharge(game, player, () => true, {
+          title: "手札をチャージ",
+          message: "手札からチャージに置くカードを選んでください。",
+        });
+      }
+      break;
     case "bindUnit":
       exhaustBestUnit(game, opponent);
       damage(game, opponent, 500);
@@ -1112,10 +1232,14 @@ function controlsCard(player, id) {
 }
 
 function hasSosaiPair(player) {
-  return SOSAI_PAIRS.some(([first, second]) => controlsCard(player, first) && controlsCard(player, second));
+  return (
+    player.units.some((unit) => unit && SOSAI_DRIVE_PAIR_IDS.includes(unit.id)) ||
+    SOSAI_PAIRS.some(([first, second]) => controlsCard(player, first) && controlsCard(player, second))
+  );
 }
 
 function hasSosaiPairMate(player, id) {
+  if (SOSAI_DRIVE_PAIR_IDS.includes(id)) return true;
   return SOSAI_PAIRS.some(([first, second]) => (
     (id === first && controlsCard(player, second)) ||
     (id === second && controlsCard(player, first))
@@ -1317,6 +1441,111 @@ function readJson(req) {
     });
     req.on("error", reject);
   });
+}
+
+function loadAccounts() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, "utf8"));
+    if (saved && typeof saved === "object") return saved.accounts || saved;
+  } catch {
+    return {};
+  }
+  return {};
+}
+
+function saveAccounts(accounts) {
+  fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify({ accounts }, null, 2), "utf8");
+}
+
+function sanitizeAccountRecord(name, account = {}) {
+  return {
+    name,
+    activeDeckId: sanitizeId(account.activeDeckId || "main"),
+    gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
+    dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
+    collection: sanitizeCounts(account.collection),
+    collectionRoyal: sanitizeCounts(account.collectionRoyal),
+    decks: sanitizeDecks(account.decks),
+  };
+}
+
+function mergeAccountRecord(name, current, incoming) {
+  if (!current) return incoming;
+  return sanitizeAccountRecord(name, {
+    ...current,
+    ...incoming,
+    gems: Math.max(0, Math.floor(Number(incoming.gems) || 0)),
+    dust: Math.max(0, Math.floor(Number(incoming.dust) || 0)),
+    collection: mergeMaxCounts(current.collection, incoming.collection),
+    collectionRoyal: mergeMaxCounts(current.collectionRoyal, incoming.collectionRoyal),
+    decks: { ...(current.decks || {}), ...(incoming.decks || {}) },
+    activeDeckId: incoming.activeDeckId || current.activeDeckId,
+  });
+}
+
+function sanitizeCounts(source = {}) {
+  const result = {};
+  Object.entries(source || {}).forEach(([id, count]) => {
+    if (!cards[id]) return;
+    const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+    if (safeCount > 0) result[id] = safeCount;
+  });
+  return result;
+}
+
+function sanitizeDecks(source = {}) {
+  const result = {};
+  Object.entries(source || {}).forEach(([rawId, deck]) => {
+    const id = sanitizeId(rawId);
+    const mainDeck = trimDeckCounts(sanitizeCounts(deck.mainDeck || deck.counts), DECK_SIZE);
+    const driveDeck = trimDeckCounts(sanitizeCounts(deck.driveDeck || deck.driveCounts), DRIVE_DECK_SIZE);
+    const mainDeckRoyal = trimDeckCounts(sanitizeCounts(deck.mainDeckRoyal || deck.royalCounts), DECK_SIZE);
+    const driveDeckRoyal = trimDeckCounts(sanitizeCounts(deck.driveDeckRoyal || deck.driveRoyalCounts), DRIVE_DECK_SIZE);
+    result[id] = {
+      id,
+      name: String(deck.name || "メインデッキ").trim().slice(0, 32) || "メインデッキ",
+      mainDeck,
+      driveDeck,
+      mainDeckRoyal,
+      driveDeckRoyal,
+      updatedAt: String(deck.updatedAt || new Date().toISOString()),
+    };
+  });
+  return result;
+}
+
+function trimDeckCounts(source, size) {
+  const result = {};
+  let total = 0;
+  Object.entries(source || {}).some(([id, count]) => {
+    const room = size - total;
+    if (room <= 0) return true;
+    const add = Math.min(count, room);
+    if (add > 0) {
+      result[id] = add;
+      total += add;
+    }
+    return false;
+  });
+  return result;
+}
+
+function mergeMaxCounts(a = {}, b = {}) {
+  const result = {};
+  [...Object.keys(a || {}), ...Object.keys(b || {})].forEach((id) => {
+    if (!cards[id]) return;
+    const count = Math.max(Number(a[id]) || 0, Number(b[id]) || 0);
+    if (count > 0) result[id] = count;
+  });
+  return result;
+}
+
+function normalizeAccountName(name) {
+  return String(name || "Player").trim().replace(/\s+/g, " ").slice(0, 24) || "Player";
+}
+
+function sanitizeId(id) {
+  return String(id || "main").replace(/[^a-zA-Z0-9_-]/g, "_") || "main";
 }
 
 function sendJson(res, status, data) {
