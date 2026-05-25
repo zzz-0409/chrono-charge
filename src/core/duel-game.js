@@ -561,13 +561,13 @@
           return;
         case "driveBlackUnit":
           this.damage(opponent, 1500);
-          this.destroyBestUnit(opponent);
+          await this.destroyBestUnit(opponent);
           return;
         case "driveBlackCore":
           this.damage(opponent, 500);
           return;
         case "driveBlackSpell":
-          this.destroyBestUnit(opponent);
+          await this.destroyBestUnit(opponent);
           this.damage(opponent, 1000);
           return;
         case "driveBlackReactAttack":
@@ -577,15 +577,15 @@
           this.damage(opponent, 800);
           return;
         case "driveBladeUnit":
-          this.exhaustBestUnit(opponent);
-          this.destroyBestExhaustedUnit(opponent);
+          await this.exhaustBestUnit(opponent);
+          await this.destroyBestExhaustedUnit(opponent);
           return;
         case "driveBladeCore":
-          this.exhaustBestUnit(opponent);
+          await this.exhaustBestUnit(opponent);
           return;
         case "driveBladeSpell":
-          this.exhaustBestUnit(opponent);
-          this.destroyBestExhaustedUnit(opponent);
+          await this.exhaustBestUnit(opponent);
+          await this.destroyBestExhaustedUnit(opponent);
           return;
         case "driveBladeReactAttack": {
           const sourceIndex = Number(event.sourceIndex);
@@ -595,7 +595,7 @@
           return;
         }
         case "driveBladeReactEffect":
-          if (!this.destroyBestExhaustedUnit(opponent)) this.exhaustBestUnit(opponent);
+          if (!await this.destroyBestExhaustedUnit(opponent)) await this.exhaustBestUnit(opponent);
           return;
         case "driveCyberUnit":
           this.revealReactions(opponent, 1);
@@ -626,14 +626,14 @@
           this.drawCards(player, 2);
           return;
         case "driveSosaiNeneRuriUnit":
-          this.returnBestUnitToHand(opponent);
+          await this.returnBestUnitToHand(opponent);
           this.damage(opponent, 700);
           this.drawCards(player, 1);
           return;
         case "driveSosaiCocoLunaUnit":
           this.untapOneCharge(player);
           this.drawCards(player, 1);
-          this.destroyBestUnit(opponent);
+          await this.destroyBestUnit(opponent);
           return;
         case "driveSosaiCore":
           this.drawCards(player, 1);
@@ -665,7 +665,7 @@
           });
           return;
         case "driveGenericSpell":
-          this.exhaustBestUnit(opponent);
+          await this.exhaustBestUnit(opponent);
           this.drawCards(player, 1);
           return;
         default:
@@ -1384,47 +1384,69 @@
       return player.cores.includes(id);
     }
 
-    destroyBestUnit(player) {
-      const target = player.units
-        .map((unit, index) => ({ unit, index }))
-        .filter((entry) => entry.unit)
-        .sort((a, b) => this.getUnitAtk(player, b.unit) - this.getUnitAtk(player, a.unit))[0];
-      if (!target) return false;
-      this.destroyUnit(player, target.index);
+    async chooseUnitTargetIndex(player, predicate = () => true, choice = {}) {
+      const candidates = player.units
+        .map((unit, index) => ({ id: unit?.id, unit, index }))
+        .filter((entry) => entry.unit && predicate(entry.unit, entry.index));
+      if (candidates.length === 0) return -1;
+      if (player !== this.enemy) {
+        return candidates
+          .slice()
+          .sort((a, b) => this.getUnitAtk(player, b.unit) - this.getUnitAtk(player, a.unit))[0].index;
+      }
+      const selected = await this.options.requestCardChoice({
+        zone: "unitTarget",
+        title: choice.title || "対象ユニットを選択",
+        message: choice.message || "効果の対象にする相手ユニットを選んでください。",
+        candidates,
+        confirmLabel: choice.confirmLabel || "決定",
+      }, this);
+      const target = candidates.find((entry) => entry.index === selected);
+      return target ? target.index : -1;
+    }
+
+    async destroyBestUnit(player) {
+      const index = await this.chooseUnitTargetIndex(player, () => true, {
+        title: "破壊するユニットを選択",
+        message: "破壊する相手ユニットを選んでください。",
+      });
+      if (index < 0) return false;
+      this.destroyUnit(player, index);
       return true;
     }
 
-    returnBestUnitToHand(player) {
-      const target = player.units
-        .map((unit, index) => ({ unit, index }))
-        .filter((entry) => entry.unit)
-        .sort((a, b) => this.getUnitAtk(player, b.unit) - this.getUnitAtk(player, a.unit))[0];
-      if (!target) return false;
-      this.returnCardToHandOrDriveDeck(player, target.unit.id);
-      player.units[target.index] = null;
+    async returnBestUnitToHand(player) {
+      const index = await this.chooseUnitTargetIndex(player, () => true, {
+        title: "戻すユニットを選択",
+        message: "手札に戻す相手ユニットを選んでください。",
+      });
+      if (index < 0) return false;
+      const unit = player.units[index];
+      this.returnCardToHandOrDriveDeck(player, unit.id);
+      player.units[index] = null;
       return true;
     }
 
-    destroyBestExhaustedUnit(player) {
-      const target = player.units
-        .map((unit, index) => ({ unit, index }))
-        .filter((entry) => entry.unit && entry.unit.exhausted)
-        .sort((a, b) => this.getUnitAtk(player, b.unit) - this.getUnitAtk(player, a.unit))[0];
-      if (!target) return false;
-      const targetName = cards[target.unit.id].name;
-      this.destroyUnit(player, target.index);
+    async destroyBestExhaustedUnit(player) {
+      const index = await this.chooseUnitTargetIndex(player, (unit) => unit.exhausted, {
+        title: "破壊する行動済みユニットを選択",
+        message: "破壊する相手の行動済みユニットを選んでください。",
+      });
+      if (index < 0) return false;
+      const targetName = cards[player.units[index].id].name;
+      this.destroyUnit(player, index);
       this.log(`${targetName}を破壊した。`);
       return true;
     }
 
-    exhaustBestUnit(player) {
-      const target = player.units
-        .map((unit, index) => ({ unit, index }))
-        .filter((entry) => entry.unit && !entry.unit.exhausted)
-        .sort((a, b) => this.getUnitAtk(player, b.unit) - this.getUnitAtk(player, a.unit))[0];
-      if (!target) return false;
-      this.exhaustUnitUntilOwnerTurnEnd(player, target.index);
-      this.log(`${cards[target.unit.id].name}を次のターン終了まで行動済みにした。`);
+    async exhaustBestUnit(player) {
+      const index = await this.chooseUnitTargetIndex(player, (unit) => !unit.exhausted, {
+        title: "行動済みにするユニットを選択",
+        message: "次の相手ターン終了まで行動済みにする相手ユニットを選んでください。",
+      });
+      if (index < 0) return false;
+      this.exhaustUnitUntilOwnerTurnEnd(player, index);
+      this.log(`${cards[player.units[index].id].name}を次のターン終了まで行動済みにした。`);
       return true;
     }
 

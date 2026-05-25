@@ -36,7 +36,7 @@
           if (this.game.countThemeInCharge(player, "星導") >= 3) this.game.damage(opponent, 500);
           break;
         case "starDragon":
-          if (this.game.countThemeInCharge(player, "星導") >= 4 && this.game.destroyBestUnit(opponent)) {
+          if (this.game.countThemeInCharge(player, "星導") >= 4 && await this.game.destroyBestUnit(opponent)) {
             this.game.log("星龍の光が相手ユニットを破壊。");
           } else {
             this.game.damage(opponent, 1200);
@@ -110,7 +110,7 @@
           }
           break;
         case "blackAnchor":
-          this.game.exhaustBestUnit(opponent);
+          await this.game.exhaustBestUnit(opponent);
           await this.game.afterEffectStep();
           if (player.cores.some(Boolean)) this.game.damage(opponent, 700);
           break;
@@ -121,39 +121,39 @@
           this.game.damage(opponent, 800);
           if (this.game.controlsThemeUnit(player, "黒機")) {
             await this.game.afterEffectStep();
-            this.game.exhaustBestUnit(opponent);
+            await this.game.exhaustBestUnit(opponent);
           }
           break;
         case "bladeTracker":
-          if (!this.game.exhaustBestUnit(opponent)) this.game.damage(opponent, 300);
+          if (!await this.game.exhaustBestUnit(opponent)) this.game.damage(opponent, 300);
           break;
         case "bladeMarksmith":
           if (this.game.hasExhaustedUnit(opponent)) this.game.drawCards(player, 1);
           break;
         case "bladeEdgeguard":
-          if (this.game.countThemeInCharge(player, "断刃") >= 2) this.game.exhaustBestUnit(opponent);
+          if (this.game.countThemeInCharge(player, "断刃") >= 2) await this.game.exhaustBestUnit(opponent);
           break;
         case "bladeExecutioner":
-          if (!this.game.destroyBestExhaustedUnit(opponent)) {
+          if (!await this.game.destroyBestExhaustedUnit(opponent)) {
             await this.game.afterEffectStep();
-            this.game.exhaustBestUnit(opponent);
+            await this.game.exhaustBestUnit(opponent);
           }
           break;
         case "bladeArbiter":
-          if (this.game.countThemeInCharge(player, "断刃") >= 4) this.game.destroyBestUnit(opponent);
-          else this.game.destroyBestExhaustedUnit(opponent);
+          if (this.game.countThemeInCharge(player, "断刃") >= 4) await this.game.destroyBestUnit(opponent);
+          else await this.game.destroyBestExhaustedUnit(opponent);
           break;
         case "bladeMark":
-          this.game.exhaustBestUnit(opponent);
+          await this.game.exhaustBestUnit(opponent);
           if (this.game.controlsThemeUnit(player, "断刃")) {
             await this.game.afterEffectStep();
             this.game.damage(opponent, 400);
           }
           break;
         case "bladeCleave":
-          if (!this.game.destroyBestExhaustedUnit(opponent)) {
+          if (!await this.game.destroyBestExhaustedUnit(opponent)) {
             await this.game.afterEffectStep();
-            this.game.exhaustBestUnit(opponent);
+            await this.game.exhaustBestUnit(opponent);
           }
           break;
         case "bladeWarrant":
@@ -167,7 +167,7 @@
           }
           break;
         case "bladeScaffold":
-          this.game.exhaustBestUnit(opponent);
+          await this.game.exhaustBestUnit(opponent);
           break;
         case "cyberMio":
           await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
@@ -280,7 +280,7 @@
           });
           if (this.game.controlsCard(player, "sosai_ruri")) {
             await this.game.afterEffectStep();
-            this.game.returnBestUnitToHand(opponent);
+            await this.game.returnBestUnitToHand(opponent);
           }
           break;
         case "sosaiRuri":
@@ -310,7 +310,7 @@
           this.game.damage(opponent, 700);
           if (this.game.controlsCard(player, "sosai_coco")) {
             await this.game.afterEffectStep();
-            this.game.destroyBestUnit(opponent);
+            await this.game.destroyBestUnit(opponent);
           }
           break;
         case "sosaiLiveStart":
@@ -354,7 +354,7 @@
           }
           break;
         case "bindUnit":
-          this.game.exhaustBestUnit(opponent);
+          await this.game.exhaustBestUnit(opponent);
           await this.game.afterEffectStep();
           this.game.damage(opponent, 500);
           break;

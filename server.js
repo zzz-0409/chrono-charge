@@ -631,6 +631,83 @@ function queueChoice(game, player, zone, list, predicate, choice, handler, empty
   return true;
 }
 
+function queueUnitTargetChoice(game, chooser, targetPlayer, predicate, choice, handler, emptyHandler = () => {}) {
+  const candidates = targetPlayer.units
+    .map((unit, index) => ({ id: unit?.id, unit, index }))
+    .filter((entry) => entry.unit && predicate(entry.unit, entry.index));
+  if (candidates.length === 0) {
+    emptyHandler();
+    return false;
+  }
+
+  game.pendingChoice = {
+    id: makeId(8),
+    seat: seatOf(game, chooser),
+    zone: "unitTarget",
+    title: choice.title,
+    message: choice.message,
+    delayBeforeOpenMs: choice.delayBeforeOpenMs || 0,
+    candidates,
+    confirmLabel: choice.confirmLabel,
+    resolve: handler,
+    afterResolve: null,
+  };
+  return true;
+}
+
+function chooseDestroyUnit(game, chooser, targetPlayer, after = () => {}) {
+  return queueUnitTargetChoice(game, chooser, targetPlayer, () => true, {
+    title: "破壊するユニットを選択",
+    message: "破壊する相手ユニットを選んでください。",
+    confirmLabel: "決定",
+  }, (candidate) => {
+    destroyUnit(targetPlayer, candidate.index);
+    after(true);
+  }, () => after(false));
+}
+
+function chooseReturnUnitToHand(game, chooser, targetPlayer, after = () => {}) {
+  return queueUnitTargetChoice(game, chooser, targetPlayer, () => true, {
+    title: "戻すユニットを選択",
+    message: "手札に戻す相手ユニットを選んでください。",
+    confirmLabel: "決定",
+  }, (candidate) => {
+    const unit = targetPlayer.units[candidate.index];
+    const targetName = cards[unit.id].name;
+    targetPlayer.hand.push(unit.id);
+    targetPlayer.units[candidate.index] = null;
+    log(game, `${targetName}を手札に戻した。`);
+    after(true);
+  }, () => after(false));
+}
+
+function chooseDestroyExhaustedUnit(game, chooser, targetPlayer, after = () => {}) {
+  return queueUnitTargetChoice(game, chooser, targetPlayer, (unit) => unit.exhausted, {
+    title: "破壊する行動済みユニットを選択",
+    message: "破壊する相手の行動済みユニットを選んでください。",
+    confirmLabel: "決定",
+  }, (candidate) => {
+    const targetName = cards[targetPlayer.units[candidate.index].id].name;
+    destroyUnit(targetPlayer, candidate.index);
+    log(game, `${targetName}を破壊した。`);
+    after(true);
+  }, () => after(false));
+}
+
+function chooseExhaustUnit(game, chooser, targetPlayer, after = () => {}) {
+  return queueUnitTargetChoice(game, chooser, targetPlayer, (unit) => !unit.exhausted, {
+    title: "行動済みにするユニットを選択",
+    message: "次の相手ターン終了まで行動済みにする相手ユニットを選んでください。",
+    confirmLabel: "決定",
+  }, (candidate) => {
+    const unit = targetPlayer.units[candidate.index];
+    unit.exhausted = true;
+    unit.exhaustedUntilOwnerTurnEnd = true;
+    log(game, `${cards[unit.id].name}を次のターン終了まで行動済みにした。`);
+    after(true);
+  }, () => after(false));
+}
+
 function chooseFromDeck(game, player, predicate, choice, after = () => {}) {
   return queueChoice(game, player, "deck", player.deck, predicate, choice, (candidate) => {
     const [id] = player.deck.splice(candidate.index, 1);
@@ -729,6 +806,12 @@ function opponentOf(game, player) {
 }
 
 function completeTurn(game) {
+  const player = game[game.active];
+  player?.units.forEach((unit) => {
+    if (!unit?.exhaustedUntilOwnerTurnEnd) return;
+    unit.exhaustedUntilOwnerTurnEnd = false;
+    unit.exhausted = false;
+  });
   game.completedTurns += 1;
 }
 
@@ -797,8 +880,13 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       if (countThemeInCharge(player, "星導") >= 3) damage(game, opponent, 500);
       break;
     case "starDragon":
-      if (countThemeInCharge(player, "星導") >= 4 && destroyBestUnit(opponent)) log(game, "星龍の光が相手ユニットを破壊。");
-      else damage(game, opponent, 1200);
+      if (countThemeInCharge(player, "星導") >= 4) {
+        return chooseDestroyUnit(game, player, opponent, (destroyed) => {
+          if (destroyed) log(game, "星龍の光が相手ユニットを破壊。");
+          else damage(game, opponent, 1200);
+        });
+      }
+      damage(game, opponent, 1200);
       break;
     case "starInvite":
       return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.name.includes("星導"), {
@@ -857,39 +945,39 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       }
       return false;
     case "blackAnchor":
-      exhaustBestUnit(game, opponent);
-      if (player.cores.some(Boolean)) damage(game, opponent, 700);
-      break;
+      return chooseExhaustUnit(game, player, opponent, () => {
+        if (player.cores.some(Boolean)) damage(game, opponent, 700);
+      });
     case "blackTower":
       damage(game, opponent, 600);
       break;
     case "blackRaid":
       damage(game, opponent, 800);
-      if (controlsThemeUnit(player, "黒機")) exhaustBestUnit(game, opponent);
+      if (controlsThemeUnit(player, "黒機")) return chooseExhaustUnit(game, player, opponent);
       break;
     case "bladeTracker":
-      if (!exhaustBestUnit(game, opponent)) damage(game, opponent, 300);
-      break;
+      return chooseExhaustUnit(game, player, opponent, (exhausted) => {
+        if (!exhausted) damage(game, opponent, 300);
+      });
     case "bladeMarksmith":
       if (hasExhaustedUnit(opponent)) drawCards(player, 1, game);
       break;
     case "bladeEdgeguard":
-      if (countThemeInCharge(player, "断刃") >= 2) exhaustBestUnit(game, opponent);
+      if (countThemeInCharge(player, "断刃") >= 2) return chooseExhaustUnit(game, player, opponent);
       break;
     case "bladeExecutioner":
-      if (!destroyBestExhaustedUnit(game, opponent)) exhaustBestUnit(game, opponent);
-      break;
+      if (hasExhaustedUnit(opponent)) return chooseDestroyExhaustedUnit(game, player, opponent);
+      return chooseExhaustUnit(game, player, opponent);
     case "bladeArbiter":
-      if (countThemeInCharge(player, "断刃") >= 4) destroyBestUnit(opponent);
-      else destroyBestExhaustedUnit(game, opponent);
-      break;
+      if (countThemeInCharge(player, "断刃") >= 4) return chooseDestroyUnit(game, player, opponent);
+      return chooseDestroyExhaustedUnit(game, player, opponent);
     case "bladeMark":
-      exhaustBestUnit(game, opponent);
-      if (controlsThemeUnit(player, "断刃")) damage(game, opponent, 400);
-      break;
+      return chooseExhaustUnit(game, player, opponent, () => {
+        if (controlsThemeUnit(player, "断刃")) damage(game, opponent, 400);
+      });
     case "bladeCleave":
-      if (!destroyBestExhaustedUnit(game, opponent)) exhaustBestUnit(game, opponent);
-      break;
+      if (hasExhaustedUnit(opponent)) return chooseDestroyExhaustedUnit(game, player, opponent);
+      return chooseExhaustUnit(game, player, opponent);
     case "bladeWarrant":
       return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.name.includes("断刃"), {
         title: "断刃ユニットをサーチ",
@@ -898,8 +986,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         if (hasExhaustedUnit(opponent)) drawCards(player, 1, game);
       });
     case "bladeScaffold":
-      exhaustBestUnit(game, opponent);
-      break;
+      return chooseExhaustUnit(game, player, opponent);
     case "cyberMio":
       return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
         title: "電脳ユニットを追加召喚",
@@ -995,7 +1082,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "ルリをサーチ",
         message: "デッキから手札に加えるルリを選んでください。",
       }, () => {
-        if (controlsCard(player, "sosai_ruri")) returnBestUnitToHand(game, opponent);
+        if (controlsCard(player, "sosai_ruri")) chooseReturnUnitToHand(game, player, opponent);
       });
     case "sosaiRuri":
       return chooseFromDeck(game, player, (card) => card.id === "sosai_nene", {
@@ -1019,7 +1106,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       });
     case "sosaiLuna":
       damage(game, opponent, 700);
-      if (controlsCard(player, "sosai_coco")) destroyBestUnit(opponent);
+      if (controlsCard(player, "sosai_coco")) return chooseDestroyUnit(game, player, opponent);
       break;
     case "sosaiLiveStart":
       return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.name.includes("双彩"), {
@@ -1055,9 +1142,9 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       }
       break;
     case "bindUnit":
-      exhaustBestUnit(game, opponent);
-      damage(game, opponent, 500);
-      break;
+      return chooseExhaustUnit(game, player, opponent, () => {
+        damage(game, opponent, 500);
+      });
     case "recallUnit":
       return chooseFromGrave(game, player, (card) => card.type === "ユニット", {
         title: "ユニットを回収",
@@ -1074,7 +1161,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
 
 function refreshTurn(player) {
   player.charge.forEach((charge) => { charge.tapped = false; });
-  player.units.forEach((unit) => { if (unit) unit.exhausted = false; });
+  player.units.forEach((unit) => { if (unit && !unit.exhaustedUntilOwnerTurnEnd) unit.exhausted = false; });
   player.chargedThisTurn = false;
   player.drewFromStarCore = false;
   player.shiftedThisTurn = false;
