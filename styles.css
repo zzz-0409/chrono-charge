@@ -3365,9 +3365,13 @@ select {
 }
 
 .pack-view {
-  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 0.58fr) minmax(230px, 0.42fr);
   grid-template-columns: 1fr;
   gap: 14px;
+  overflow: hidden;
 }
 
 .pack-selection-panel,
@@ -3491,6 +3495,8 @@ select {
 
 .pack-page-results {
   align-content: start;
+  min-height: 0;
+  padding-bottom: 18px;
 }
 
 .pack-empty-note {
