@@ -556,7 +556,6 @@
       const driveMode = this.deckMode === "drive";
       const normalCounts = driveMode ? this.store.driveCounts : this.store.counts;
       const royalCounts = driveMode ? this.store.driveRoyalCounts : this.store.royalCounts;
-      const copyLimit = driveMode ? MAX_DRIVE_COPIES : MAX_COPIES;
       const owned = this.store.ownedCount(this.selectedCardId);
       const royalOwned = this.store.ownedCount(this.selectedCardId, "royal");
       const limit = this.store.deckLimit(this.selectedCardId, driveMode);
@@ -577,6 +576,7 @@
       const dismantleGain = activeFinish === "royal" ? this.store.royalDustPerDismantle : this.store.dustPerDismantle;
       const canDismantle = !this.store.isAuthorAccount && selectedOwned >= 1;
       const canCraft = activeFinish !== "royal" && !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
+      const ownedLabel = `${card.type} / ${card.attr} / 所持${selectedOwned}`;
       const craftLabel = activeFinish === "royal"
         ? "生成不可"
         : `生成 <img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> -${this.store.craftCost}`;
@@ -585,7 +585,7 @@
         <div class="preview-control-copy">
           <span>投入枚数</span>
           <strong>${totalCount} / ${limit}</strong>
-          <small>${card.type} / ${card.attr} / 所持 ${owned}${royalOwned > 0 ? ` / ロイヤル ${royalOwned}` : ""}${this.store.isAuthorAccount ? " (作者)" : ""} / ${copyLimit}</small>
+          <small>${ownedLabel}</small>
         </div>
         <div class="preview-count-stepper">
           <button class="mini-button" type="button" data-action="preview-remove">-</button>
