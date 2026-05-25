@@ -21,6 +21,8 @@
       this.onStartDuel = options.onStartDuel;
       this.onAccountChange = options.onAccountChange || (() => {});
       this.confirmDeleteDeck = options.confirmDeleteDeck || (() => Promise.resolve(false));
+      this.openAppModal = options.openAppModal || (() => {});
+      this.closeAppModal = options.closeAppModal || (() => {});
       this.deckMode = "main";
       this.selectedCardId = "star_scout";
       this.selectedFinish = "normal";
@@ -56,12 +58,11 @@
         this.render();
         this.toast("プリセットを削除しました。");
       });
-      this.els.changeAccountButton.addEventListener("click", async () => {
-        const account = this.store.switchAccount(this.els.accountNameInput.value);
-        await this.onAccountChange(account);
-        this.selectedCardId = this.firstSelectedId();
-        this.render();
-        this.toast(`${account.name}に変更しました。`);
+      this.els.loginButton.addEventListener("click", () => this.openAuthDialog());
+      this.els.logoutButton.addEventListener("click", () => this.logoutAccount());
+      this.els.saveDisplayNameButton.addEventListener("click", () => this.saveDisplayName());
+      this.els.displayNameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") this.saveDisplayName();
       });
       this.els.deckPresetSelect.addEventListener("change", () => this.renderProfilePanel());
       this.els.autoBuildButton.addEventListener("click", () => {
@@ -89,6 +90,86 @@
       this.els.cardPreview.addEventListener("click", (event) => CardZoom.openFromEvent(event));
       this.els.mainDeckModeButton?.addEventListener("click", () => this.setDeckMode("main"));
       this.els.driveDeckModeButton?.addEventListener("click", () => this.setDeckMode("drive"));
+    }
+
+    openAuthDialog() {
+      const modal = document.createElement("div");
+      modal.className = "modal-dialog auth-dialog";
+      let mode = "login";
+
+      const renderMode = () => {
+        const isRegister = mode === "register";
+        modal.innerHTML = `
+          <h2>${isRegister ? "新規登録" : "ログイン"}</h2>
+          <label class="profile-field">
+            <span>ユーザー名</span>
+            <input data-field="username" type="text" autocomplete="username" maxlength="24">
+          </label>
+          <label class="profile-field">
+            <span>パスワード</span>
+            <input data-field="password" type="password" autocomplete="${isRegister ? "new-password" : "current-password"}" maxlength="64">
+          </label>
+          <p class="auth-error" data-auth-error></p>
+          <div class="modal-actions modal-actions-row">
+            <button class="ghost-button" type="button" data-action="cancel">キャンセル</button>
+            <button class="primary-button" type="button" data-action="submit">${isRegister ? "登録" : "ログイン"}</button>
+          </div>
+          <button class="ghost-button auth-mode-switch" type="button" data-action="switch">
+            ${isRegister ? "ログインはこちら" : "新規登録の方はこちら"}
+          </button>
+        `;
+        modal.querySelector('[data-action="cancel"]').addEventListener("click", () => this.closeAppModal());
+        modal.querySelector('[data-action="switch"]').addEventListener("click", () => {
+          mode = isRegister ? "login" : "register";
+          renderMode();
+        });
+        modal.querySelector('[data-action="submit"]').addEventListener("click", () => this.submitAuthDialog(modal, mode));
+        modal.querySelector('[data-field="password"]').addEventListener("keydown", (event) => {
+          if (event.key === "Enter") this.submitAuthDialog(modal, mode);
+        });
+        window.setTimeout(() => modal.querySelector('[data-field="username"]')?.focus(), 0);
+      };
+
+      renderMode();
+      this.openAppModal(modal);
+    }
+
+    async submitAuthDialog(modal, mode) {
+      const username = modal.querySelector('[data-field="username"]')?.value || "";
+      const password = modal.querySelector('[data-field="password"]')?.value || "";
+      const errorEl = modal.querySelector("[data-auth-error]");
+      try {
+        const account = mode === "register"
+          ? await this.store.register(username, password)
+          : await this.store.login(username, password);
+        await this.onAccountChange(account);
+        this.closeAppModal();
+        this.selectedCardId = this.firstSelectedId();
+        this.render();
+        this.toast(mode === "register" ? "登録しました。" : `${this.store.displayName}でログインしました。`);
+      } catch (error) {
+        if (errorEl) errorEl.textContent = this.authErrorMessage(error);
+      }
+    }
+
+    authErrorMessage(error) {
+      const message = String(error?.message || "");
+      if (message.includes("already exists")) return "このユーザー名は既に使われています。";
+      if (message.includes("invalid username or password")) return "ユーザー名またはパスワードが違います。";
+      if (message.includes("username and password")) return "ユーザー名とパスワードを入力してください。";
+      return message || "認証に失敗しました。";
+    }
+
+    async logoutAccount() {
+      await this.store.logout();
+      this.render();
+      this.toast("ログアウトしました。");
+    }
+
+    saveDisplayName() {
+      const name = this.store.updateDisplayName(this.els.displayNameInput.value);
+      this.render();
+      this.toast(`ゲーム内名を${name}にしました。`);
     }
 
     setDeckMode(mode) {
@@ -137,15 +218,14 @@
     renderProfilePanel() {
       const activeDeck = this.store.activeDeck;
       const selectedId = this.els.deckPresetSelect.value || this.store.activeDeckId;
-      if (document.activeElement !== this.els.accountNameInput) {
-        this.els.accountNameInput.value = this.store.activeAccount;
+      const loggedIn = this.store.isAuthenticated;
+      if (document.activeElement !== this.els.displayNameInput) {
+        this.els.displayNameInput.value = this.store.displayName || "";
       }
-      this.els.accountNameList.replaceChildren();
-      this.store.accountNames.forEach((name) => {
-        const option = document.createElement("option");
-        option.value = name;
-        this.els.accountNameList.append(option);
-      });
+      if (this.els.accountUsernameLabel) this.els.accountUsernameLabel.textContent = "ユーザー名";
+      this.els.loginButton.hidden = loggedIn;
+      this.els.logoutButton.hidden = !loggedIn;
+      this.els.saveDisplayNameButton.disabled = false;
 
       this.els.deckPresetSelect.replaceChildren();
       this.store.deckPresets.forEach((deck) => {

@@ -15,10 +15,10 @@
   } = window.Chrono;
 
   const STORE_VERSION = 6;
+  const AUTH_TOKEN_KEY = `${STORAGE_KEY}-auth`;
   const DEFAULT_ACCOUNT = "Player";
   const DEFAULT_DECK_ID = "main";
   const MAIN_THEME_THRESHOLD = 10;
-  const AUTHOR_ACCOUNT = "zzz0409";
   const PACK_SIZE = 5;
   const PACK_COST = 100;
   const CPU_WIN_GEMS = 200;
@@ -175,7 +175,8 @@
   class DeckStore {
     constructor(storage = window.localStorage) {
       this.storage = storage;
-      const loaded = this.load();
+      this.auth = this.loadAuth();
+      const loaded = this.auth ? this.load() : this.guestState();
       this.data = loaded.data;
       this.activeAccount = loaded.activeAccount;
       this.activeDeckId = loaded.activeDeckId;
@@ -183,6 +184,10 @@
       this.royalCounts = loaded.royalCounts;
       this.driveCounts = loaded.driveCounts;
       this.driveRoyalCounts = loaded.driveRoyalCounts;
+      this.localRevision = 0;
+      this.remoteDirty = false;
+      this.remoteSaveInFlight = false;
+      this.remoteSaveTimer = 0;
     }
 
     load() {
@@ -199,6 +204,26 @@
         this.storage.removeItem(STORAGE_KEY);
       }
       return this.stateFromDeck(starterDeck, starterDriveDeck);
+    }
+
+    guestState() {
+      return this.stateFromDeck(starterDeck, starterDriveDeck);
+    }
+
+    loadAuth() {
+      try {
+        const auth = JSON.parse(this.storage.getItem(AUTH_TOKEN_KEY));
+        if (auth?.token && auth?.username) return auth;
+      } catch {
+        this.storage.removeItem(AUTH_TOKEN_KEY);
+      }
+      return null;
+    }
+
+    saveAuth(auth) {
+      this.auth = auth;
+      if (auth?.token && auth?.username) this.storage.setItem(AUTH_TOKEN_KEY, JSON.stringify(auth));
+      else this.storage.removeItem(AUTH_TOKEN_KEY);
     }
 
     normalizeState(saved) {
@@ -247,11 +272,15 @@
       const activeDeckId = sanitizeId(account.activeDeckId);
       return {
         name: accountName,
+        username: String(account.username || accountName),
+        displayName: String(account.displayName || account.name || accountName).trim().slice(0, 24) || accountName,
+        isDeveloper: Boolean(account.isDeveloper),
         activeDeckId: decks[activeDeckId] ? activeDeckId : Object.keys(decks)[0],
         gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
         dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
         collection: this.normalizeCollection(account.collection, decks),
         collectionRoyal: this.normalizeCollection(account.collectionRoyal, decks, ROYAL_FINISH),
+        updatedAt: String(account.updatedAt || new Date().toISOString()),
         decks,
       };
     }
@@ -291,11 +320,15 @@
     defaultAccount(mainDeck, driveDeck) {
       return {
         name: DEFAULT_ACCOUNT,
+        username: "Guest",
+        displayName: DEFAULT_ACCOUNT,
+        isDeveloper: false,
         activeDeckId: DEFAULT_DECK_ID,
         gems: 0,
         dust: 0,
-        collection: this.initialCollection(mainDeck, driveDeck),
+        collection: this.initialCollection(mainDeck),
         collectionRoyal: {},
+        updatedAt: new Date().toISOString(),
         decks: {
           [DEFAULT_DECK_ID]: this.createDeck(DEFAULT_DECK_ID, "メインデッキ", mainDeck, driveDeck, {}, {}),
         },
@@ -408,6 +441,90 @@
       return account;
     }
 
+    async register(username, password, displayName) {
+      if (!canUseRemoteSync()) throw new Error("サーバー起動時だけ登録できます。");
+      const body = {
+        username,
+        password,
+        displayName: displayName || DEFAULT_ACCOUNT,
+      };
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "登録に失敗しました。");
+      this.saveAuth({ username: result.account.username, token: result.token });
+      this.applyAuthenticatedAccount(result.account);
+      return this.activeAccountData;
+    }
+
+    async login(username, password) {
+      if (!canUseRemoteSync()) throw new Error("サーバー起動時だけログインできます。");
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "ログインに失敗しました。");
+      this.saveAuth({ username: result.account.username, token: result.token });
+      this.applyAuthenticatedAccount(result.account);
+      return this.activeAccountData;
+    }
+
+    async logout() {
+      if (canUseRemoteSync() && this.auth?.token) {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: this.authHeaders(),
+        }).catch(() => {});
+      }
+      this.saveAuth(null);
+      this.storage.removeItem(STORAGE_KEY);
+      this.applyLoadedState(this.guestState());
+    }
+
+    updateDisplayName(displayName) {
+      const name = String(displayName || this.activeAccountData.displayName || this.activeAccount).trim().slice(0, 24);
+      this.activeAccountData.displayName = name || this.activeAccount;
+      this.activeAccountData.name = this.activeAccountData.displayName;
+      this.persist();
+      return this.activeAccountData.displayName;
+    }
+
+    applyAuthenticatedAccount(account) {
+      const accountName = normalizeAccountName(account.username || account.name || DEFAULT_ACCOUNT);
+      const normalized = this.normalizeAccount(accountName, account);
+      this.data.accounts[accountName] = normalized;
+      this.activeAccount = accountName;
+      this.data.activeAccount = accountName;
+      this.activeDeckId = normalized.activeDeckId;
+      const deck = normalized.decks[this.activeDeckId];
+      this.counts = this.normalizeMain(deck.mainDeck);
+      this.royalCounts = this.normalizeMain(deck.mainDeckRoyal);
+      this.driveCounts = this.normalizeDrive(deck.driveDeck);
+      this.driveRoyalCounts = this.normalizeDrive(deck.driveDeckRoyal || {});
+      this.persistLocalOnly();
+      this.remoteDirty = false;
+      this.remoteSaveInFlight = false;
+    }
+
+    applyLoadedState(loaded) {
+      this.data = loaded.data;
+      this.activeAccount = loaded.activeAccount;
+      this.activeDeckId = loaded.activeDeckId;
+      this.counts = loaded.counts;
+      this.royalCounts = loaded.royalCounts;
+      this.driveCounts = loaded.driveCounts;
+      this.driveRoyalCounts = loaded.driveRoyalCounts;
+      this.localRevision = 0;
+      this.remoteDirty = false;
+      this.remoteSaveInFlight = false;
+      window.clearTimeout(this.remoteSaveTimer);
+    }
+
     autoBuild(mode = "star") {
       const template = autoDeckTemplates[mode] || autoDeckTemplates.star;
       const mainDeck = this.preferRoyalCopies(this.completeMainDeck(template.main), false);
@@ -488,11 +605,15 @@
 
     persist() {
       this.data.activeAccount = this.activeAccount;
+      this.activeAccountData.updatedAt = new Date().toISOString();
+      if (!this.isAuthenticated) return;
       this.storage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORE_VERSION,
         activeAccount: this.activeAccount,
         accounts: this.data.accounts,
       }));
+      this.localRevision += 1;
+      this.remoteDirty = true;
       this.saveRemoteAccount();
     }
 
@@ -765,7 +886,7 @@
     }
 
     get isAuthorAccount() {
-      return String(this.activeAccount || "").trim().toLowerCase() === AUTHOR_ACCOUNT;
+      return this.isAuthenticated && Boolean(this.activeAccountData?.isDeveloper);
     }
 
     get gems() {
@@ -800,6 +921,18 @@
       return this.data.accounts[this.activeAccount];
     }
 
+    get isAuthenticated() {
+      return Boolean(this.auth?.token);
+    }
+
+    get username() {
+      return this.activeAccountData?.username || this.activeAccount;
+    }
+
+    get displayName() {
+      return this.activeAccountData?.displayName || this.activeAccountData?.name || this.username;
+    }
+
     get activeDeck() {
       return this.activeAccountData.decks[this.activeDeckId];
     }
@@ -817,12 +950,9 @@
       return `デッキ ${this.deckPresets.length + 1}`;
     }
 
-    initialCollection(mainDeck, driveDeck) {
+    initialCollection(mainDeck) {
       const result = {};
       Object.entries(this.normalizeMain(mainDeck)).forEach(([id, count]) => {
-        result[id] = Math.max(result[id] || 0, Number(count) || 0);
-      });
-      Object.entries(this.normalizeDrive(driveDeck)).forEach(([id, count]) => {
         result[id] = Math.max(result[id] || 0, Number(count) || 0);
       });
       return result;
@@ -841,12 +971,28 @@
 
     async syncActiveAccount() {
       if (!canUseRemoteSync()) return this.activeAccountData;
+      if (!this.auth?.token) return this.activeAccountData;
+      if (this.remoteDirty || this.remoteSaveInFlight) {
+        this.saveRemoteAccount();
+        return this.activeAccountData;
+      }
+      const syncRevision = this.localRevision;
       try {
-        const response = await fetch(`/api/accounts?name=${encodeURIComponent(this.activeAccount)}`, {
+        const response = await fetch("/api/account", {
           cache: "no-store",
+          headers: this.authHeaders(),
         });
+        if (response.status === 401) {
+          this.saveAuth(null);
+          this.storage.removeItem(STORAGE_KEY);
+          this.applyLoadedState(this.guestState());
+          return this.activeAccountData;
+        }
         if (!response.ok) throw new Error("account sync failed");
         const remote = await response.json();
+        if (this.localRevision !== syncRevision || this.remoteDirty || this.remoteSaveInFlight) {
+          return this.activeAccountData;
+        }
         if (remote?.account) {
           this.mergeRemoteAccount(remote.account);
           this.persistLocalOnly();
@@ -861,15 +1007,17 @@
     }
 
     mergeRemoteAccount(remote) {
-      const accountName = normalizeAccountName(remote.name || this.activeAccount);
+      const accountName = normalizeAccountName(remote.username || remote.name || this.activeAccount);
       const local = this.data.accounts[accountName] || this.defaultAccount(starterDeck, starterDriveDeck);
+      const newer = accountUpdatedAt(remote) >= accountUpdatedAt(local) ? remote : local;
       const merged = this.normalizeAccount(accountName, {
         ...local,
         ...remote,
-        gems: Math.max(Number(local.gems) || 0, Number(remote.gems) || 0),
-        dust: Math.max(Number(local.dust) || 0, Number(remote.dust) || 0),
-        collection: remote.collection || local.collection,
-        collectionRoyal: remote.collectionRoyal || local.collectionRoyal,
+        gems: newer.gems,
+        dust: newer.dust,
+        collection: newer.collection,
+        collectionRoyal: newer.collectionRoyal,
+        updatedAt: newer.updatedAt,
         decks: mergeDecksByUpdated(local.decks, remote.decks),
         activeDeckId: local.activeDeckId || remote.activeDeckId,
       });
@@ -895,15 +1043,32 @@
 
     saveRemoteAccount() {
       if (!canUseRemoteSync()) return;
-      const account = this.activeAccountData;
+      if (!this.auth?.token) return;
+      const saveRevision = this.localRevision;
       window.clearTimeout(this.remoteSaveTimer);
       this.remoteSaveTimer = window.setTimeout(() => {
-        fetch(`/api/accounts?name=${encodeURIComponent(this.activeAccount)}`, {
+        const account = JSON.parse(JSON.stringify(this.activeAccountData));
+        this.remoteSaveInFlight = true;
+        fetch("/api/account", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            ...this.authHeaders(),
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ account }),
-        }).catch(() => {});
+        }).then((response) => {
+          if (response.ok && this.localRevision === saveRevision) this.remoteDirty = false;
+        }).catch(() => {}).finally(() => {
+          if (this.localRevision === saveRevision) this.remoteSaveInFlight = false;
+        });
       }, 80);
+    }
+
+    authHeaders() {
+      return {
+        Authorization: `Bearer ${this.auth?.token || ""}`,
+        "X-Account-Username": this.auth?.username || this.activeAccount || "",
+      };
     }
 
     get stats() {
@@ -1105,6 +1270,11 @@
       if (!existing || String(deck.updatedAt || "") >= String(existing.updatedAt || "")) result[id] = deck;
     });
     return result;
+  }
+
+  function accountUpdatedAt(account = {}) {
+    const time = Date.parse(account.updatedAt || "");
+    return Number.isFinite(time) ? time : 0;
   }
 
   function canUseRemoteSync() {

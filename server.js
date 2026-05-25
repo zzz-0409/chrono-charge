@@ -2,12 +2,15 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const crypto = require("crypto");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8787);
 const ACCOUNTS_FILE = path.join(ROOT, "accounts.json");
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const db = createAccountDb();
+const DEVELOPER_USERNAME = "zzz0409";
+const DEVELOPER_PASSWORD = process.env.DEVELOPER_PASSWORD || "Pe933086";
 const KEEPALIVE_INTERVAL_MS = Math.max(60_000, Number(process.env.KEEPALIVE_INTERVAL_MS || 300_000));
 const KEEPALIVE_URLS = keepAliveUrls();
 const MAX_LP = 8000;
@@ -51,7 +54,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Chrono Charge server: http://localhost:${PORT}`);
+  console.log(`Chrono Drive server: http://localhost:${PORT}`);
   startKeepAlive();
 });
 
@@ -95,14 +98,34 @@ function startKeepAlive() {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/auth/register") {
+    await handleRegisterApi(req, res);
+    return;
+  }
+
+  if (url.pathname === "/api/auth/login") {
+    await handleLoginApi(req, res);
+    return;
+  }
+
+  if (url.pathname === "/api/auth/logout") {
+    await handleLogoutApi(req, res);
+    return;
+  }
+
+  if (url.pathname === "/api/account") {
+    await handleAuthenticatedAccountApi(req, res);
+    return;
+  }
+
   if (url.pathname === "/api/accounts") {
-    await handleAccountApi(req, res, url.searchParams.get("name"));
+    sendJson(res, 410, { error: "password login is required" });
     return;
   }
 
   const accountMatch = url.pathname.match(/^\/api\/accounts\/([^/]+)$/);
   if (accountMatch) {
-    await handleAccountApi(req, res, decodeURIComponent(accountMatch[1]));
+    sendJson(res, 410, { error: "password login is required" });
     return;
   }
 
@@ -178,21 +201,123 @@ async function handleApi(req, res, url) {
   sendJson(res, 404, { error: "not found" });
 }
 
-async function handleAccountApi(req, res, rawName) {
-  const name = normalizeAccountName(rawName);
-  if (req.method === "GET") {
-    sendJson(res, 200, { account: await loadAccount(name) });
+async function handleRegisterApi(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "method not allowed" });
     return;
   }
+  const body = await readJson(req);
+  const username = normalizeUsername(body.username);
+  const password = String(body.password || "");
+  const displayName = normalizeAccountName(body.displayName || "Player");
+  if (!username || password.length < 4) {
+    sendJson(res, 400, { error: "username and password are required" });
+    return;
+  }
+  if (isDeveloperUsername(username) && password !== DEVELOPER_PASSWORD) {
+    sendJson(res, 403, { error: "invalid developer password" });
+    return;
+  }
+
+  const current = await loadAccount(username);
+  if (current) {
+    sendJson(res, 409, { error: "username already exists" });
+    return;
+  }
+
+  const account = sanitizeAccountRecord(username, {
+    ...createDefaultAccountRecord(username, displayName),
+    username,
+    displayName,
+    passwordHash: hashPassword(password),
+  });
+  const token = applySessionToken(account);
+  await saveAccount(username, account);
+  sendJson(res, 200, { account: publicAccount(account), token });
+}
+
+async function handleLoginApi(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "method not allowed" });
+    return;
+  }
+  const body = await readJson(req);
+  const username = normalizeUsername(body.username);
+  const password = String(body.password || "");
+  let account = await loadAccount(username);
+
+  if (!account && isDeveloperUsername(username) && password === DEVELOPER_PASSWORD) {
+    account = sanitizeAccountRecord(username, {
+      ...createDefaultAccountRecord(username, username),
+      passwordHash: hashPassword(password),
+    });
+  }
+  if (account && !account.passwordHash && isDeveloperUsername(username) && password === DEVELOPER_PASSWORD) {
+    account = sanitizeAccountRecord(username, {
+      ...account,
+      username,
+      displayName: account.displayName || account.name || username,
+      passwordHash: hashPassword(password),
+    });
+  }
+
+  if (!account?.passwordHash || (isDeveloperUsername(username) && password !== DEVELOPER_PASSWORD) || !verifyPassword(password, account.passwordHash)) {
+    sendJson(res, 401, { error: "invalid username or password" });
+    return;
+  }
+
+  account = sanitizeAccountRecord(username, account);
+  const token = applySessionToken(account);
+  await saveAccount(username, account);
+  sendJson(res, 200, { account: publicAccount(account), token });
+}
+
+async function handleLogoutApi(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "method not allowed" });
+    return;
+  }
+  const auth = await authenticateRequest(req);
+  if (auth) {
+    delete auth.account.sessionTokenHash;
+    delete auth.account.sessionIssuedAt;
+    await saveAccount(auth.username, auth.account);
+  }
+  sendJson(res, 200, { ok: true });
+}
+
+async function handleAuthenticatedAccountApi(req, res) {
+  const auth = await authenticateRequest(req);
+  if (!auth) {
+    sendJson(res, 401, { error: "login required" });
+    return;
+  }
+
+  if (req.method === "GET") {
+    sendJson(res, 200, { account: publicAccount(auth.account) });
+    return;
+  }
+
   if (req.method === "PUT" || req.method === "POST") {
     const body = await readJson(req);
-    const incoming = sanitizeAccountRecord(name, body.account || body || {});
-    const current = await loadAccount(name);
-    const account = mergeAccountRecord(name, current, incoming);
-    await saveAccount(name, account);
-    sendJson(res, 200, { account });
+    const incoming = sanitizeAccountRecord(auth.username, {
+      ...auth.account,
+      ...(body.account || body || {}),
+      username: auth.username,
+      displayName: normalizeAccountName((body.account || body || {}).displayName || auth.account.displayName || auth.username),
+      passwordHash: auth.account.passwordHash,
+      sessionTokenHash: auth.account.sessionTokenHash,
+      sessionIssuedAt: auth.account.sessionIssuedAt,
+    });
+    const account = mergeAccountRecord(auth.username, auth.account, incoming);
+    account.passwordHash = auth.account.passwordHash;
+    account.sessionTokenHash = auth.account.sessionTokenHash;
+    account.sessionIssuedAt = auth.account.sessionIssuedAt;
+    await saveAccount(auth.username, account);
+    sendJson(res, 200, { account: publicAccount(account) });
     return;
   }
+
   sendJson(res, 405, { error: "method not allowed" });
 }
 
@@ -1669,6 +1794,40 @@ async function saveAccount(name, account) {
   saveAccounts(accounts);
 }
 
+function createDefaultAccountRecord(username, displayName = "Player") {
+  const now = new Date().toISOString();
+  return {
+    username,
+    name: displayName,
+    displayName,
+    activeDeckId: "main",
+    gems: 0,
+    dust: 0,
+    collection: initialCollection(chrono.starterDeck || {}),
+    collectionRoyal: {},
+    updatedAt: now,
+    decks: {
+      main: {
+        id: "main",
+        name: "Main Deck",
+        mainDeck: chrono.starterDeck || {},
+        driveDeck: chrono.starterDriveDeck || {},
+        mainDeckRoyal: {},
+        driveDeckRoyal: {},
+        updatedAt: now,
+      },
+    },
+  };
+}
+
+function initialCollection(mainDeck = {}) {
+  const result = {};
+  Object.entries(mainDeck || {}).forEach(([id, count]) => {
+    if (cards[id]) result[id] = Math.max(result[id] || 0, Math.floor(Number(count) || 0));
+  });
+  return result;
+}
+
 function createAccountDb() {
   if (!DATABASE_URL) return null;
   let Pool;
@@ -1714,29 +1873,107 @@ function createAccountDb() {
 }
 
 function sanitizeAccountRecord(name, account = {}) {
-  return {
-    name,
+  const username = normalizeUsername(account.username || name);
+  const result = {
+    name: normalizeAccountName(account.displayName || account.name || username),
+    username,
+    displayName: normalizeAccountName(account.displayName || account.name || username),
     activeDeckId: sanitizeId(account.activeDeckId || "main"),
     gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
     dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
     collection: sanitizeCounts(account.collection),
     collectionRoyal: sanitizeCounts(account.collectionRoyal),
+    updatedAt: String(account.updatedAt || new Date().toISOString()),
     decks: sanitizeDecks(account.decks),
   };
+  if (isStoredPasswordHash(account.passwordHash)) result.passwordHash = account.passwordHash;
+  if (isStoredTokenHash(account.sessionTokenHash)) result.sessionTokenHash = account.sessionTokenHash;
+  if (account.sessionIssuedAt) result.sessionIssuedAt = String(account.sessionIssuedAt);
+  return result;
 }
 
 function mergeAccountRecord(name, current, incoming) {
   if (!current) return incoming;
+  const newer = accountUpdatedAt(incoming) >= accountUpdatedAt(current) ? incoming : current;
   return sanitizeAccountRecord(name, {
     ...current,
     ...incoming,
-    gems: Math.max(0, Math.floor(Number(incoming.gems) || 0)),
-    dust: Math.max(0, Math.floor(Number(incoming.dust) || 0)),
-    collection: incoming.collection || current.collection,
-    collectionRoyal: incoming.collectionRoyal || current.collectionRoyal,
+    username: current.username || incoming.username || name,
+    displayName: incoming.displayName || current.displayName || current.name || name,
+    gems: newer.gems,
+    dust: newer.dust,
+    collection: newer.collection,
+    collectionRoyal: newer.collectionRoyal,
+    updatedAt: newer.updatedAt,
     decks: { ...(current.decks || {}), ...(incoming.decks || {}) },
     activeDeckId: incoming.activeDeckId || current.activeDeckId,
+    passwordHash: current.passwordHash || incoming.passwordHash,
+    sessionTokenHash: current.sessionTokenHash || incoming.sessionTokenHash,
+    sessionIssuedAt: current.sessionIssuedAt || incoming.sessionIssuedAt,
   });
+}
+
+function accountUpdatedAt(account = {}) {
+  const time = Date.parse(account.updatedAt || "");
+  return Number.isFinite(time) ? time : 0;
+}
+
+async function authenticateRequest(req) {
+  const token = bearerToken(req);
+  if (!token) return null;
+  const username = normalizeUsername(req.headers["x-account-username"]);
+  if (!username) return null;
+  const account = await loadAccount(username);
+  if (!account?.sessionTokenHash || hashToken(token) !== account.sessionTokenHash) return null;
+  return { username, account: sanitizeAccountRecord(username, account) };
+}
+
+function bearerToken(req) {
+  const header = String(req.headers.authorization || "");
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
+}
+
+function applySessionToken(account) {
+  const token = crypto.randomBytes(32).toString("base64url");
+  account.sessionTokenHash = hashToken(token);
+  account.sessionIssuedAt = new Date().toISOString();
+  return token;
+}
+
+function hashToken(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("base64url");
+  const hash = crypto.scryptSync(String(password), salt, 64).toString("base64url");
+  return `scrypt$${salt}$${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  const parts = String(stored || "").split("$");
+  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
+  const expected = Buffer.from(parts[2], "base64url");
+  const actual = crypto.scryptSync(String(password), parts[1], expected.length);
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+}
+
+function publicAccount(account = {}) {
+  const clean = sanitizeAccountRecord(account.username || account.name, account);
+  delete clean.passwordHash;
+  delete clean.sessionTokenHash;
+  delete clean.sessionIssuedAt;
+  clean.isDeveloper = isDeveloperUsername(clean.username);
+  return clean;
+}
+
+function isStoredPasswordHash(value) {
+  return /^scrypt\$[A-Za-z0-9_-]+\$[A-Za-z0-9_-]+$/.test(String(value || ""));
+}
+
+function isStoredTokenHash(value) {
+  return /^[a-f0-9]{64}$/i.test(String(value || ""));
 }
 
 function sanitizeCounts(source = {}) {
@@ -1798,6 +2035,18 @@ function mergeMaxCounts(a = {}, b = {}) {
 
 function normalizeAccountName(name) {
   return String(name || "Player").trim().replace(/\s+/g, " ").slice(0, 24) || "Player";
+}
+
+function normalizeUsername(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 24);
+}
+
+function isDeveloperUsername(username) {
+  return normalizeUsername(username) === DEVELOPER_USERNAME;
 }
 
 function sanitizeId(id) {

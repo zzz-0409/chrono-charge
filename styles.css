@@ -131,7 +131,7 @@ button {
 .app-header {
   min-height: 48px;
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto minmax(240px, 1fr);
+  grid-template-columns: minmax(0, 1fr) 328px 280px;
   align-items: center;
   gap: 12px;
   margin-bottom: 4px;
@@ -145,6 +145,10 @@ main {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+}
+
+.brand-copy {
   min-width: 0;
 }
 
@@ -174,6 +178,16 @@ main {
   text-transform: uppercase;
 }
 
+.brand-kana {
+  margin: 0 0 3px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 h1,
 h2,
 h3,
@@ -185,6 +199,7 @@ h1 {
   margin-bottom: 0;
   font-size: 1.48rem;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .brand-title-row {
@@ -194,24 +209,74 @@ h1 {
   min-width: 0;
 }
 
+.brand-name {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: center;
+}
+
 .header-account {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .header-account input {
-  width: 124px;
+  width: 128px;
+  flex: 0 0 128px;
   min-height: 30px;
   padding: 0 9px;
   font-size: 0.82rem;
 }
 
-.header-account .ghost-button {
-  min-height: 30px;
-  padding: 0 10px;
+.account-username-label {
+  flex: 0 0 auto;
+  overflow: hidden;
+  color: var(--muted);
   font-size: 0.78rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-account .ghost-button {
+  flex: 0 0 auto;
+  min-width: 48px;
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+#logoutButton {
+  min-width: 72px;
+}
+
+.auth-dialog {
+  width: min(360px, calc(100vw - 32px));
+}
+
+.auth-dialog .profile-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.auth-dialog .profile-field input {
+  width: 100%;
+}
+
+.auth-dialog .auth-error {
+  min-height: 18px;
+  color: #ffb7b2;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.auth-dialog .auth-mode-switch {
+  width: 100%;
 }
 
 h2 {
@@ -229,11 +294,20 @@ h2 {
 }
 
 .view-tabs {
-  justify-self: center;
+  width: 328px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-self: start;
   padding: 5px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(23, 27, 33, 0.82);
+  transform: translateX(calc(-50% - 6px));
+}
+
+.view-tabs .tab-button {
+  width: 100%;
+  padding: 0 8px;
 }
 
 .tab-button,

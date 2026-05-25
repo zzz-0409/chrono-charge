@@ -26,9 +26,11 @@
     createRoomButton: document.querySelector("#createRoomButton"),
     joinRoomButton: document.querySelector("#joinRoomButton"),
     newDuelButton: document.querySelector("#newDuelButton"),
-    accountNameInput: document.querySelector("#accountNameInput"),
-    accountNameList: document.querySelector("#accountNameList"),
-    changeAccountButton: document.querySelector("#changeAccountButton"),
+    loginButton: document.querySelector("#loginButton"),
+    displayNameInput: document.querySelector("#displayNameInput"),
+    accountUsernameLabel: document.querySelector("#accountUsernameLabel"),
+    saveDisplayNameButton: document.querySelector("#saveDisplayNameButton"),
+    logoutButton: document.querySelector("#logoutButton"),
     deckPresetSelect: document.querySelector("#deckPresetSelect"),
     loadDeckButton: document.querySelector("#loadDeckButton"),
     deckNameInput: document.querySelector("#deckNameInput"),
@@ -131,6 +133,10 @@
     els.builderTab.classList.toggle("active", showBuilder);
     els.packTab.classList.toggle("active", showPack);
     els.duelTab.classList.toggle("active", showDuel);
+    els.loginButton.disabled = !showBuilder;
+    els.displayNameInput.disabled = !showBuilder;
+    els.saveDisplayNameButton.disabled = !showBuilder;
+    els.logoutButton.disabled = !showBuilder;
     if (showPack) packView?.render();
   };
 
@@ -267,6 +273,8 @@
       packView.render();
     },
     confirmDeleteDeck: askDeleteDeck,
+    openAppModal,
+    closeAppModal,
   });
   const packView = new PackView({
     store,
