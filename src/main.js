@@ -99,6 +99,20 @@
     toast: document.querySelector("#toast"),
   };
 
+  const playerPiles = document.querySelector(".player-piles");
+  if (playerPiles) {
+    const fieldCommand = document.createElement("div");
+    fieldCommand.className = "turn-command-field";
+    const fieldEndTurn = document.createElement("button");
+    fieldEndTurn.id = "endTurnFieldButton";
+    fieldEndTurn.className = "primary-button";
+    fieldEndTurn.type = "button";
+    fieldEndTurn.textContent = "ターン終了";
+    fieldCommand.append(fieldEndTurn);
+    playerPiles.prepend(fieldCommand);
+    els.endTurnButton = fieldEndTurn;
+  }
+
   let toastTimer = 0;
   const toast = (message) => {
     els.toast.textContent = message;

@@ -1914,8 +1914,8 @@ select {
 .board-area {
   min-height: 0;
   display: grid;
-  grid-template-rows: 208px 70px 208px 124px;
-  gap: 6px;
+  grid-template-rows: 220px 18px 220px 118px;
+  gap: 4px;
   align-content: center;
   border: 1px solid rgba(85, 199, 187, 0.38);
   border-radius: 8px;
@@ -1938,9 +1938,9 @@ select {
   position: relative;
   display: grid;
   grid-template-columns: 176px minmax(0, 1fr) 140px;
-  grid-template-rows: 58px 90px 58px;
+  grid-template-rows: 64px 96px 64px;
   align-items: center;
-  gap: 6px 8px;
+  gap: 10px 8px;
 }
 
 .board-area .side-board,
@@ -1951,6 +1951,7 @@ select {
 }
 
 .side-board.opponent-side {
+  grid-row: 1;
   background: transparent;
 }
 
@@ -1992,6 +1993,7 @@ select {
 }
 
 .side-board.player-side {
+  grid-row: 3;
   background: transparent;
 }
 
@@ -2303,6 +2305,18 @@ select {
   gap: 8px;
   justify-content: center;
   align-items: center;
+}
+
+.turn-command-field {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+}
+
+.turn-command-field .primary-button {
+  min-height: 34px;
+  padding: 0 14px;
+  white-space: nowrap;
 }
 
 .pile-slot {
@@ -2806,7 +2820,29 @@ select {
 }
 
 .unit-row .zone-slot {
-  min-height: calc(var(--card-field-height) + 6px);
+  min-height: calc(var(--card-field-height) + 24px);
+  align-items: start;
+  padding-top: 4px;
+}
+
+.field-atk-badge {
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  min-width: 48px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: #ffd36a;
+  background: rgba(6, 9, 13, 0.82);
+  border: 1px solid rgba(255, 211, 106, 0.64);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.34);
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+  pointer-events: none;
+  z-index: 5;
 }
 
 .core-row .tcg-card.small {

@@ -329,6 +329,12 @@
           });
           cardButton.addEventListener("click", () => this.selectCard(cardId, { zone: contextZone, index: i, owner }));
           slot.append(cardButton);
+          if (contextZone.includes("Unit") && CardRenderer.hasAtk(card)) {
+            const atkBadge = document.createElement("div");
+            atkBadge.className = "field-atk-badge";
+            atkBadge.textContent = String(this.game.getUnitAtk(player, value));
+            slot.append(atkBadge);
+          }
         } else {
           const empty = document.createElement("div");
           empty.className = "empty-zone";
