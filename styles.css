@@ -3209,7 +3209,7 @@ select {
   width: min(760px, calc(100% - 24px));
   max-height: min(620px, calc(100% - 36px));
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto 170px minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -3222,6 +3222,19 @@ select {
 
 .grave-dialog-head h2 {
   margin: 0;
+}
+
+.grave-focus {
+  min-height: 0;
+  border: 1px solid rgba(112, 223, 230, 0.22);
+  border-radius: 8px;
+  padding: 10px;
+  overflow: hidden;
+  background: rgba(4, 9, 13, 0.28);
+}
+
+.grave-focus .focus-card-detail {
+  height: 100%;
 }
 
 .grave-list {

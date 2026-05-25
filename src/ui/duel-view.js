@@ -294,7 +294,8 @@
           const player = owner === "player" ? this.game.player : this.game.enemy;
           const cardId = typeof value === "string" ? value : value.id;
           const isHiddenReaction = value?.facedown || (facedown && owner === "enemy" && !value.revealed);
-          const isFacedown = isHiddenReaction;
+          const isOwnSetReaction = facedown && owner === "player" && contextZone.includes("Reaction");
+          const isFacedown = isHiddenReaction || isOwnSetReaction;
           if (isFacedown) {
           const cardButton = CardRenderer.tcgCard(cardId, {
             small: true,
@@ -304,7 +305,13 @@
             finish: this.finishFor(cardId),
           });
             cardButton.setAttribute("aria-label", `${label}のセットカード ${i + 1}`);
-            cardButton.addEventListener("click", () => this.selectFacedownCard({ zone: contextZone, index: i, owner }));
+            cardButton.addEventListener("click", () => {
+              if (isOwnSetReaction && !isHiddenReaction) {
+                this.selectCard(cardId, { zone: contextZone, index: i, owner });
+              } else {
+                this.selectFacedownCard({ zone: contextZone, index: i, owner });
+              }
+            });
             slot.append(cardButton);
             element.append(slot);
             continue;
@@ -1051,20 +1058,26 @@
           <h2>${title}</h2>
           <button class="ghost-button" type="button">閉じる</button>
         </div>
+        <div class="grave-focus"></div>
         <div class="grave-list"></div>
       `;
       modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
+      const focus = modal.querySelector(".grave-focus");
+      const showGraveFocus = (id, originalIndex) => {
+        CardRenderer.focus(id, focus, { finish: this.finishFor(id) });
+        this.selectCard(id, { zone: "grave", index: originalIndex, owner });
+      };
       const list = modal.querySelector(".grave-list");
       if (player.grave.length === 0) {
         list.innerHTML = `<div class="small-note">捨て札はありません</div>`;
       } else {
+        showGraveFocus(player.grave[player.grave.length - 1], player.grave.length - 1);
         player.grave.slice().reverse().forEach((id, displayIndex) => {
           const originalIndex = player.grave.length - 1 - displayIndex;
           const card = CardRenderer.tcgCard(id, { interactive: true, finish: this.finishFor(id) });
           card.classList.add("grave-list-card");
           card.addEventListener("click", () => {
-            this.selectCard(id, { zone: "grave", index: originalIndex, owner });
-            this.closeModal();
+            showGraveFocus(id, originalIndex);
           });
           list.append(card);
         });
