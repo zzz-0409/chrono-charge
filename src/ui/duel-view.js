@@ -23,6 +23,7 @@
       this.toast = options.toast;
       this.setView = options.setView;
       this.onCpuResult = options.onCpuResult || (() => 0);
+      this.onOnlineResult = options.onOnlineResult || (() => 0);
       this.sounds = options.sounds || SoundEffects;
       this.game = null;
       this.selectedCardId = "star_scout";
@@ -1258,14 +1259,14 @@
 
     showResult(won) {
       const online = Boolean(this.game?.isOnline);
-      const reward = online ? 0 : this.onCpuResult(won);
+      const reward = online ? this.onOnlineResult(won) : this.onCpuResult(won);
       const modal = document.createElement("div");
       modal.className = "modal-dialog";
       modal.innerHTML = `
         <p class="eyebrow">${won ? "Victory" : "Defeat"}</p>
         <h2>${won ? "勝利" : "敗北"}</h2>
         <p>${resultMessage(won, online)}</p>
-        ${online ? "" : `<p class="result-reward"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> +${reward}</p>`}
+        <p class="result-reward"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> +${reward}</p>
         <div class="modal-actions">
           ${online ? "" : `<button id="resultRestart" class="primary-button" type="button">再戦</button>`}
           <button id="resultBuilder" class="ghost-button" type="button">デッキ編集</button>

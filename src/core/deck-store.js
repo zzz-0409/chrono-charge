@@ -23,6 +23,8 @@
   const PACK_COST = 100;
   const CPU_WIN_GEMS = 200;
   const CPU_LOSS_GEMS = 100;
+  const ONLINE_WIN_GEMS = 200;
+  const ONLINE_LOSS_GEMS = 100;
   const DUST_PER_DISMANTLE = 10;
   const ROYAL_DUST_PER_DISMANTLE = 100;
   const CRAFT_COST = 100;
@@ -718,6 +720,12 @@
 
     rewardCpuResult(won) {
       const gained = won ? CPU_WIN_GEMS : CPU_LOSS_GEMS;
+      this.addGems(gained);
+      return gained;
+    }
+
+    rewardOnlineResult(won) {
+      const gained = won ? ONLINE_WIN_GEMS : ONLINE_LOSS_GEMS;
       this.addGems(gained);
       return gained;
     }

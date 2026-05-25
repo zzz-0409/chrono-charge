@@ -250,6 +250,12 @@
       packView.render();
       return gained;
     },
+    onOnlineResult: (won) => {
+      const gained = store.rewardOnlineResult(won);
+      builderView.render({ preserveLibraryScroll: true });
+      packView.render();
+      return gained;
+    },
   });
   const builderView = new DeckBuilderView({
     store,
