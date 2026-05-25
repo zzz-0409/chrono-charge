@@ -1261,6 +1261,22 @@ select {
     inset 0 0 0 1px rgba(240, 185, 92, 0.14);
 }
 
+.deck-row.missing-owned-card {
+  border-color: rgba(238, 107, 97, 0.94);
+  background: rgba(238, 107, 97, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(238, 107, 97, 0.24),
+    0 0 16px rgba(238, 107, 97, 0.18),
+    inset 0 0 0 1px rgba(238, 107, 97, 0.12);
+}
+
+.missing-owned-label {
+  display: inline-block;
+  margin-left: 4px;
+  color: #ff9b94;
+  font-weight: 900;
+}
+
 .deck-row:focus-visible {
   outline: 3px solid rgba(121, 169, 255, 0.7);
   outline-offset: 2px;

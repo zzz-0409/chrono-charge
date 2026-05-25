@@ -777,15 +777,16 @@
       const totalCount = (normalCounts[id] || 0) + (royalCounts[id] || 0);
       const finishOwned = this.store.ownedCount(id, finish);
       const isRoyal = finish === "royal";
+      const isMissingOwned = count > finishOwned && !this.store.isAuthorAccount;
       const row = document.createElement("div");
-      row.className = `deck-row main-deck-row split-finish-row${isRoyal ? " royal-deck-row" : ""}${this.selectedCardId === id && this.selectedFinish === finish ? " selected" : ""}`;
+      row.className = `deck-row main-deck-row split-finish-row${isRoyal ? " royal-deck-row" : ""}${isMissingOwned ? " missing-owned-card" : ""}${this.selectedCardId === id && this.selectedFinish === finish ? " selected" : ""}`;
       row.innerHTML = `
         <div>
           <div class="deck-row-main">
             <span class="cost-chip">${card.cost}</span>
             <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
           </div>
-          <div class="deck-row-sub">${CardRenderer.rubyText(`${typeLabel} / ${card.attr} / 所持${finishOwned} / 合計${totalCount}/${limit}`)}</div>
+          <div class="deck-row-sub">${CardRenderer.rubyText(`${typeLabel} / ${card.attr} / 所持${finishOwned} / 合計${totalCount}/${limit}`)}${isMissingOwned ? ` <span class="missing-owned-label">不足</span>` : ""}</div>
         </div>
         <div class="deck-row-controls">
           <div class="deck-row-stepper">
