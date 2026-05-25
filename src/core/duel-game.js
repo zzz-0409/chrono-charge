@@ -17,6 +17,12 @@
     ["sosai_coco", "sosai_luna"],
   ];
 
+  const SOSAI_DRIVE_PAIR_IDS = [
+    "drive_sosai_unit",
+    "drive_sosai_nene_ruri_unit",
+    "drive_sosai_coco_luna_unit",
+  ];
+
   class Duelist {
     constructor(name, deck, driveDeck = []) {
       this.name = name;
@@ -494,6 +500,18 @@
         if (this.hasSosaiPair(player)) this.drawCards(player, 1);
         this.log(`${card.name}で効果を止めた。`);
         return { negates: true };
+      }
+      if (card.effect === "watchSignal") {
+        this.drawCards(player, 1);
+        this.log(`${card.name}で1枚ドロー。攻撃は継続する。`);
+        return { negates: false };
+      }
+      if (card.effect === "noisePing") {
+        const revealed = this.revealReactions(opponent, 1);
+        this.log(revealed > 0
+          ? `${card.name}で相手のリアクション1枚を表向きにした。`
+          : `${card.name}を発動。表向きにできるリアクションはなかった。`);
+        return { negates: false };
       }
       this.log(`${card.name}で止めた。`);
       return { negates: true };
@@ -1180,6 +1198,30 @@
       return true;
     }
 
+    async moveHandCardToCharge(player, predicate, choice = {}) {
+      const index = await this.chooseHandIndex(player, predicate, {
+        title: choice.title || "手札をチャージ",
+        message: choice.message || "チャージに置くカードを選んでください。",
+      });
+      if (index === -1) return false;
+      const [id] = player.hand.splice(index, 1);
+      player.charge.push({ id, tapped: false });
+      this.log(`${cards[id].name}をチャージに置いた。`);
+      return true;
+    }
+
+    async moveGraveCardToCharge(player, predicate, choice = {}) {
+      const index = await this.chooseGraveIndex(player, predicate, {
+        title: choice.title || "墓地をチャージ",
+        message: choice.message || "チャージに置くカードを選んでください。",
+      });
+      if (index === -1) return false;
+      const [id] = player.grave.splice(index, 1);
+      player.charge.push({ id, tapped: false });
+      this.log(`${cards[id].name}を墓地からチャージに置いた。`);
+      return true;
+    }
+
     async discardFromHand(player, choice = {}) {
       const index = await this.chooseHandIndex(player, () => true, {
         title: choice.title || "手札を捨てる",
@@ -1276,10 +1318,14 @@
     }
 
     hasSosaiPair(player) {
-      return SOSAI_PAIRS.some(([first, second]) => this.controlsCard(player, first) && this.controlsCard(player, second));
+      return (
+        player.units.some((unit) => unit && SOSAI_DRIVE_PAIR_IDS.includes(unit.id)) ||
+        SOSAI_PAIRS.some(([first, second]) => this.controlsCard(player, first) && this.controlsCard(player, second))
+      );
     }
 
     hasSosaiPairMate(player, id) {
+      if (SOSAI_DRIVE_PAIR_IDS.includes(id)) return true;
       return SOSAI_PAIRS.some(([first, second]) => (
         (id === first && this.controlsCard(player, second)) ||
         (id === second && this.controlsCard(player, first))

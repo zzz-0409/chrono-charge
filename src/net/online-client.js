@@ -11,6 +11,16 @@
 
   const POLL_MS = 900;
   const SESSION_KEY = "chrono-charge-online-session";
+  const SOSAI_PAIRS = [
+    ["sosai_hikari", "sosai_mint"],
+    ["sosai_nene", "sosai_ruri"],
+    ["sosai_coco", "sosai_luna"],
+  ];
+  const SOSAI_DRIVE_PAIR_IDS = [
+    "drive_sosai_unit",
+    "drive_sosai_nene_ruri_unit",
+    "drive_sosai_coco_luna_unit",
+  ];
 
   class OnlineClient {
     constructor(session) {
@@ -234,16 +244,32 @@
       return player.charge.filter((charge) => !charge.tapped).length >= cost;
     }
 
+    controlsCard(player, id) {
+      return player.units.some((unit) => unit?.id === id);
+    }
+
+    hasSosaiPairMate(player, id) {
+      if (SOSAI_DRIVE_PAIR_IDS.includes(id)) return true;
+      return SOSAI_PAIRS.some(([first, second]) => (
+        (id === first && this.controlsCard(player, second)) ||
+        (id === second && this.controlsCard(player, first))
+      ));
+    }
+
     getUnitAtk(player, unit) {
       if (!unit || !cards[unit.id]) return 0;
       const card = cards[unit.id];
       let atk = card.atk + (unit.atkMod || 0);
       if (card.name.includes("星導の衛士カイ")) atk += player.cores.filter(Boolean).length * 300;
       if (cardHasTheme(card, "黒機") && player.cores.includes("black_tower")) atk += 200;
+      if (cardHasTheme(card, "断刃") && player.cores.includes("blade_scaffold")) atk += 200;
+      if (cardHasTheme(card, "電脳") && player.cores.includes("cyber_network")) atk += 100;
+      if (cardHasTheme(card, "双彩") && player.cores.includes("sosai_pop_stage") && this.hasSosaiPairMate(player, unit.id)) atk += 300;
       if (cardHasTheme(card, "星導") && player.cores.includes("drive_star_core")) atk += 300;
       if (cardHasTheme(card, "黒機") && player.cores.includes("drive_black_core")) atk += 300;
       if (cardHasTheme(card, "断刃") && player.cores.includes("drive_blade_core")) atk += 300;
       if (cardHasTheme(card, "電脳") && player.cores.includes("drive_cyber_core")) atk += 200;
+      if (cardHasTheme(card, "双彩") && player.cores.includes("drive_sosai_core") && this.hasSosaiPairMate(player, unit.id)) atk += 500;
       return atk;
     }
   }

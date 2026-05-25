@@ -70,6 +70,27 @@
           await this.game.afterEffectStep();
           this.game.untapOneCharge(player, (card) => card.name.includes("星導"));
           break;
+        case "starNavigator":
+          if (await this.game.moveHandCardToCharge(player, (card) => card.name.includes("星導"), {
+            title: "星導カードをチャージ",
+            message: "手札からチャージに置く「星導」カードを選んでください。",
+          })) {
+            await this.game.afterEffectStep();
+            await this.game.addFromDeck(player, (card) => card.name.includes("星導"), {
+              title: "星導カードをサーチ",
+              message: "デッキから手札に加える「星導」カードを選んでください。",
+            });
+          }
+          break;
+        case "starChart":
+          if (await this.game.moveGraveCardToCharge(player, (card) => card.name.includes("星導"), {
+            title: "星導カードをチャージ",
+            message: "墓地からチャージに置く「星導」カードを選んでください。",
+          }) && this.game.controlsThemeUnit(player, "星導")) {
+            await this.game.afterEffectStep();
+            this.game.untapOneCharge(player);
+          }
+          break;
         case "starOrbit":
           this.game.drawCards(player, 1);
           break;
@@ -213,6 +234,29 @@
             message: "手札から追加召喚するユニットを選んでください。",
           }, opponent);
           break;
+        case "cyberBackchannel":
+          await this.game.addFromDeck(player, (card) => card.type === "リアクション" && (card.theme === "電脳" || !card.theme), {
+            title: "リアクションをサーチ",
+            message: "デッキから手札に加えるリアクションを選んでください。",
+          });
+          this.game.revealReactions(opponent, 1);
+          if (opponent.reactions.some((entry) => entry && this.game.reactionRevealed(entry))) {
+            await this.game.afterEffectStep(560);
+            await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+              title: "電脳ユニットを追加召喚",
+              message: "手札から追加召喚する「電脳」ユニットを選んでください。",
+            }, opponent);
+          }
+          break;
+        case "probeDrone":
+          if (this.game.revealReactions(opponent, 1) > 0) {
+            await this.game.afterEffectStep(560);
+            await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+              title: "電脳ユニットを追加召喚",
+              message: "手札から追加召喚する「電脳」ユニットを選んでください。",
+            }, opponent);
+          }
+          break;
         case "sosaiHikari":
           await this.game.addFromDeck(player, (card) => card.id === "sosai_mint", {
             title: "ミントをサーチ",
@@ -298,6 +342,16 @@
             title: "手札を1枚捨てる",
             message: "墓地に送るカードを選んでください。",
           });
+          break;
+        case "genericFieldNotes":
+          this.game.drawCards(player, 1);
+          if (!player.units.some(Boolean)) {
+            await this.game.afterEffectStep();
+            await this.game.moveHandCardToCharge(player, () => true, {
+              title: "手札をチャージ",
+              message: "手札からチャージに置くカードを選んでください。",
+            });
+          }
           break;
         case "bindUnit":
           this.game.exhaustBestUnit(opponent);

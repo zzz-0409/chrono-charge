@@ -280,6 +280,11 @@
     }
 
     craftSelectedCard() {
+      if (this.selectedFinish === "royal") {
+        this.toast("Rカードは生成できません。パックから入手してください。");
+        this.render({ preserveLibraryScroll: true });
+        return;
+      }
       const result = this.store.craftCard(this.selectedCardId);
       if (!result.ok) {
         if (result.reason === "dust") this.toast("分解アイテムが足りません。");
@@ -525,8 +530,13 @@
       const activeCount = activeFinish === "royal" ? royalCount : count;
       const canAddActive = activeFinish === "royal" ? canAddRoyal : canAdd;
       const canRemoveActive = activeFinish === "royal" ? canRemoveRoyal : canRemove;
-      const canDismantle = !this.store.isAuthorAccount && owned >= 4;
-      const canCraft = !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
+      const selectedOwned = activeFinish === "royal" ? royalOwned : owned;
+      const dismantleGain = activeFinish === "royal" ? this.store.royalDustPerDismantle : this.store.dustPerDismantle;
+      const canDismantle = !this.store.isAuthorAccount && selectedOwned >= 1;
+      const canCraft = activeFinish !== "royal" && !this.store.isAuthorAccount && this.store.dust >= this.store.craftCost;
+      const craftLabel = activeFinish === "royal"
+        ? "生成不可"
+        : `生成 <img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> -${this.store.craftCost}`;
 
       target.innerHTML = `
         <div class="preview-control-copy">
@@ -543,8 +553,8 @@
           <button class="mini-button" type="button" data-action="preview-add">+</button>
         </div>
         <div class="craft-controls">
-          <button class="ghost-button compact-action" type="button" data-action="preview-dismantle"><img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> +${this.store.dustPerDismantle}</button>
-          <button class="primary-button compact-action" type="button" data-action="preview-craft"><img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> ${this.store.craftCost}</button>
+          <button class="ghost-button compact-action" type="button" data-action="preview-dismantle">分解 <img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> +${dismantleGain}</button>
+          <button class="primary-button compact-action" type="button" data-action="preview-craft">${craftLabel}</button>
         </div>
       `;
 

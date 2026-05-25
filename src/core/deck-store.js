@@ -24,6 +24,7 @@
   const CPU_WIN_GEMS = 200;
   const CPU_LOSS_GEMS = 100;
   const DUST_PER_DISMANTLE = 10;
+  const ROYAL_DUST_PER_DISMANTLE = 100;
   const CRAFT_COST = 100;
   const ROYAL_FINISH = "royal";
   const ROYAL_RATE = 0.01;
@@ -663,10 +664,11 @@
       if (!cards[id]) return { ok: false, reason: "unknown" };
       if (this.isAuthorAccount) return { ok: false, reason: "author" };
       const owned = this.ownedCount(id, finish);
-      if (owned < 4) return { ok: false, reason: "owned" };
+      if (owned < 1) return { ok: false, reason: "owned" };
       const collection = finish === ROYAL_FINISH ? this.activeAccountData.collectionRoyal : this.activeAccountData.collection;
+      const gained = finish === ROYAL_FINISH ? ROYAL_DUST_PER_DISMANTLE : DUST_PER_DISMANTLE;
       collection[id] = owned - 1;
-      this.activeAccountData.dust = this.dust + DUST_PER_DISMANTLE;
+      this.activeAccountData.dust = this.dust + gained;
       this.persist();
       return {
         ok: true,
@@ -674,7 +676,7 @@
         finish,
         ownedBefore: owned,
         ownedAfter: this.ownedCount(id, finish),
-        gained: DUST_PER_DISMANTLE,
+        gained,
         dust: this.dust,
       };
     }
@@ -682,17 +684,17 @@
     bulkDismantleExtras() {
       if (this.isAuthorAccount) return { ok: false, reason: "author", dismantled: 0, gained: 0 };
       let dismantled = 0;
-      [this.activeAccountData.collection, this.activeAccountData.collectionRoyal].forEach((collection) => {
-        Object.entries(collection || {}).forEach(([id, count]) => {
-          if (!cards[id]) return;
-          const extra = Math.max(0, Math.floor(Number(count) || 0) - 3);
-          if (extra <= 0) return;
-          collection[id] = count - extra;
-          dismantled += extra;
-        });
+      let gained = 0;
+      const collection = this.activeAccountData.collection;
+      Object.entries(collection || {}).forEach(([id, count]) => {
+        if (!cards[id]) return;
+        const extra = Math.max(0, Math.floor(Number(count) || 0) - 3);
+        if (extra <= 0) return;
+        collection[id] = count - extra;
+        dismantled += extra;
+        gained += extra * DUST_PER_DISMANTLE;
       });
       if (dismantled <= 0) return { ok: false, reason: "empty", dismantled: 0, gained: 0 };
-      const gained = dismantled * DUST_PER_DISMANTLE;
       this.activeAccountData.dust = this.dust + gained;
       this.persist();
       return { ok: true, dismantled, gained, dust: this.dust };
@@ -768,6 +770,10 @@
 
     get dustPerDismantle() {
       return DUST_PER_DISMANTLE;
+    }
+
+    get royalDustPerDismantle() {
+      return ROYAL_DUST_PER_DISMANTLE;
     }
 
     get craftCost() {
