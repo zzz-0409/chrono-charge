@@ -380,6 +380,7 @@ function resolvePlayedCard(game, player, opponent, card, negated, seat, preferre
 }
 
 function attackWithUnit(game, player, opponent, attackerIndex, targetIndex) {
+  if (!canAttack(game, player)) return false;
   const unit = player.units[attackerIndex];
   if (!unit || unit.exhausted) return false;
   const attackerCard = cards[unit.id];
@@ -394,6 +395,14 @@ function attackWithUnit(game, player, opponent, attackerIndex, targetIndex) {
   }
 
   resolveAttack(game, player, opponent, attackerIndex, targetIndex);
+  return true;
+}
+
+function canAttack(game, player) {
+  if (!game || !player) return false;
+  if (game.finished || game.pendingChoice) return false;
+  if (seatOf(game, player) !== game.active) return false;
+  if (game.turn === 1 && game.active === game.firstActive && game.completedTurns === 0) return false;
   return true;
 }
 
@@ -1343,6 +1352,8 @@ function roomSnapshot(room, seat) {
     version: room.version,
     seat,
     turn: game.turn,
+    firstActive: game.firstActive === seat ? "player" : "enemy",
+    completedTurns: game.completedTurns || 0,
     active: game.active === seat ? "player" : "enemy",
     finished: game.finished,
     won: game.finished ? game.winner === seat : false,

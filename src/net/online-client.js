@@ -82,6 +82,8 @@
       this.isOnline = true;
       this.status = "waiting";
       this.turn = 1;
+      this.firstActive = "enemy";
+      this.completedTurns = 0;
       this.active = "enemy";
       this.finished = false;
       this.won = false;
@@ -112,6 +114,11 @@
       return this.status === "playing" && this.active === "player" && !this.pendingChoice && !this.waitingChoice && !this.busy && !this.finished;
     }
 
+    canAttack() {
+      if (!this.canPlayerAct()) return false;
+      return !(this.turn === 1 && this.firstActive === "player" && this.completedTurns === 0);
+    }
+
     async playFromHand(index, slotIndex = null) {
       return this.sendAction({ type: "playFromHand", index, slotIndex });
     }
@@ -125,6 +132,7 @@
     }
 
     async attackWithUnit(attackerIndex, targetIndex) {
+      if (!this.canAttack()) return false;
       return this.sendAction({ type: "attack", attackerIndex, targetIndex });
     }
 
@@ -165,6 +173,8 @@
     applySnapshot(snapshot) {
       this.status = snapshot.status;
       this.turn = snapshot.turn || 1;
+      this.firstActive = snapshot.firstActive || "enemy";
+      this.completedTurns = Number(snapshot.completedTurns || 0);
       this.active = snapshot.active || "enemy";
       this.finished = Boolean(snapshot.finished);
       this.won = Boolean(snapshot.won);

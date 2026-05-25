@@ -926,11 +926,12 @@
         const targets = this.game.enemy.units
           .map((target, index) => ({ target, index }))
           .filter((entry) => entry.target);
+        const canAttack = this.game.canAttack?.(this.game.player) && !unit.exhausted;
         if (targets.length === 0) {
-          this.addAction("直接攻撃", () => this.game.attackWithUnit(this.selectedContext.index, null), !unit.exhausted);
+          this.addAction("直接攻撃", () => this.game.attackWithUnit(this.selectedContext.index, null), canAttack);
         } else {
           targets.forEach((entry) => {
-            this.addAction(`敵${entry.index + 1}へ攻撃`, () => this.game.attackWithUnit(this.selectedContext.index, entry.index), !unit.exhausted);
+            this.addAction(`敵${entry.index + 1}へ攻撃`, () => this.game.attackWithUnit(this.selectedContext.index, entry.index), canAttack);
           });
         }
       }

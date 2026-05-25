@@ -107,6 +107,12 @@
       return this.active === "player" && !this.busy && !this.finished;
     }
 
+    canAttack(player = this.player) {
+      if (this.turn === 1 && this.active === this.firstActive && this.completedTurns === 0) return false;
+      if (player === this.player) return this.canPlayerAct();
+      return this.active === "enemy" && this.busy && !this.finished;
+    }
+
     async playFromHand(index, preferredSlot = null) {
       if (!this.canPlayerAct()) return false;
       const id = this.player.hand[index];
@@ -184,6 +190,7 @@
 
     async attackWithUnit(attackerIndex, targetIndex) {
       if (!this.canPlayerAct()) return;
+      if (!this.canAttack(this.player)) return;
       const unit = this.player.units[attackerIndex];
       if (!unit || unit.exhausted) return;
 
@@ -250,6 +257,7 @@
       }
 
       for (let i = 0; i < this.enemy.units.length; i += 1) {
+        if (!this.canAttack(this.enemy)) break;
         const unit = this.enemy.units[i];
         if (!unit || unit.exhausted || this.finished) continue;
         const target = this.cpu.chooseAttackTarget(this.player);
