@@ -610,19 +610,29 @@ function queueReactionChainStep(game, chain, event, reactor, opponent, continuat
 function resolveReactionChain(game, chain, continuation) {
   let baseNegated = false;
   if (chain.length > 0) log(game, "チェーンを解決。");
-  for (let i = chain.length - 1; i >= 0; i -= 1) {
+  const resolveAt = (i) => {
+    if (i < 0) {
+      continuation(baseNegated);
+      return;
+    }
     const link = chain[i];
     if (link.negated) {
       log(game, `${link.card.name}は無効化された。`);
-      continue;
+      resolveAt(i - 1);
+      return;
     }
-    const result = applyReactionEffect(game, link.card, link.player, link.opponent, link.event);
-    if (result?.negates) {
-      if (i === 0) baseNegated = true;
-      else chain[i - 1].negated = true;
-    }
-  }
-  continuation(baseNegated);
+    const finish = (result) => {
+      if (result?.negates) {
+        if (i === 0) baseNegated = true;
+        else chain[i - 1].negated = true;
+      }
+      resolveAt(i - 1);
+    };
+    const result = applyReactionEffect(game, link.card, link.player, link.opponent, link.event, finish);
+    if (result?.pending) return;
+    finish(result);
+  };
+  resolveAt(chain.length - 1);
 }
 
 function getUsableReactions(player, trigger) {
@@ -644,7 +654,7 @@ function autoReact(game, reactor, opponent, sourceCard, trigger) {
   return true;
 }
 
-function applyReactionEffect(game, card, player, opponent, event = {}) {
+function applyReactionEffect(game, card, player, opponent, event = {}, after = null) {
   if (card.effect === "negateAttackDamage") {
     const dealt = damage(game, opponent, 500);
     log(game, `${card.name}で攻撃を止め、${dealt}ダメージ。`);
@@ -671,10 +681,7 @@ function applyReactionEffect(game, card, player, opponent, event = {}) {
         destroyUnit(opponent, targetIndex);
         log(game, `${card.name}で${targetName}を破壊。`);
       } else {
-        opponent.units[targetIndex].exhausted = true;
-        opponent.units[targetIndex].exhaustedUntilOwnerTurnEnd = true;
-        opponent.units[targetIndex].exhaustedUntilOwnerTurnEndReady = false;
-        log(game, `${card.name}で${targetName}を行動済みにした。`);
+        log(game, `${card.name}で攻撃を止めた。`);
       }
       return { negates: true };
     }
@@ -687,7 +694,16 @@ function applyReactionEffect(game, card, player, opponent, event = {}) {
     return { negates: true };
   }
   if (card.effect === "cyberCounterhack") {
-    if (countThemeUnits(player, "電脳") >= 2) revealReactions(opponent, 1);
+    if (countThemeUnits(player, "電脳") >= 2) {
+      let immediateResult = null;
+      const queued = chooseRevealReaction(game, player, opponent, () => {
+        log(game, `${card.name}で効果を止めた。`);
+        if (after) after({ negates: true });
+        else immediateResult = { negates: true };
+      });
+      if (queued) return { pending: true };
+      return immediateResult || { negates: true };
+    }
     log(game, `${card.name}で効果を止めた。`);
     return { negates: true };
   }
@@ -702,11 +718,16 @@ function applyReactionEffect(game, card, player, opponent, event = {}) {
     return { negates: false };
   }
   if (card.effect === "noisePing") {
-    const revealed = revealReactions(opponent, 1);
-    log(game, revealed > 0
-      ? `${card.name}で相手のリアクション1枚を表向きにした。`
-      : `${card.name}を発動。表向きにできるリアクションはなかった。`);
-    return { negates: false };
+    let immediateResult = null;
+    const queued = chooseRevealReaction(game, player, opponent, (revealed) => {
+      log(game, revealed
+        ? `${card.name}で相手のリアクション1枚を表向きにした。`
+        : `${card.name}を発動。表向きにできるリアクションはなかった。`);
+      if (after) after({ negates: false });
+      else immediateResult = { negates: false };
+    });
+    if (queued) return { pending: true };
+    return immediateResult || { negates: false };
   }
   log(game, `${card.name}で止めた。`);
   return { negates: true };
@@ -1124,6 +1145,22 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         });
       }
       return false;
+    case "blackSupplyEngineer":
+      if (hasThemeCore(player, "黒機")) {
+        return chooseFromDeck(game, player, (card) => card.type === "スペル" && card.theme === "黒機", {
+          title: "黒機スペルをサーチ",
+          message: "デッキから手札に加える「黒機」スペルを選んでください。",
+        });
+      }
+      damage(game, opponent, 300);
+      break;
+    case "blackBindingGunner":
+      if (hasThemeCore(player, "黒機")) {
+        return chooseExhaustUnit(game, player, opponent, (exhausted) => {
+          if (exhausted) drawCards(player, 1, game);
+        });
+      }
+      break;
     case "blackAnchor":
       return chooseExhaustUnit(game, player, opponent, () => {
         if (player.cores.some(Boolean)) damage(game, opponent, 700);
@@ -1177,11 +1214,10 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "電脳リアクションをサーチ",
         message: "デッキから手札に加えるリアクションを選んでください。",
       });
-    case "cyberShionSpecial": {
-      const revealed = revealReactions(opponent, 1);
-      if (revealed > 0) damage(game, opponent, 500);
-      break;
-    }
+    case "cyberShionSpecial":
+      return chooseRevealReaction(game, player, opponent, (revealed) => {
+        if (revealed) damage(game, opponent, 500);
+      });
     case "cyberYuna":
       return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 2, {
         title: "電脳ユニットを追加召喚",
@@ -1197,7 +1233,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         message: "墓地に送るカードを選んでください。",
         delayBeforeOpenMs: 560,
       }, () => {
-        removeRevealedReaction(game, opponent);
+        chooseRemoveRevealedReaction(game, player, opponent);
       });
     case "cyberPreview":
       return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
@@ -1207,15 +1243,15 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         if (moved) drawCards(player, 1, game);
       });
     case "cyberIntrusion": {
-      revealReactions(opponent, 1);
-      if (countThemeUnits(player, "電脳") >= 2) {
-        return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳"), {
-          title: "電脳ユニットを追加召喚",
-          message: "手札から追加召喚するユニットを選んでください。",
-          delayBeforeOpenMs: 560,
-        }, opponent);
-      }
-      return false;
+      return chooseRevealReaction(game, player, opponent, () => {
+        if (countThemeUnits(player, "電脳") >= 2) {
+          chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳"), {
+            title: "電脳ユニットを追加召喚",
+            message: "手札から追加召喚するユニットを選んでください。",
+            delayBeforeOpenMs: 560,
+          }, opponent);
+        }
+      });
     }
     case "cyberNetwork":
       return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
@@ -1227,24 +1263,26 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "リアクションをサーチ",
         message: "デッキから手札に加えるリアクションを選んでください。",
       }, () => {
-        revealReactions(opponent, 1);
-        if (opponent.reactions.some((entry) => reactionId(entry) && reactionRevealed(entry))) {
-          chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+        chooseRevealReaction(game, player, opponent, () => {
+          if (opponent.reactions.some((entry) => reactionId(entry) && reactionRevealed(entry))) {
+            chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+              title: "電脳ユニットを追加召喚",
+              message: "手札から追加召喚する「電脳」ユニットを選んでください。",
+              delayBeforeOpenMs: 560,
+            }, opponent);
+          }
+        });
+      });
+    case "probeDrone":
+      return chooseRevealReaction(game, player, opponent, (revealed) => {
+        if (revealed) {
+          chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 1, {
             title: "電脳ユニットを追加召喚",
             message: "手札から追加召喚する「電脳」ユニットを選んでください。",
             delayBeforeOpenMs: 560,
           }, opponent);
         }
       });
-    case "probeDrone":
-      if (revealReactions(opponent, 1) > 0) {
-        return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
-          title: "電脳ユニットを追加召喚",
-          message: "手札から追加召喚する「電脳」ユニットを選んでください。",
-          delayBeforeOpenMs: 560,
-        }, opponent);
-      }
-      break;
     case "sosaiHikari":
       return chooseFromDeck(game, player, (card) => card.id === "sosai_mint", {
         title: "ミントをサーチ",
@@ -1252,11 +1290,10 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       }, () => {
         if (controlsCard(player, "sosai_mint")) drawCards(player, 1, game);
       });
-    case "sosaiMint": {
-      revealReactions(opponent, 1);
-      if (controlsCard(player, "sosai_hikari")) removeRevealedReaction(game, opponent);
-      break;
-    }
+    case "sosaiMint":
+      return chooseRevealReaction(game, player, opponent, () => {
+        if (controlsCard(player, "sosai_hikari")) chooseRemoveRevealedReaction(game, player, opponent);
+      });
     case "sosaiNene":
       return chooseFromDeck(game, player, (card) => card.id === "sosai_ruri", {
         title: "ルリをサーチ",
@@ -1318,6 +1355,14 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         return chooseFromHandToCharge(game, player, () => true, {
           title: "手札をチャージ",
           message: "手札からチャージに置くカードを選んでください。",
+        });
+      }
+      break;
+    case "genericSurveyTeam":
+      if (player.charge.length < opponent.charge.length) {
+        return chooseFromHandToCharge(game, player, () => true, {
+          title: "手札をチャージ",
+          message: "前線測量班でチャージに置くカードを選んでください。",
         });
       }
       break;
@@ -1568,6 +1613,10 @@ function hasSosaiPairMate(player, id) {
 
 function controlsThemeUnit(player, theme) {
   return player.units.some((unit) => unit && cardHasTheme(cards[unit.id], theme));
+}
+
+function hasThemeCore(player, theme) {
+  return player.cores.some((id) => cardHasTheme(cards[id], theme));
 }
 
 function getUnitAtk(player, unit, game = null) {

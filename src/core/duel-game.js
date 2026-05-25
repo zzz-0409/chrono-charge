@@ -495,8 +495,7 @@
             this.destroyUnit(opponent, targetIndex);
             this.log(`${card.name}で${targetName}を破壊。`);
           } else {
-            this.exhaustUnitUntilOwnerTurnEnd(opponent, targetIndex);
-            this.log(`${card.name}で${targetName}を次のターン終了まで行動済みにした。`);
+            this.log(`${card.name}で攻撃を止めた。`);
           }
           return { negates: true };
         }
@@ -1396,6 +1395,10 @@
 
     hasCore(player, id) {
       return player.cores.includes(id);
+    }
+
+    hasThemeCore(player, theme) {
+      return player.cores.some((id) => cardHasTheme(cards[id], theme));
     }
 
     async chooseUnitTargetIndex(player, predicate = () => true, choice = {}) {

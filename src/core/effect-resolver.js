@@ -109,6 +109,22 @@
             });
           }
           break;
+        case "blackSupplyEngineer":
+          if (this.game.hasThemeCore(player, "黒機")) {
+            await this.game.addFromDeck(player, (card) => card.type === "スペル" && card.theme === "黒機", {
+              title: "黒機スペルをサーチ",
+              message: "デッキから手札に加える「黒機」スペルを選んでください。",
+            });
+          } else {
+            this.game.damage(opponent, 300);
+          }
+          break;
+        case "blackBindingGunner":
+          if (this.game.hasThemeCore(player, "黒機") && await this.game.exhaustBestUnit(opponent)) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
         case "blackAnchor":
           await this.game.exhaustBestUnit(opponent);
           await this.game.afterEffectStep();
@@ -251,7 +267,7 @@
         case "probeDrone":
           if (await this.game.revealReactions(opponent, 1) > 0) {
             await this.game.afterEffectStep(560);
-            await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+            await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 1, {
               title: "電脳ユニットを追加召喚",
               message: "手札から追加召喚する「電脳」ユニットを選んでください。",
             }, opponent);
@@ -350,6 +366,14 @@
             await this.game.moveHandCardToCharge(player, () => true, {
               title: "手札をチャージ",
               message: "手札からチャージに置くカードを選んでください。",
+            });
+          }
+          break;
+        case "genericSurveyTeam":
+          if (player.charge.length < opponent.charge.length) {
+            await this.game.moveHandCardToCharge(player, () => true, {
+              title: "手札をチャージ",
+              message: "前線測量班でチャージに置くカードを選んでください。",
             });
           }
           break;
