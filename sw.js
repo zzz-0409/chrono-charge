@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260526-charge-list";
+const CACHE_VERSION = "chrono-drive-pwa-20260526-reaction-ready";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260526chargelist",
+  "/styles.css?v=20260526reactionready",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -25,7 +25,7 @@ const APP_SHELL_URLS = [
   "/src/ui/deck-builder-view.js?v=20260526dismantlelabel",
   "/src/ui/pack-view.js?v=20260525zoom",
   "/src/net/online-client.js?v=20260525openingattack",
-  "/src/ui/duel-view.js?v=20260526chargelist",
+  "/src/ui/duel-view.js?v=20260526reactionready",
   "/src/main.js?v=20260526nameguard"
 ];
 

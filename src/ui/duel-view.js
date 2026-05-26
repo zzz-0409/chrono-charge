@@ -264,6 +264,14 @@
 
     renderCharge(player, element, hiddenNames) {
       element.replaceChildren();
+      const activeCount = player.charge.filter((charge) => !charge.tapped).length;
+      const totalCount = player.charge.length;
+      const countLabel = document.createElement("span");
+      countLabel.className = "charge-count-badge";
+      countLabel.textContent = `${activeCount} / ${totalCount}`;
+      countLabel.setAttribute("aria-hidden", "true");
+      element.append(countLabel);
+      element.setAttribute("aria-label", `チャージ ${activeCount} / ${totalCount}`);
       player.charge.forEach((charge, index) => {
         const cardId = typeof charge === "string" ? charge : charge?.id;
         const card = cards[cardId];
@@ -296,17 +304,21 @@
           const owner = contextZone.startsWith("player") ? "player" : "enemy";
           const player = owner === "player" ? this.game.player : this.game.enemy;
           const cardId = typeof value === "string" ? value : value.id;
+          const card = cards[cardId];
           const isHiddenReaction = value?.facedown || (facedown && owner === "enemy" && !value.revealed);
           const isOwnSetReaction = facedown && owner === "player" && contextZone.includes("Reaction");
           const isFacedown = isHiddenReaction || isOwnSetReaction;
           if (isFacedown) {
-          const cardButton = CardRenderer.tcgCard(cardId, {
-            small: true,
-            interactive: true,
-            selected: this.isSelected(contextZone, i),
-            facedown: true,
-            finish: this.finishFor(cardId),
-          });
+            const cardButton = CardRenderer.tcgCard(cardId, {
+              small: true,
+              interactive: true,
+              selected: this.isSelected(contextZone, i),
+              facedown: true,
+              finish: this.finishFor(cardId),
+            });
+            if (isOwnSetReaction && card && this.game.canPay(player, card.cost)) {
+              cardButton.classList.add("reaction-ready-card");
+            }
             cardButton.setAttribute("aria-label", `${label}のセットカード ${i + 1}`);
             cardButton.addEventListener("click", () => {
               if (isOwnSetReaction && !isHiddenReaction) {
@@ -319,7 +331,6 @@
             element.append(slot);
             continue;
           }
-          const card = cards[cardId];
           if (!card) {
             const empty = document.createElement("div");
             empty.className = "empty-zone";
@@ -380,11 +391,15 @@
         this.els.enemyHandZone.append(back);
       });
       this.game.player.hand.forEach((id, index) => {
+        const handCard = cards[id];
+        const lacksCost = handCard && !this.game.canPay(this.game.player, handCard.cost || 0);
         const card = CardRenderer.tcgCard(id, {
           interactive: true,
           selected: this.isSelected("hand", index),
           finish: this.finishFor(id),
         });
+        card.classList.toggle("cost-unavailable-card", Boolean(lacksCost));
+        if (lacksCost) card.setAttribute("aria-disabled", "true");
         if (index >= playerHandCount - playerDrawn) this.applyDrawAnimation(card, index - (playerHandCount - playerDrawn), "player");
         if (this.canDragHandCard(index)) {
           card.classList.add("draggable-hand-card");
@@ -1074,24 +1089,31 @@
       modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
       const focus = modal.querySelector(".grave-focus");
       focus.addEventListener("click", (event) => CardZoom.openFromEvent(event));
+      const list = modal.querySelector(".grave-list");
+      const markSelectedListCard = (selectedIndex) => {
+        list.querySelectorAll(".grave-list-card").forEach((card) => {
+          card.classList.toggle("selected", card.dataset.listIndex === String(selectedIndex));
+        });
+      };
       const showGraveFocus = (id, originalIndex) => {
         CardRenderer.focus(id, focus, { finish: this.finishFor(id) });
         this.selectCard(id, { zone: "grave", index: originalIndex, owner });
+        markSelectedListCard(originalIndex);
       };
-      const list = modal.querySelector(".grave-list");
       if (player.grave.length === 0) {
         list.innerHTML = `<div class="small-note">捨て札はありません</div>`;
       } else {
-        showGraveFocus(player.grave[player.grave.length - 1], player.grave.length - 1);
         player.grave.slice().reverse().forEach((id, displayIndex) => {
           const originalIndex = player.grave.length - 1 - displayIndex;
           const card = CardRenderer.tcgCard(id, { interactive: true, finish: this.finishFor(id) });
           card.classList.add("grave-list-card");
+          card.dataset.listIndex = String(originalIndex);
           card.addEventListener("click", () => {
             showGraveFocus(id, originalIndex);
           });
           list.append(card);
         });
+        showGraveFocus(player.grave[player.grave.length - 1], player.grave.length - 1);
       }
       this.openModal(modal);
     }
@@ -1120,23 +1142,29 @@
       modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
       const focus = modal.querySelector(".grave-focus");
       focus.addEventListener("click", (event) => CardZoom.openFromEvent(event));
+      const list = modal.querySelector(".charge-list");
+      const markSelectedListCard = (selectedIndex) => {
+        list.querySelectorAll(".grave-list-card").forEach((card) => {
+          card.classList.toggle("selected", card.dataset.listIndex === String(selectedIndex));
+        });
+      };
       const showChargeFocus = (entry, originalIndex) => {
         const id = typeof entry === "string" ? entry : entry?.id;
         if (!id) return;
         CardRenderer.focus(id, focus, { finish: this.finishFor(id) });
         this.selectCard(id, { zone: "charge", index: originalIndex, owner });
+        markSelectedListCard(originalIndex);
       };
-      const list = modal.querySelector(".charge-list");
       if (player.charge.length === 0) {
         list.innerHTML = `<div class="small-note">チャージはありません</div>`;
       } else {
-        showChargeFocus(player.charge[player.charge.length - 1], player.charge.length - 1);
         player.charge.slice().reverse().forEach((entry, displayIndex) => {
           const originalIndex = player.charge.length - 1 - displayIndex;
           const id = typeof entry === "string" ? entry : entry?.id;
           if (!id) return;
           const card = CardRenderer.tcgCard(id, { interactive: true, finish: this.finishFor(id) });
           card.classList.add("grave-list-card", "charge-list-card");
+          card.dataset.listIndex = String(originalIndex);
           card.classList.toggle("tapped", Boolean(entry?.tapped));
           card.setAttribute("aria-label", `${cards[id]?.name || "カード"} ${entry?.tapped ? "非アクティブ" : "アクティブ"}`);
           card.addEventListener("click", () => {
@@ -1144,6 +1172,7 @@
           });
           list.append(card);
         });
+        showChargeFocus(player.charge[player.charge.length - 1], player.charge.length - 1);
       }
       this.openModal(modal);
     }
