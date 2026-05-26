@@ -2,8 +2,16 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#101826">
+    <meta name="application-name" content="Chrono Drive TCG">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Chrono Drive">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Chrono Drive TCG</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
     <link rel="stylesheet" href="styles.css?v=20260526branddrive">
     <script defer src="src/data/cards.js?v=20260525exhaustlock"></script>
     <script defer src="src/core/deck-store.js?v=20260525dismantlefix"></script>
@@ -19,6 +27,85 @@
     <script defer src="src/net/online-client.js?v=20260525openingattack"></script>
     <script defer src="src/ui/duel-view.js?v=20260525onlinereward"></script>
     <script defer src="src/main.js?v=20260526nameguard"></script>
+    <script>
+      (() => {
+        const closestScrollable = (target) => {
+          for (let el = target instanceof Element ? target : target?.parentElement; el && el !== document.body; el = el.parentElement) {
+            const style = window.getComputedStyle(el);
+            const canScrollY = /(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight;
+            const canScrollX = /(auto|scroll)/.test(style.overflowX) && el.scrollWidth > el.clientWidth;
+            if (canScrollY || canScrollX) return { el, canScrollY, canScrollX };
+          }
+          return null;
+        };
+
+        const preventZoom = (event) => {
+          event.preventDefault();
+        };
+
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+
+        document.addEventListener("touchstart", (event) => {
+          if (event.touches.length !== 1) return;
+          lastTouchX = event.touches[0].clientX;
+          lastTouchY = event.touches[0].clientY;
+        }, { passive: true });
+
+        document.addEventListener("gesturestart", preventZoom, { passive: false });
+        document.addEventListener("gesturechange", preventZoom, { passive: false });
+        document.addEventListener("gestureend", preventZoom, { passive: false });
+        document.addEventListener("touchmove", (event) => {
+          if (event.touches.length > 1) {
+            event.preventDefault();
+            return;
+          }
+
+          const touch = event.touches[0];
+          const deltaX = touch.clientX - lastTouchX;
+          const deltaY = touch.clientY - lastTouchY;
+          const scrollable = closestScrollable(event.target);
+          lastTouchX = touch.clientX;
+          lastTouchY = touch.clientY;
+
+          if (!scrollable) {
+            event.preventDefault();
+            return;
+          }
+
+          const { el, canScrollX, canScrollY } = scrollable;
+          const atTop = el.scrollTop <= 0;
+          const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+          const atLeft = el.scrollLeft <= 0;
+          const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+          const yBlocked = !canScrollY || (deltaY > 0 && atTop) || (deltaY < 0 && atBottom);
+          const xBlocked = !canScrollX || (deltaX > 0 && atLeft) || (deltaX < 0 && atRight);
+
+          if (Math.abs(deltaY) >= Math.abs(deltaX) ? yBlocked : xBlocked) {
+            event.preventDefault();
+          }
+        }, { passive: false });
+        document.addEventListener("wheel", (event) => {
+          if (event.ctrlKey) event.preventDefault();
+        }, { passive: false });
+        document.addEventListener("keydown", (event) => {
+          const key = event.key.toLowerCase();
+          if ((event.ctrlKey || event.metaKey) && ["+", "-", "=", "0"].includes(key)) {
+            event.preventDefault();
+          }
+        });
+        document.addEventListener("dblclick", preventZoom, { passive: false });
+      })();
+    </script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch((error) => {
+            console.warn("Service worker registration failed:", error);
+          });
+        });
+      }
+    </script>
   </head>
   <body>
     <svg class="sprite-sheet" aria-hidden="true">

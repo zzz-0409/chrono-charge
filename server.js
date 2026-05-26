@@ -2149,7 +2149,7 @@ function serveStatic(req, res, url) {
 
 function cacheControl(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  if ([".html", ".css", ".js"].includes(ext)) return "no-store";
+  if ([".html", ".css", ".js", ".webmanifest"].includes(ext)) return "no-store";
   return "public, max-age=86400";
 }
 
@@ -2162,7 +2162,9 @@ function contentType(filePath) {
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
+    ".ico": "image/x-icon",
     ".svg": "image/svg+xml",
+    ".webmanifest": "application/manifest+json; charset=utf-8",
     ".mp3": "audio/mpeg",
     ".ogg": "audio/ogg",
     ".wav": "audio/wav",
