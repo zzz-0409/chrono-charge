@@ -20,6 +20,8 @@
   --stage-width: 1366px;
   --stage-height: 768px;
   --ui-scale: 1;
+  --app-header-height: 72px;
+  --app-header-gap: 6px;
   --card-ratio: 4 / 6;
   --card-design-width: 244px;
   --card-design-height: 366px;
@@ -141,16 +143,16 @@ button {
 }
 
 .app-header {
-  min-height: 48px;
+  min-height: var(--app-header-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 328px 280px;
+  grid-template-columns: minmax(0, 1fr) 360px 280px;
   align-items: center;
   gap: 12px;
-  margin-bottom: 4px;
+  margin-bottom: var(--app-header-gap);
 }
 
 main {
-  height: calc(100% - 52px);
+  height: calc(100% - var(--app-header-height) - var(--app-header-gap));
 }
 
 .brand {
@@ -230,17 +232,17 @@ h1 {
 .header-account {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   flex-wrap: nowrap;
 }
 
 .header-account input {
-  width: 128px;
-  flex: 0 0 128px;
-  min-height: 30px;
-  padding: 0 9px;
-  font-size: 0.82rem;
+  width: 154px;
+  flex: 0 0 154px;
+  min-height: 48px;
+  padding: 0 12px;
+  font-size: 0.9rem;
 }
 
 .account-username-label {
@@ -255,15 +257,15 @@ h1 {
 
 .header-account .ghost-button {
   flex: 0 0 auto;
-  min-width: 48px;
-  min-height: 30px;
-  padding: 0 9px;
-  font-size: 0.78rem;
+  min-width: 68px;
+  min-height: 48px;
+  padding: 0 14px;
+  font-size: 0.86rem;
   white-space: nowrap;
 }
 
 #logoutButton {
-  min-width: 72px;
+  min-width: 96px;
 }
 
 .auth-dialog {
@@ -306,20 +308,23 @@ h2 {
 }
 
 .view-tabs {
-  width: 328px;
+  width: 360px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   justify-self: start;
-  padding: 5px;
+  padding: 7px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(23, 27, 33, 0.82);
   transform: translateX(calc(-50% - 6px));
 }
 
 .view-tabs .tab-button {
   width: 100%;
-  padding: 0 8px;
+  min-height: 56px;
+  padding: 0 10px;
+  font-size: 0.9rem;
+  font-weight: 900;
 }
 
 .tab-button,
@@ -367,6 +372,18 @@ h2 {
   padding: 0 10px;
   border-color: var(--line);
   background: var(--surface-2);
+}
+
+.app-header button {
+  position: relative;
+  touch-action: manipulation;
+}
+
+.app-header .ghost-button::before,
+.view-tabs .tab-button::before {
+  content: "";
+  position: absolute;
+  inset: -8px 0;
 }
 
 .linklike {
