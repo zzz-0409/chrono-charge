@@ -3755,6 +3755,10 @@ select {
   line-height: 15.97px;
 }
 
+.game-card.type-spell:not(.drive-card-type) .card-face .rules-box {
+  top: 72.6%;
+}
+
 .game-card .card-face .card-effect {
   display: block;
   max-height: none;
@@ -3838,7 +3842,7 @@ select {
 }
 
 .game-card.drive-card-type .card-face .rules-box {
-  top: 71%;
+  top: 69.4%;
   left: 11.4%;
   width: 75.6%;
   height: 18.8%;
