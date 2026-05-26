@@ -133,6 +133,8 @@ button {
 }
 
 .app-shell {
+  --current-header-height: var(--app-header-height);
+  --current-header-gap: var(--app-header-gap);
   position: relative;
   width: var(--stage-width);
   height: var(--stage-height);
@@ -143,16 +145,37 @@ button {
 }
 
 .app-header {
-  min-height: var(--app-header-height);
+  min-height: var(--current-header-height);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  margin-bottom: var(--app-header-gap);
+  margin-bottom: var(--current-header-gap);
 }
 
 main {
-  height: calc(100% - var(--app-header-height) - var(--app-header-gap));
+  height: calc(100% - var(--current-header-height) - var(--current-header-gap));
+}
+
+.app-shell.compact-header {
+  --current-header-height: 36px;
+  --current-header-gap: 4px;
+}
+
+.app-shell.compact-header .app-header {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-shell.compact-header .brand {
+  display: none;
+}
+
+.app-shell.compact-header .header-account {
+  display: none;
+}
+
+.app-shell.compact-header .resource-strip {
+  justify-self: end;
 }
 
 .brand {
@@ -886,6 +909,20 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.builder-panel-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.builder-back-button {
+  min-width: 64px;
+  flex: 0 0 auto;
+  justify-content: center;
+  font-weight: 900;
 }
 
 .resource-strip {

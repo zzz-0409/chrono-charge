@@ -159,7 +159,8 @@
     els.builderTab?.classList.toggle("active", showDeckSelect || showBuilder);
     els.packTab?.classList.toggle("active", showPack || showPackResult);
     els.duelTab?.classList.toggle("active", showDuelMenu || showDuel);
-    const accountEnabled = showHome || showBuilder;
+    els.appShell?.classList.toggle("compact-header", !showHome);
+    const accountEnabled = showHome;
     els.loginButton.disabled = !accountEnabled;
     els.displayNameInput.disabled = !accountEnabled;
     els.saveDisplayNameButton.disabled = !accountEnabled;
