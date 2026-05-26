@@ -1497,6 +1497,10 @@
       return true;
     }
 
+    reactionRevealed(entry) {
+      return reactionRevealed(entry);
+    }
+
     controlsThemeUnit(player, theme) {
       return player.units.some((unit) => unit && cardHasTheme(cards[unit.id], theme));
     }

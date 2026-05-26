@@ -109,6 +109,29 @@
             this.game.untapOneCharge(player);
           }
           break;
+        case "starSurveyorNoll":
+          if (player.chargedThisTurn && await this.game.moveHandCardToCharge(player, (card) => card.name.includes("星導"), {
+            title: "星導カードをチャージ",
+            message: "手札からチャージに置く「星導」カードを選んでください。",
+          }) && this.game.countThemeInCharge(player, "星導") >= 3 &&
+            await this.optionalAdditional(player, sourceCard, "チャージに「星導」が3枚以上あります。追加で1枚ドローしますか？")) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
+        case "starObservationRecord":
+          await this.game.addFromDeck(player, (card) => card.type === "コア" && card.theme === "星導", {
+            title: "星導コアをサーチ",
+            message: "デッキから手札に加える「星導」コアを選んでください。",
+          });
+          if (
+            this.game.countThemeInCharge(player, "星導") >= 3 &&
+            await this.optionalAdditional(player, sourceCard, "チャージに「星導」が3枚以上あります。追加で1枚ドローしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
         case "starOrbit":
           this.game.drawCards(player, 1);
           break;
