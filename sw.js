@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260526-bottom-nav";
+const CACHE_VERSION = "chrono-drive-pwa-20260526-duel-deck-picker";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260526bottomNav",
+  "/styles.css?v=20260526duelDeckPicker",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -27,7 +27,7 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260525zoom",
   "/src/net/online-client.js?v=20260525openingattack",
   "/src/ui/duel-view.js?v=20260526reactionhandcue",
-  "/src/main.js?v=20260526bottomNav"
+  "/src/main.js?v=20260526duelDeckPicker"
 ];
 
 self.addEventListener("install", (event) => {
