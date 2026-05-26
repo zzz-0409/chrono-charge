@@ -461,6 +461,10 @@ button:disabled {
   display: none;
 }
 
+.duel-actions[hidden] {
+  display: none !important;
+}
+
 .home-view {
   height: 100%;
   min-height: 0;
@@ -2502,13 +2506,13 @@ select {
 }
 
 .duel-topline .duelist-summary:not(.player) {
-  top: 8px;
-  left: 12px;
+  top: 10px;
+  left: 174px;
 }
 
 .duel-topline .duelist-summary.player {
-  right: 268px;
-  bottom: 8px;
+  right: 258px;
+  bottom: 10px;
 }
 
 .nameplate {
@@ -3208,8 +3212,8 @@ select {
 
 .turn-command-field {
   position: absolute;
-  right: 28px;
-  top: 50%;
+  right: 126px;
+  top: 55%;
   z-index: 16;
   display: flex;
   flex-direction: column;
