@@ -595,6 +595,45 @@ select {
   --card-frame: var(--line);
   --card-glow: rgba(255, 255, 255, 0.08);
   --card-top: rgba(255, 255, 255, 0.06);
+  --card-face-header-left: 8.2%;
+  --card-face-header-top: 5.6%;
+  --card-face-header-width: 83.6%;
+  --card-face-header-height: 9.2%;
+  --card-face-header-gap: 5%;
+  --card-face-name-size: 16.32px;
+  --card-face-name-line: 16.32px;
+  --card-face-name-padding-left: 0;
+  --card-face-name-shift-x: 8%;
+  --card-face-cost-height: 92%;
+  --card-face-cost-size: 16px;
+  --card-face-cost-transform: translateX(-13%);
+  --card-face-art-left: 14%;
+  --card-face-art-top: 20.5%;
+  --card-face-art-width: 72%;
+  --card-face-art-height: auto;
+  --card-face-rules-left: 10.8%;
+  --card-face-rules-top: 74%;
+  --card-face-rules-width: 78.4%;
+  --card-face-rules-height: 22%;
+  --card-face-rules-rows: 20% minmax(0, 1fr);
+  --card-face-type-size: 12.48px;
+  --card-face-type-line: 15.97px;
+  --card-face-effect-size: 14.08px;
+  --card-face-effect-line: 15.77px;
+  --card-face-effect-sm-size: 12.48px;
+  --card-face-effect-sm-line: 13.48px;
+  --card-face-effect-xs-size: 10.88px;
+  --card-face-effect-xs-line: 11.32px;
+  --card-face-effect-xxs-size: 9.28px;
+  --card-face-effect-xxs-line: 9.28px;
+  --card-face-stats-left: 16%;
+  --card-face-stats-bottom: 1.5%;
+  --card-face-stats-width: 72%;
+  --card-face-stats-gap: 0;
+  --card-face-stat-label-size: 10.88px;
+  --card-face-stat-value-size: 12.16px;
+  --card-face-stat-mod-size: 8.96px;
+  --card-face-deck-row-bottom: 1.8%;
   position: relative;
   width: var(--card-width);
   height: var(--card-height);
@@ -715,6 +754,7 @@ select {
   --card-glow: rgba(226, 95, 88, 0.18);
   --card-top: rgba(226, 95, 88, 0.16);
   --card-frame-image: url("assets/cards/frames/unit-bg-new2.png");
+  --card-face-rules-height: 20.8%;
 }
 
 .type-spell {
@@ -722,6 +762,8 @@ select {
   --card-glow: rgba(79, 189, 226, 0.18);
   --card-top: rgba(79, 189, 226, 0.16);
   --card-frame-image: url("assets/cards/frames/spell-bg-new.png");
+  --card-face-rules-top: 72.6%;
+  --card-face-rules-height: 22.8%;
 }
 
 .type-reaction {
@@ -823,13 +865,13 @@ select {
 
 .game-card .card-mini-top {
   position: absolute;
-  left: 8.2%;
-  top: 5.6%;
-  width: 83.6%;
-  height: 9.2%;
+  left: var(--card-face-header-left);
+  top: var(--card-face-header-top);
+  width: var(--card-face-header-width);
+  height: var(--card-face-header-height);
   display: flex;
   align-items: center;
-  gap: 5%;
+  gap: var(--card-face-header-gap);
 }
 
 .card-name {
@@ -933,9 +975,10 @@ select {
 
 .game-card .card-art {
   position: absolute;
-  left: 14%;
-  top: 20.5%;
-  width: 72%;
+  left: var(--card-face-art-left);
+  top: var(--card-face-art-top);
+  width: var(--card-face-art-width);
+  height: var(--card-face-art-height);
   min-height: 0;
   border-radius: 5%;
 }
@@ -1006,12 +1049,12 @@ select {
 
 .game-card .rules-box {
   position: absolute;
-  left: 10.8%;
-  top: 74.0%;
-  width: 78.4%;
-  height: 26.2%;
+  left: var(--card-face-rules-left);
+  top: var(--card-face-rules-top);
+  width: var(--card-face-rules-width);
+  height: var(--card-face-rules-height);
   display: grid;
-  grid-template-rows: 20% minmax(0, 1fr);
+  grid-template-rows: var(--card-face-rules-rows);
   gap: 0;
   color: #dce8e6;
 }
@@ -1054,13 +1097,13 @@ select {
 
 .game-card .battle-stats {
   position: absolute;
-  left: 16%;
-  bottom:1.50%;
-  width: 72%;
+  left: var(--card-face-stats-left);
+  bottom: var(--card-face-stats-bottom);
+  width: var(--card-face-stats-width);
   margin: 0;
   display: flex;
   justify-content: flex-end;
-  gap: 0;
+  gap: var(--card-face-stats-gap);
   color: #eef8f6;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.86);
 }
@@ -1072,88 +1115,56 @@ select {
   padding: 0;
   background: transparent;
   color: #d7e1df;
-  font-size: 0.68rem;
+  font-size: var(--card-face-stat-label-size);
   font-weight: 900;
 }
 
 .game-card .battle-stats strong {
   color: var(--text);
-  font-size: 0.76rem;
+  font-size: var(--card-face-stat-value-size);
   margin-left: 3px;
 }
 
 .game-card .battle-stats .stat-mod {
-  font-size: 0.56rem;
-}
-
-.game-card.drive-card-type .card-mini-top {
-  top: 9.2%;
-  left: 11.6%;
-  width: 76.2%;
-  height: 8.9%;
+  font-size: var(--card-face-stat-mod-size);
 }
 
 .game-card.drive-card-type {
   background-size: cover, 107%, cover;
   background-position: center, center, center;
-}
-
-.game-card.drive-card-type .card-art {
-  top: 21.4%;
-  left: 10.8%;
-  width: 78.4%;
-  height: 46.2%;
-}
-
-.game-card.drive-card-type .rules-box {
-  top: 71.0%;
-  left: 14.1%;
-  width: 71.8%;
-  height: 18.8%;
-}
-
-.game-card.drive-card-type .battle-stats {
-  bottom: 3.0%;
-}
-
-.game-card.drive-card-type .card-face .card-name {
-  padding-left: 5.5%;
-  font-size: 0.94rem;
-}
-
-.game-card.drive-card-type .card-face .type-line {
-  font-size: 0.68rem;
-  line-height: 1.18;
-}
-
-.game-card.drive-card-type .card-face .card-effect {
-  font-size: 0.72rem;
-  line-height: 1.08;
-}
-
-.game-card.drive-card-type .card-face .card-effect.effect-sm {
-  font-size: 0.66rem;
-  line-height: 1.06;
-}
-
-.game-card.drive-card-type .card-face .card-effect.effect-xs {
-  font-size: 0.58rem;
-  line-height: 1.03;
-}
-
-.game-card.drive-card-type .card-face .card-effect.effect-xxs {
-  font-size: 0.50rem;
-  line-height: 1;
-}
-
-.game-card.drive-card-type .deck-row-sub {
-  bottom: 2.2%;
+  --card-face-header-left: 11.7%;
+  --card-face-header-top: 7%;
+  --card-face-header-width: 77.2%;
+  --card-face-header-height: 8.9%;
+  --card-face-name-size: 15.04px;
+  --card-face-name-padding-left: 5.5%;
+  --card-face-name-shift-x: 0;
+  --card-face-cost-transform: translate(33%, -8%);
+  --card-face-art-left: 14%;
+  --card-face-art-top: 19.5%;
+  --card-face-art-width: 72%;
+  --card-face-art-height: auto;
+  --card-face-rules-left: 11.4%;
+  --card-face-rules-top: 69.4%;
+  --card-face-rules-width: 75.6%;
+  --card-face-rules-height: 18.8%;
+  --card-face-type-size: 11.2px;
+  --card-face-type-line: 13.22px;
+  --card-face-effect-size: 11.52px;
+  --card-face-effect-line: 12.21px;
+  --card-face-effect-sm-size: 10.56px;
+  --card-face-effect-sm-line: 10.98px;
+  --card-face-effect-xs-size: 9.28px;
+  --card-face-effect-xs-line: 9.47px;
+  --card-face-effect-xxs-size: 8px;
+  --card-face-effect-xxs-line: 8px;
+  --card-face-deck-row-bottom: 2.2%;
 }
 
 .game-card .deck-row-sub {
   position: absolute;
   left: 9%;
-  bottom: 1.8%;
+  bottom: var(--card-face-deck-row-bottom);
   margin: 0;
   color: rgba(237, 244, 242, 0.72);
   font-size: 0.58rem;
@@ -3733,46 +3744,31 @@ select {
 }
 
 .game-card .card-face .card-name {
-  font-size: 16.32px;
-  line-height: 16.32px;
-}
-
-.game-card:not(.drive-card-type) .card-face .card-name {
-  transform: translateX(8%);
+  padding-left: var(--card-face-name-padding-left);
+  font-size: var(--card-face-name-size);
+  line-height: var(--card-face-name-line);
+  transform: translateX(var(--card-face-name-shift-x));
 }
 
 .game-card .card-face .cost-chip {
   width: auto;
-  height: 92%;
+  height: var(--card-face-cost-height);
   aspect-ratio: 1;
-  font-size: 16px;
-  transform: translateX(-13%);
+  font-size: var(--card-face-cost-size);
+  transform: var(--card-face-cost-transform);
 }
 
 .game-card .card-face .type-line {
   display: block;
-  font-size: 12.48px;
-  line-height: 15.97px;
-}
-
-.game-card:not(.drive-card-type) .card-face .rules-box {
-  height: 22%;
-}
-
-.game-card.type-unit:not(.drive-card-type) .card-face .rules-box {
-  height: 20.8%;
-}
-
-.game-card.type-spell:not(.drive-card-type) .card-face .rules-box {
-  top: 72.6%;
-  height: 22.8%;
+  font-size: var(--card-face-type-size);
+  line-height: var(--card-face-type-line);
 }
 
 .game-card .card-face .card-effect {
   display: block;
   max-height: none;
-  font-size: 14.08px;
-  line-height: 15.77px;
+  font-size: var(--card-face-effect-size);
+  line-height: var(--card-face-effect-line);
 }
 
 .game-card:not(.drive-card-type) .card-face .card-effect {
@@ -3783,24 +3779,24 @@ select {
 }
 
 .game-card .card-face .card-effect.effect-sm {
-  font-size: 12.48px;
-  line-height: 13.48px;
+  font-size: var(--card-face-effect-sm-size);
+  line-height: var(--card-face-effect-sm-line);
 }
 
 .game-card .card-face .card-effect.effect-xs {
-  font-size: 10.88px;
-  line-height: 11.32px;
+  font-size: var(--card-face-effect-xs-size);
+  line-height: var(--card-face-effect-xs-line);
 }
 
 .game-card .card-face .card-effect.effect-xxs {
-  font-size: 9.28px;
-  line-height: 9.28px;
+  font-size: var(--card-face-effect-xxs-size);
+  line-height: var(--card-face-effect-xxs-line);
 }
 
 .game-card .card-face .card-art {
   display: grid;
-  width: 72%;
-  height: auto;
+  width: var(--card-face-art-width);
+  height: var(--card-face-art-height);
   margin: 0;
 }
 
@@ -3811,86 +3807,26 @@ select {
 
 .game-card .card-face .battle-stats {
   display: flex;
-  left: 16%;
-  bottom: 1.5%;
-  width: 72%;
-  gap: 0;
+  left: var(--card-face-stats-left);
+  bottom: var(--card-face-stats-bottom);
+  width: var(--card-face-stats-width);
+  gap: var(--card-face-stats-gap);
   line-height: 1;
 }
 
 .game-card .card-face .battle-stats span {
   padding: 0;
-  font-size: 10.88px;
+  font-size: var(--card-face-stat-label-size);
   line-height: 1;
 }
 
 .game-card .card-face .battle-stats strong {
-  font-size: 12.16px;
+  font-size: var(--card-face-stat-value-size);
   line-height: 1;
 }
 
 .game-card .card-face .battle-stats .stat-mod {
-  font-size: 8.96px;
-}
-
-.game-card.drive-card-type .card-face .card-mini-top {
-  top: 7%;
-  left: 11.7%;
-  width: 77.2%;
-  height: 8.9%;
-}
-
-.game-card.drive-card-type .card-face .card-name {
-  font-size: 15.04px;
-}
-
-.game-card.drive-card-type .card-face .cost-chip {
-  height: 92%;
-  font-size: 16px;
-  transform: translate(33%, -8%);
-}
-
-.game-card.drive-card-type .card-face .card-art {
-  top: 19.5%;
-  left: 14%;
-  width: 72%;
-  height: auto;
-}
-
-.game-card.drive-card-type .card-face .rules-box {
-  top: 69.4%;
-  left: 11.4%;
-  width: 75.6%;
-  height: 18.8%;
-}
-
-.game-card.drive-card-type .card-face .type-line {
-  font-size: 11.2px;
-  line-height: 13.22px;
-}
-
-.game-card.drive-card-type .card-face .card-effect {
-  font-size: 11.52px;
-  line-height: 12.21px;
-}
-
-.game-card.drive-card-type .card-face .card-effect.effect-sm {
-  font-size: 10.56px;
-  line-height: 10.98px;
-}
-
-.game-card.drive-card-type .card-face .card-effect.effect-xs {
-  font-size: 9.28px;
-  line-height: 9.47px;
-}
-
-.game-card.drive-card-type .card-face .card-effect.effect-xxs {
-  font-size: 8px;
-  line-height: 8px;
-}
-
-.game-card.drive-card-type .card-face .battle-stats {
-  bottom: 1.5%;
+  font-size: var(--card-face-stat-mod-size);
 }
 
 .core-row .tcg-card.small .card-face .card-art,
