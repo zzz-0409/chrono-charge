@@ -61,6 +61,8 @@ html {
   overscroll-behavior: none;
   background: var(--bg);
   touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -597,6 +599,8 @@ select {
   height: var(--card-height);
   aspect-ratio: var(--card-ratio);
   overflow: visible;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .game-card::before {
@@ -695,6 +699,8 @@ select {
   height: var(--card-design-height);
   transform: scale(var(--card-render-scale));
   transform-origin: top left;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .type-unit {
@@ -3720,7 +3726,7 @@ select {
 }
 
 .game-card .card-face .card-name {
-  font-size: 1.02rem;
+  font-size: 16.32px;
   line-height: 1;
 }
 
@@ -3732,35 +3738,35 @@ select {
   width: auto;
   height: 92%;
   aspect-ratio: 1;
-  font-size: 1rem;
+  font-size: 16px;
   transform: translateX(-13%);
 }
 
 .game-card .card-face .type-line {
   display: block;
-  font-size: 0.78rem;
+  font-size: 12.48px;
   line-height: 1.28;
 }
 
 .game-card .card-face .card-effect {
   display: block;
   max-height: none;
-  font-size: 0.88rem;
+  font-size: 14.08px;
   line-height: 1.12;
 }
 
 .game-card .card-face .card-effect.effect-sm {
-  font-size: 0.78rem;
+  font-size: 12.48px;
   line-height: 1.08;
 }
 
 .game-card .card-face .card-effect.effect-xs {
-  font-size: 0.68rem;
+  font-size: 10.88px;
   line-height: 1.04;
 }
 
 .game-card .card-face .card-effect.effect-xxs {
-  font-size: 0.58rem;
+  font-size: 9.28px;
   line-height: 1;
 }
 
@@ -3787,17 +3793,17 @@ select {
 
 .game-card .card-face .battle-stats span {
   padding: 0;
-  font-size: 0.68rem;
+  font-size: 10.88px;
   line-height: 1;
 }
 
 .game-card .card-face .battle-stats strong {
-  font-size: 0.76rem;
+  font-size: 12.16px;
   line-height: 1;
 }
 
 .game-card .card-face .battle-stats .stat-mod {
-  font-size: 0.56rem;
+  font-size: 8.96px;
 }
 
 .game-card.drive-card-type .card-face .card-mini-top {
@@ -3808,12 +3814,12 @@ select {
 }
 
 .game-card.drive-card-type .card-face .card-name {
-  font-size: 0.94rem;
+  font-size: 15.04px;
 }
 
 .game-card.drive-card-type .card-face .cost-chip {
   height: 92%;
-  font-size: 1rem;
+  font-size: 16px;
   transform: translate(33%, -8%);
 }
 
@@ -3832,27 +3838,27 @@ select {
 }
 
 .game-card.drive-card-type .card-face .type-line {
-  font-size: 0.70rem;
+  font-size: 11.2px;
   line-height: 1.18;
 }
 
 .game-card.drive-card-type .card-face .card-effect {
-  font-size: 0.72rem;
+  font-size: 11.52px;
   line-height: 1.06;
 }
 
 .game-card.drive-card-type .card-face .card-effect.effect-sm {
-  font-size: 0.66rem;
+  font-size: 10.56px;
   line-height: 1.04;
 }
 
 .game-card.drive-card-type .card-face .card-effect.effect-xs {
-  font-size: 0.58rem;
+  font-size: 9.28px;
   line-height: 1.02;
 }
 
 .game-card.drive-card-type .card-face .card-effect.effect-xxs {
-  font-size: 0.50rem;
+  font-size: 8px;
   line-height: 1;
 }
 
