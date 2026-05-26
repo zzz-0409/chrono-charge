@@ -16,9 +16,11 @@
   const els = {
     scaleMount: document.querySelector("#scaleMount"),
     appShell: document.querySelector("#appShell"),
+    homeTab: document.querySelector("#homeTab"),
     builderTab: document.querySelector("#builderTab"),
     packTab: document.querySelector("#packTab"),
     duelTab: document.querySelector("#duelTab"),
+    homeView: document.querySelector("#homeView"),
     builderView: document.querySelector("#builderView"),
     packView: document.querySelector("#packView"),
     duelView: document.querySelector("#duelView"),
@@ -124,19 +126,23 @@
   };
 
   const setView = (view) => {
+    const showHome = view === "home";
     const showBuilder = view === "builder";
     const showPack = view === "pack";
     const showDuel = view === "duel";
+    els.homeView.hidden = !showHome;
     els.builderView.hidden = !showBuilder;
     els.packView.hidden = !showPack;
     els.duelView.hidden = !showDuel;
+    els.homeTab.classList.toggle("active", showHome);
     els.builderTab.classList.toggle("active", showBuilder);
     els.packTab.classList.toggle("active", showPack);
     els.duelTab.classList.toggle("active", showDuel);
-    els.loginButton.disabled = !showBuilder;
-    els.displayNameInput.disabled = !showBuilder;
-    els.saveDisplayNameButton.disabled = !showBuilder;
-    els.logoutButton.disabled = !showBuilder;
+    const accountEnabled = showHome || showBuilder;
+    els.loginButton.disabled = !accountEnabled;
+    els.displayNameInput.disabled = !accountEnabled;
+    els.saveDisplayNameButton.disabled = !accountEnabled;
+    els.logoutButton.disabled = !accountEnabled;
     if (showPack) packView?.render();
   };
 
@@ -355,15 +361,15 @@
     }
   });
 
-  els.builderTab.addEventListener("click", () => setView("builder"));
-  els.packTab.addEventListener("click", () => {
-    navigateView("pack");
-  });
-  els.duelTab.addEventListener("click", () => {
-    navigateView("duel");
+  els.homeTab.addEventListener("click", () => navigateView("home"));
+  els.builderTab.addEventListener("click", () => navigateView("builder"));
+  els.packTab.addEventListener("click", () => navigateView("pack"));
+  els.duelTab.addEventListener("click", () => navigateView("duel"));
+  document.querySelectorAll("[data-nav-view]").forEach((button) => {
+    button.addEventListener("click", () => navigateView(button.dataset.navView));
   });
 
-  setView("builder");
+  setView("home");
   store.syncActiveAccount().finally(() => {
     builderView.render();
     packView.render();

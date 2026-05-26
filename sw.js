@@ -1,17 +1,18 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260526-header-tap-targets";
+const CACHE_VERSION = "chrono-drive-pwa-20260526-home-view";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260526headerTapTargets",
+  "/styles.css?v=20260526homeView",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
   "/assets/cards/card-back.png",
   "/assets/ui/gacha-stone.png",
   "/assets/ui/dismantle-stone.png",
+  "/assets/home/home-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
   "/src/data/cards.js?v=20260526optionaleffects",
   "/src/core/deck-store.js?v=20260525dismantlefix",
@@ -26,7 +27,7 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260525zoom",
   "/src/net/online-client.js?v=20260525openingattack",
   "/src/ui/duel-view.js?v=20260526reactionhandcue",
-  "/src/main.js?v=20260526nameguard"
+  "/src/main.js?v=20260526homeView"
 ];
 
 self.addEventListener("install", (event) => {

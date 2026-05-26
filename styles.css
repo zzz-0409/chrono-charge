@@ -145,7 +145,7 @@ button {
 .app-header {
   min-height: var(--app-header-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px 280px;
+  grid-template-columns: minmax(0, 1fr) 440px 280px;
   align-items: center;
   gap: 12px;
   margin-bottom: var(--app-header-gap);
@@ -308,9 +308,9 @@ h2 {
 }
 
 .view-tabs {
-  width: 360px;
+  width: 440px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   justify-self: start;
   padding: 7px;
   border: 1px solid var(--line);
@@ -427,6 +427,135 @@ button:disabled {
 
 .view[hidden] {
   display: none;
+}
+
+.home-view {
+  height: 100%;
+  min-height: 0;
+}
+
+.home-stage {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(112, 223, 230, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(2, 6, 12, 0.72), rgba(4, 9, 17, 0.28) 42%, rgba(4, 8, 14, 0.18) 66%, rgba(2, 5, 10, 0.5)),
+    linear-gradient(0deg, rgba(2, 5, 9, 0.6), transparent 28%),
+    url("assets/home/home-bg.png") center / cover no-repeat;
+  box-shadow: inset 0 0 80px rgba(85, 199, 187, 0.08), 0 18px 34px var(--shadow);
+}
+
+.home-copy {
+  position: absolute;
+  left: 44px;
+  top: 38px;
+  display: grid;
+  gap: 4px;
+  color: #f2fbff;
+  text-shadow: 0 3px 16px rgba(0, 0, 0, 0.7), 0 0 24px rgba(72, 210, 255, 0.32);
+}
+
+.home-kana {
+  margin: 0;
+  color: #bfefff;
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.home-copy h2 {
+  margin: 0;
+  font-size: 3.4rem;
+  line-height: 0.96;
+}
+
+.home-action-stack {
+  position: absolute;
+  left: 34px;
+  top: 150px;
+  width: 286px;
+  display: grid;
+  gap: 12px;
+}
+
+.home-action-button,
+.home-shortcut-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(155, 226, 255, 0.34);
+  color: #eefbff;
+  background: linear-gradient(90deg, rgba(7, 18, 31, 0.88), rgba(14, 42, 64, 0.52));
+  box-shadow: inset 0 0 22px rgba(81, 196, 255, 0.12), 0 14px 28px rgba(0, 0, 0, 0.32);
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.home-action-button {
+  min-height: 78px;
+  justify-content: flex-start;
+  gap: 14px;
+  border-radius: 8px;
+  padding: 0 20px;
+  font-size: 1.18rem;
+  font-weight: 950;
+}
+
+.home-action-button.primary {
+  border-color: rgba(255, 226, 148, 0.66);
+  color: #fff9dc;
+  background: linear-gradient(90deg, rgba(81, 52, 12, 0.92), rgba(26, 80, 105, 0.62));
+}
+
+.home-action-icon {
+  width: 42px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.home-action-icon svg {
+  width: 26px;
+  height: 26px;
+  fill: #c7f6ff;
+}
+
+.home-bottom-nav {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  width: min(640px, calc(100% - 80px));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  transform: translateX(-50%);
+}
+
+.home-shortcut-button {
+  min-height: 76px;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 1rem;
+  font-weight: 950;
+  backdrop-filter: blur(4px);
+}
+
+.home-shortcut-button svg {
+  width: 26px;
+  height: 26px;
+  fill: #dffbff;
+}
+
+.home-action-button:hover,
+.home-shortcut-button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 226, 148, 0.72);
 }
 
 .builder-view {
