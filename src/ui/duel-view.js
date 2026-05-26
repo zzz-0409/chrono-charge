@@ -279,11 +279,7 @@
         button.classList.toggle("tapped", charge.tapped);
         button.style.setProperty("--charge-offset", Math.min(index, 4));
         button.style.zIndex = String(index + 1);
-        button.addEventListener("click", () => this.selectCard(cardId, {
-          zone: "charge",
-          index,
-          owner: player === this.game.player ? "player" : "enemy",
-        }));
+        button.addEventListener("click", () => this.openChargeList(player === this.game.player ? "player" : "enemy"));
         element.append(button);
       });
     }
@@ -1093,6 +1089,58 @@
           card.classList.add("grave-list-card");
           card.addEventListener("click", () => {
             showGraveFocus(id, originalIndex);
+          });
+          list.append(card);
+        });
+      }
+      this.openModal(modal);
+    }
+
+    openChargeList(owner) {
+      if (!this.game) return;
+      const player = owner === "player" ? this.game.player : this.game.enemy;
+      const title = owner === "player" ? "自分のチャージ" : "相手のチャージ";
+      const activeCount = player.charge.filter((entry) => !entry.tapped).length;
+      const totalCount = player.charge.length;
+      const modal = document.createElement("div");
+      modal.className = "modal-dialog choice-dialog grave-dialog charge-dialog";
+      modal.innerHTML = `
+        <div class="grave-dialog-head">
+          <div>
+            <h2>${title}</h2>
+            <span class="charge-dialog-count">${activeCount} / ${totalCount}</span>
+          </div>
+          <button class="ghost-button" type="button">閉じる</button>
+        </div>
+        <div class="choice-body">
+          <div class="grave-list choice-list charge-list"></div>
+          <div class="grave-focus choice-focus"></div>
+        </div>
+      `;
+      modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
+      const focus = modal.querySelector(".grave-focus");
+      focus.addEventListener("click", (event) => CardZoom.openFromEvent(event));
+      const showChargeFocus = (entry, originalIndex) => {
+        const id = typeof entry === "string" ? entry : entry?.id;
+        if (!id) return;
+        CardRenderer.focus(id, focus, { finish: this.finishFor(id) });
+        this.selectCard(id, { zone: "charge", index: originalIndex, owner });
+      };
+      const list = modal.querySelector(".charge-list");
+      if (player.charge.length === 0) {
+        list.innerHTML = `<div class="small-note">チャージはありません</div>`;
+      } else {
+        showChargeFocus(player.charge[player.charge.length - 1], player.charge.length - 1);
+        player.charge.slice().reverse().forEach((entry, displayIndex) => {
+          const originalIndex = player.charge.length - 1 - displayIndex;
+          const id = typeof entry === "string" ? entry : entry?.id;
+          if (!id) return;
+          const card = CardRenderer.tcgCard(id, { interactive: true, finish: this.finishFor(id) });
+          card.classList.add("grave-list-card", "charge-list-card");
+          card.classList.toggle("tapped", Boolean(entry?.tapped));
+          card.setAttribute("aria-label", `${cards[id]?.name || "カード"} ${entry?.tapped ? "非アクティブ" : "アクティブ"}`);
+          card.addEventListener("click", () => {
+            showChargeFocus(entry, originalIndex);
           });
           list.append(card);
         });

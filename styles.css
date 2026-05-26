@@ -51,6 +51,8 @@
 
 * {
   box-sizing: border-box;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 html {
@@ -61,8 +63,8 @@ html {
   overscroll-behavior: none;
   background: var(--bg);
   touch-action: manipulation;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 body {
@@ -70,7 +72,6 @@ body {
   inset: 0;
   width: 100vw;
   height: 100vh;
-  height: 100dvh;
   min-height: 100vh;
   margin: 0;
   color: var(--text);
@@ -599,8 +600,14 @@ select {
   height: var(--card-height);
   aspect-ratio: var(--card-ratio);
   overflow: visible;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+*::before,
+*::after {
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 .game-card::before {
@@ -699,8 +706,8 @@ select {
   height: var(--card-design-height);
   transform: scale(var(--card-render-scale));
   transform-origin: top left;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 .type-unit {
@@ -3379,7 +3386,6 @@ select {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
 }
 
 .card-zoom-facedown {
@@ -3415,6 +3421,14 @@ select {
   margin: 0;
 }
 
+.charge-dialog-count {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
 .grave-focus {
   min-height: 0;
   border: 1px solid rgba(112, 223, 230, 0.22);
@@ -3442,6 +3456,11 @@ select {
   --card-width: var(--card-hand-width);
   --card-height: var(--card-hand-height);
   justify-self: center;
+}
+
+.charge-list-card.tapped {
+  opacity: 0.46;
+  filter: grayscale(0.55) brightness(0.62);
 }
 
 .library-card {
@@ -3634,21 +3653,6 @@ select {
   font-weight: 900;
 }
 
-@media (max-width: 860px) {
-  .pack-view {
-    grid-template-columns: 1fr;
-  }
-
-  .pack-option {
-    width: 138px;
-    flex-basis: 138px;
-  }
-
-  .pack-cover-image {
-    min-height: 178px;
-  }
-}
-
 .game-card.finish-royal {
   border: 0;
   border-color: transparent;
@@ -3727,7 +3731,7 @@ select {
 
 .game-card .card-face .card-name {
   font-size: 16.32px;
-  line-height: 1;
+  line-height: 16.32px;
 }
 
 .game-card:not(.drive-card-type) .card-face .card-name {
@@ -3745,29 +3749,29 @@ select {
 .game-card .card-face .type-line {
   display: block;
   font-size: 12.48px;
-  line-height: 1.28;
+  line-height: 15.97px;
 }
 
 .game-card .card-face .card-effect {
   display: block;
   max-height: none;
   font-size: 14.08px;
-  line-height: 1.12;
+  line-height: 15.77px;
 }
 
 .game-card .card-face .card-effect.effect-sm {
   font-size: 12.48px;
-  line-height: 1.08;
+  line-height: 13.48px;
 }
 
 .game-card .card-face .card-effect.effect-xs {
   font-size: 10.88px;
-  line-height: 1.04;
+  line-height: 11.32px;
 }
 
 .game-card .card-face .card-effect.effect-xxs {
   font-size: 9.28px;
-  line-height: 1;
+  line-height: 9.28px;
 }
 
 .game-card .card-face .card-art {
@@ -3839,27 +3843,27 @@ select {
 
 .game-card.drive-card-type .card-face .type-line {
   font-size: 11.2px;
-  line-height: 1.18;
+  line-height: 13.22px;
 }
 
 .game-card.drive-card-type .card-face .card-effect {
   font-size: 11.52px;
-  line-height: 1.06;
+  line-height: 12.21px;
 }
 
 .game-card.drive-card-type .card-face .card-effect.effect-sm {
   font-size: 10.56px;
-  line-height: 1.04;
+  line-height: 10.98px;
 }
 
 .game-card.drive-card-type .card-face .card-effect.effect-xs {
   font-size: 9.28px;
-  line-height: 1.02;
+  line-height: 9.47px;
 }
 
 .game-card.drive-card-type .card-face .card-effect.effect-xxs {
   font-size: 8px;
-  line-height: 1;
+  line-height: 8px;
 }
 
 .game-card.drive-card-type .card-face .battle-stats {
