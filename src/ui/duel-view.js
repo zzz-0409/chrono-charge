@@ -28,6 +28,7 @@
       this.game = null;
       this.selectedCardId = "star_scout";
       this.selectedContext = null;
+      this.selectionRenderKey = "";
       this.handSnapshot = null;
       this.handDrag = null;
       this.pointerHandDrag = null;
@@ -92,6 +93,7 @@
       this.royalBattleIds = new Set([...(finishInfo.mainRoyalIds || []), ...(finishInfo.driveRoyalIds || [])]);
       this.restart = () => this.start(deckList, driveDeckList, finishInfo);
       this.selectedContext = null;
+      this.selectionRenderKey = "";
       this.handSnapshot = null;
       this.handDrag = null;
       this.pointerHandDrag = null;
@@ -125,6 +127,7 @@
       this.game?.dispose?.();
       this.restart = null;
       this.selectedContext = null;
+      this.selectionRenderKey = "";
       this.handSnapshot = null;
       this.handDrag = null;
       this.pointerHandDrag = null;
@@ -276,18 +279,20 @@
         const cardId = typeof charge === "string" ? charge : charge?.id;
         const card = cards[cardId];
         if (!card) return;
+        const owner = player === this.game.player ? "player" : "enemy";
         const button = CardRenderer.tcgCard(cardId, {
           small: true,
           interactive: true,
           facedown: hiddenNames,
-          selected: this.isSelected("charge", index),
+          selected: this.isSelected("charge", index, owner),
           finish: this.finishFor(cardId),
         });
+        this.tagSelectableCard(button, "charge", index, owner);
         button.classList.add("charge-card", typeClass[card.type], attrClass[card.attr]);
         button.classList.toggle("tapped", charge.tapped);
         button.style.setProperty("--charge-offset", Math.min(index, 4));
         button.style.zIndex = String(index + 1);
-        button.addEventListener("click", () => this.openChargeList(player === this.game.player ? "player" : "enemy"));
+        button.addEventListener("click", () => this.openChargeList(owner));
         element.append(button);
       });
     }
@@ -316,6 +321,7 @@
               facedown: true,
               finish: this.finishFor(cardId),
             });
+            this.tagSelectableCard(cardButton, contextZone, i, owner);
             if (isOwnSetReaction && card && this.game.canPay(player, card.cost)) {
               cardButton.classList.add("reaction-ready-card");
             }
@@ -348,6 +354,7 @@
             atkMod,
             finish: this.finishFor(cardId),
           });
+          this.tagSelectableCard(cardButton, contextZone, i, owner);
           cardButton.addEventListener("click", () => this.selectCard(cardId, { zone: contextZone, index: i, owner }));
           slot.append(cardButton);
           if (contextZone.includes("Unit") && CardRenderer.hasAtk(card)) {
@@ -401,6 +408,7 @@
           selected: this.isSelected("hand", index),
           finish: this.finishFor(id),
         });
+        this.tagSelectableCard(card, "hand", index, "player");
         card.classList.toggle("cost-unavailable-card", Boolean(unavailable));
         if (unavailable) card.setAttribute("aria-disabled", "true");
         if (index >= playerHandCount - playerDrawn) this.applyDrawAnimation(card, index - (playerHandCount - playerDrawn), "player");
@@ -889,24 +897,56 @@
     selectCard(id, context) {
       this.selectedCardId = id;
       this.selectedContext = context;
-      this.render();
+      this.syncSelectedCardMarkers();
+      this.renderSelection();
     }
 
     selectFacedownCard(context) {
       this.selectedCardId = null;
       this.selectedContext = { ...context, hidden: true };
-      this.render();
+      this.syncSelectedCardMarkers();
+      this.renderSelection();
     }
 
-    isSelected(zone, index) {
-      return this.selectedContext?.zone === zone && this.selectedContext.index === index;
+    isSelected(zone, index, owner = null) {
+      return this.selectedContext?.zone === zone
+        && this.selectedContext.index === index
+        && (!owner || this.selectedContext.owner === owner);
+    }
+
+    tagSelectableCard(element, zone, index, owner) {
+      element.dataset.zone = zone;
+      element.dataset.slotIndex = String(index);
+      element.dataset.owner = owner || "";
+    }
+
+    syncSelectedCardMarkers() {
+      const root = this.els.duelView || document;
+      root.querySelectorAll(".tcg-card.selected").forEach((element) => element.classList.remove("selected"));
+      const context = this.selectedContext;
+      if (!context) return;
+      const match = Array.from(root.querySelectorAll(".tcg-card[data-zone][data-slot-index]")).find((element) => (
+        element.dataset.zone === context.zone
+        && element.dataset.slotIndex === String(context.index)
+        && (!context.owner || element.dataset.owner === context.owner)
+      ));
+      match?.classList.add("selected");
     }
 
     renderSelection() {
-      if (this.selectedContext?.hidden) {
-        CardRenderer.facedownFocus(this.els.selectedCardPanel);
-      } else {
-        CardRenderer.focus(this.selectedCardId, this.els.selectedCardPanel, { ...this.selectedFocusStats(), finish: this.finishFor(this.selectedCardId) });
+      const isHidden = Boolean(this.selectedContext?.hidden);
+      const focusStats = isHidden ? {} : this.selectedFocusStats();
+      const finish = isHidden ? "facedown" : this.finishFor(this.selectedCardId);
+      const selectionRenderKey = isHidden
+        ? `hidden:${this.selectedContext?.owner || ""}:${this.selectedContext?.zone || ""}:${this.selectedContext?.index ?? ""}`
+        : `card:${this.selectedCardId || ""}:${finish}:${focusStats.atkMod || 0}`;
+      if (this.selectionRenderKey !== selectionRenderKey) {
+        if (isHidden) {
+          CardRenderer.facedownFocus(this.els.selectedCardPanel);
+        } else {
+          CardRenderer.focus(this.selectedCardId, this.els.selectedCardPanel, { ...focusStats, finish });
+        }
+        this.selectionRenderKey = selectionRenderKey;
       }
       this.els.contextActions.replaceChildren();
       if (this.game?.waitingChoice) {

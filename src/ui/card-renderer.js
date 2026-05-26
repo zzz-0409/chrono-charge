@@ -3,6 +3,16 @@
 
   const { cards, typeIcons, attrClass, typeClass } = window.Chrono;
 
+  const preloadedArtUrls = new Set();
+
+  function preloadCardArt(src) {
+    if (!src || preloadedArtUrls.has(src) || typeof Image !== "function") return;
+    preloadedArtUrls.add(src);
+    const image = new Image();
+    image.decoding = "async";
+    image.src = src;
+  }
+
   const rubyTerms = [
     ["ドライブ召喚", "どらいぶしょうかん"],
     ["ドライブ発動", "どらいぶはつどう"],
@@ -380,9 +390,10 @@
     static cardArt(card, large = false) {
       const artClass = large ? "card-art large" : "card-art";
       if (card.art) {
+        preloadCardArt(card.art);
         return `
           <div class="${artClass}">
-            <img src="${card.art}" alt="${card.name}">
+            <img src="${card.art}" alt="${card.name}" decoding="async" loading="eager">
           </div>
         `;
       }
