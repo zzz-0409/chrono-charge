@@ -4050,7 +4050,7 @@ select {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 0.58fr) minmax(230px, 0.42fr);
+  grid-template-rows: minmax(0, 0.58fr) minmax(176px, 0.42fr) auto;
   grid-template-columns: 1fr;
   gap: 14px;
   overflow: hidden;
@@ -4070,6 +4070,53 @@ select {
 
 .pack-open-panel {
   grid-template-rows: auto minmax(0, 1fr);
+}
+
+.pack-selected-preview {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.pack-selected-cover {
+  min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(2, 5, 8, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.pack-selected-cover img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.pack-selected-info {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  color: var(--text);
+}
+
+.pack-selected-info strong {
+  overflow: hidden;
+  font-size: 1.18rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pack-selected-info small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .pack-stone-display {
@@ -4161,6 +4208,53 @@ select {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
+}
+
+.pack-result-view {
+  height: 100%;
+  min-height: 0;
+}
+
+.pack-result-stage {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  border: 1px solid rgba(112, 223, 230, 0.22);
+  border-radius: 8px;
+  padding: 18px;
+  overflow: hidden;
+  background:
+    linear-gradient(120deg, rgba(4, 8, 15, 0.9), rgba(13, 17, 31, 0.72) 52%, rgba(10, 12, 18, 0.9)),
+    radial-gradient(circle at 76% 20%, rgba(240, 185, 92, 0.16), transparent 30%),
+    radial-gradient(circle at 16% 78%, rgba(64, 205, 222, 0.14), transparent 34%),
+    #090d13;
+  box-shadow: inset 0 0 70px rgba(85, 199, 187, 0.08), 0 18px 34px var(--shadow);
+}
+
+.pack-result-head {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.pack-result-head h2 {
+  font-size: 1.45rem;
+}
+
+.pack-result-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pack-result-actions .primary-button,
+.pack-result-actions .ghost-button {
+  min-height: 42px;
+  justify-content: center;
 }
 
 .pack-result-list {

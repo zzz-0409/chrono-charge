@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=20260526duelDeckPicker">
+    <link rel="stylesheet" href="styles.css?v=20260526packResultFlow">
     <script defer src="src/data/cards.js?v=20260526optionaleffects"></script>
     <script defer src="src/core/deck-store.js?v=20260526missingDeckCards"></script>
     <script defer src="src/core/effect-resolver.js?v=20260526optionaleffects"></script>
@@ -23,10 +23,10 @@
     <script defer src="src/ui/sound-effects.js?v=20260522h"></script>
     <script defer src="src/ui/card-zoom.js?v=20260522k"></script>
     <script defer src="src/ui/deck-builder-view.js?v=20260526missingDeckCards"></script>
-    <script defer src="src/ui/pack-view.js?v=20260525zoom"></script>
+    <script defer src="src/ui/pack-view.js?v=20260526packResultFlow"></script>
     <script defer src="src/net/online-client.js?v=20260525openingattack"></script>
     <script defer src="src/ui/duel-view.js?v=20260526reactionhandcue"></script>
-    <script defer src="src/main.js?v=20260526duelDeckPicker"></script>
+    <script defer src="src/main.js?v=20260526packResultFlow"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -201,7 +201,7 @@
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
                 <svg><use href="#icon-core"></use></svg>
-                <span>デュエル</span>
+                <span>対戦</span>
               </button>
             </div>
           </div>
@@ -227,7 +227,7 @@
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
                 <svg><use href="#icon-core"></use></svg>
-                <span>デュエル</span>
+                <span>対戦</span>
               </button>
             </div>
           </div>
@@ -352,8 +352,38 @@
               </div>
               <button id="openSelectedPackButton" class="primary-button" type="button">100で開封</button>
             </div>
-            <div id="packResultGrid" class="pack-result-list pack-page-results" aria-label="開封結果"></div>
+            <div id="selectedPackPreview" class="pack-selected-preview" aria-label="選択中のパック"></div>
           </section>
+          <div class="home-bottom-nav shared-bottom-nav" aria-label="ショートカット">
+            <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
+              <svg><use href="#icon-circuit"></use></svg>
+              <span>デッキ</span>
+            </button>
+            <button class="home-shortcut-button" type="button" data-nav-view="pack">
+              <svg><use href="#icon-star"></use></svg>
+              <span>パック</span>
+            </button>
+            <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
+              <svg><use href="#icon-core"></use></svg>
+              <span>対戦</span>
+            </button>
+          </div>
+        </section>
+
+        <section id="packResultView" class="view pack-result-view" hidden>
+          <div class="pack-result-stage">
+            <div class="pack-result-head">
+              <div>
+                <p id="packResultEyebrow" class="eyebrow">Pack Result</p>
+                <h2 id="packResultTitle">開封結果</h2>
+              </div>
+              <div class="pack-result-actions">
+                <button id="packResultBackButton" class="ghost-button" type="button">戻る</button>
+                <button id="packResultAgainButton" class="primary-button" type="button">もう一度開封</button>
+              </div>
+            </div>
+            <div id="packResultGrid" class="pack-result-list pack-page-results" aria-label="開封結果"></div>
+          </div>
         </section>
 
         <section id="duelMenuView" class="view duel-menu-view" hidden>
@@ -401,7 +431,7 @@
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
                 <svg><use href="#icon-core"></use></svg>
-                <span>デュエル</span>
+                <span>対戦</span>
               </button>
             </div>
           </div>

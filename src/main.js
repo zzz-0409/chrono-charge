@@ -25,6 +25,7 @@
     deckSelectView: document.querySelector("#deckSelectView"),
     builderView: document.querySelector("#builderView"),
     packView: document.querySelector("#packView"),
+    packResultView: document.querySelector("#packResultView"),
     duelMenuView: document.querySelector("#duelMenuView"),
     duelView: document.querySelector("#duelView"),
     saveDeckButton: document.querySelector("#saveDeckButton"),
@@ -58,6 +59,11 @@
     selectedPackEyebrow: document.querySelector("#selectedPackEyebrow"),
     selectedPackTitle: document.querySelector("#selectedPackTitle"),
     openSelectedPackButton: document.querySelector("#openSelectedPackButton"),
+    selectedPackPreview: document.querySelector("#selectedPackPreview"),
+    packResultEyebrow: document.querySelector("#packResultEyebrow"),
+    packResultTitle: document.querySelector("#packResultTitle"),
+    packResultBackButton: document.querySelector("#packResultBackButton"),
+    packResultAgainButton: document.querySelector("#packResultAgainButton"),
     packResultGrid: document.querySelector("#packResultGrid"),
     searchInput: document.querySelector("#searchInput"),
     typeFilter: document.querySelector("#typeFilter"),
@@ -138,17 +144,19 @@
     const showDeckSelect = view === "deckSelect";
     const showBuilder = view === "builder";
     const showPack = view === "pack";
+    const showPackResult = view === "packResult";
     const showDuelMenu = view === "duelMenu";
     const showDuel = view === "duel";
     els.homeView.hidden = !showHome;
     els.deckSelectView.hidden = !showDeckSelect;
     els.builderView.hidden = !showBuilder;
     els.packView.hidden = !showPack;
+    els.packResultView.hidden = !showPackResult;
     els.duelMenuView.hidden = !showDuelMenu;
     els.duelView.hidden = !showDuel;
     els.homeTab?.classList.toggle("active", showHome);
     els.builderTab?.classList.toggle("active", showDeckSelect || showBuilder);
-    els.packTab?.classList.toggle("active", showPack);
+    els.packTab?.classList.toggle("active", showPack || showPackResult);
     els.duelTab?.classList.toggle("active", showDuelMenu || showDuel);
     const accountEnabled = showHome || showBuilder;
     els.loginButton.disabled = !accountEnabled;
@@ -156,7 +164,7 @@
     els.saveDisplayNameButton.disabled = !accountEnabled;
     els.logoutButton.disabled = !accountEnabled;
     if (showDeckSelect) renderDeckSelectView();
-    if (showPack) packView?.render();
+    if (showPack || showPackResult) packView?.render();
   };
 
   const openAppModal = (content) => {
@@ -299,6 +307,7 @@
     store,
     els,
     toast,
+    setView,
     onCollectionChange: () => builderView.render({ preserveLibraryScroll: true }),
   });
 
