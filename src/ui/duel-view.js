@@ -393,13 +393,16 @@
       this.game.player.hand.forEach((id, index) => {
         const handCard = cards[id];
         const lacksCost = handCard && !this.game.canPay(this.game.player, handCard.cost || 0);
+        const canStillCharge = this.game.canPlayerAct() && !this.game.player.chargedThisTurn;
+        const canSetReaction = handCard?.type === "リアクション" && this.game.canPlayerAct() && this.game.canSetReaction(this.game.player);
+        const unavailable = lacksCost && !canStillCharge && !canSetReaction;
         const card = CardRenderer.tcgCard(id, {
           interactive: true,
           selected: this.isSelected("hand", index),
           finish: this.finishFor(id),
         });
-        card.classList.toggle("cost-unavailable-card", Boolean(lacksCost));
-        if (lacksCost) card.setAttribute("aria-disabled", "true");
+        card.classList.toggle("cost-unavailable-card", Boolean(unavailable));
+        if (unavailable) card.setAttribute("aria-disabled", "true");
         if (index >= playerHandCount - playerDrawn) this.applyDrawAnimation(card, index - (playerHandCount - playerDrawn), "player");
         if (this.canDragHandCard(index)) {
           card.classList.add("draggable-hand-card");
