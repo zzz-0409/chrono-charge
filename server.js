@@ -460,28 +460,30 @@ function playFromHand(game, player, opponent, index, seat, preferredSlot = null)
   const card = cards[id];
   if (!card || !canPlayCard(player, card) || !payCost(player, card.cost)) return false;
   player.hand.splice(index, 1);
-  if (card.effect) addActivation(game, card, seat, "effect");
-
-  if (card.effect && queueReactionChoice(game, opponent, player, card, "effect", (negated) => {
-    resolvePlayedCard(game, player, opponent, card, negated, seat, preferredSlot);
-  })) {
-    return true;
-  }
-  resolvePlayedCard(game, player, opponent, card, false, seat, preferredSlot);
+  resolvePlayedCard(game, player, opponent, card, seat, preferredSlot);
   return true;
 }
 
-function resolvePlayedCard(game, player, opponent, card, negated, seat, preferredSlot = null) {
+function resolvePlayedCard(game, player, opponent, card, seat, preferredSlot = null) {
   const prefix = seat === "guest" ? "相手は" : "";
   if (card.type === "ユニット") {
     summonUnit(player, card.id, preferredSlot);
     log(game, `${prefix}${card.name}を召喚。`);
-    if (!negated && card.effect) {
-      const pending = resolveEffect(game, card.effect, player, opponent, card);
-      if (pending) appendPendingAfter(game, () => afterSummon(game, player, card.id));
-      else afterSummon(game, player, card.id);
-    } else if (negated) {
-      log(game, `${card.name}の通常召喚時効果は無効化された。`);
+    if (card.effect) {
+      const activate = () => activateEffectWithReactions(game, player, opponent, card, card.effect, `${card.name}の通常召喚時効果は無効化された。`, () => {
+        afterSummon(game, player, card.id);
+      });
+      if (triggeredEffectIsOptional(card, "通常召喚時")) {
+        queueEffectActivationChoice(game, player, card, {
+          title: `${card.name}の通常召喚時効果`,
+          message: "通常召喚時効果を発動しますか？",
+        }, activate, () => {
+          log(game, `${card.name}の通常召喚時効果は発動しなかった。`);
+          afterSummon(game, player, card.id);
+        });
+      } else {
+        activate();
+      }
     } else {
       afterSummon(game, player, card.id);
     }
@@ -491,17 +493,77 @@ function resolvePlayedCard(game, player, opponent, card, negated, seat, preferre
   if (card.type === "コア") {
     placeCore(player, card.id, preferredSlot);
     log(game, `${prefix}${card.name}を発動。`);
-    if (!negated) resolveEffect(game, card.effect, player, opponent, card);
-    if (negated) log(game, `${card.name}の効果は無効化された。`);
+    if (card.effect) activateEffectWithReactions(game, player, opponent, card, card.effect, `${card.name}の効果は無効化された。`);
     return;
   }
 
   if (card.type === "スペル") {
     log(game, `${prefix}${card.name}を発動。`);
-    if (!negated) resolveEffect(game, card.effect, player, opponent, card);
-    if (negated) log(game, `${card.name}は無効化された。`);
+    if (card.effect) activateEffectWithReactions(game, player, opponent, card, card.effect, `${card.name}は無効化された。`);
     player.grave.push(card.id);
   }
+}
+
+function effectSectionText(card, triggerLabel) {
+  const text = card?.text || "";
+  const marker = `${triggerLabel}：`;
+  const start = text.indexOf(marker);
+  if (start === -1) return text;
+  const rest = text.slice(start + marker.length);
+  const next = rest.search(/(?:通常召喚時|追加召喚時|召喚時|発動時|効果)：/);
+  return next === -1 ? rest : rest.slice(0, next);
+}
+
+function triggeredEffectIsOptional(card, triggerLabel) {
+  const section = effectSectionText(card, triggerLabel);
+  if (section.includes("発動できる")) return true;
+  if (section.includes("発動する")) return false;
+  return card?.type === "ユニット" || card?.driveKind === "unit" || triggerLabel.includes("召喚");
+}
+
+function queueEffectActivationChoice(game, player, card, choice, onActivate, onPass = () => {}) {
+  game.pendingChoice = {
+    id: makeId(8),
+    seat: seatOf(game, player),
+    zone: "effectActivation",
+    title: choice.title || `${card.name}の効果`,
+    message: choice.message || `${card.name}の効果を発動しますか？`,
+    candidates: [{ id: card.id, index: 0 }],
+    allowPass: true,
+    confirmLabel: choice.confirmLabel || "発動する",
+    passLabel: choice.passLabel || "発動しない",
+    resolve: (candidate) => {
+      if (candidate) onActivate();
+      else onPass();
+    },
+    afterResolve: null,
+  };
+  return true;
+}
+
+function queueOptionalAdditionalEffect(game, player, sourceCard, message, onActivate, onPass = () => {}) {
+  return queueEffectActivationChoice(game, player, sourceCard, {
+    title: `${sourceCard?.name || "カード"}の追加効果`,
+    message,
+    confirmLabel: "追加で発動する",
+  }, onActivate, onPass);
+}
+
+function activateEffectWithReactions(game, player, opponent, card, effect, negatedMessage, after = () => {}) {
+  addActivation(game, card, seatOf(game, player), "effect");
+  const finish = (negated) => {
+    if (negated) {
+      log(game, negatedMessage || `${card.name}の効果は無効化された。`);
+      after(false);
+      return;
+    }
+    const pending = resolveEffect(game, effect, player, opponent, card);
+    if (pending) appendPendingAfter(game, () => after(true));
+    else after(true);
+  };
+  if (queueReactionChoice(game, opponent, player, card, "effect", finish)) return true;
+  finish(false);
+  return false;
 }
 
 function attackWithUnit(game, player, opponent, attackerIndex, targetIndex) {
@@ -655,6 +717,10 @@ function autoReact(game, reactor, opponent, sourceCard, trigger) {
 }
 
 function applyReactionEffect(game, card, player, opponent, event = {}, after = null) {
+  const finishReaction = (result) => {
+    if (after) after(result);
+    return result;
+  };
   if (card.effect === "negateAttackDamage") {
     const dealt = damage(game, opponent, 500);
     log(game, `${card.name}で攻撃を止め、${dealt}ダメージ。`);
@@ -666,7 +732,17 @@ function applyReactionEffect(game, card, player, opponent, event = {}, after = n
     return { negates: true };
   }
   if (card.effect === "negateEffectDraw") {
-    if (countThemeInCharge(player, "星導") >= 3) drawCards(player, 1, game);
+    if (countThemeInCharge(player, "星導") >= 3) {
+      queueOptionalAdditionalEffect(game, player, card, "チャージに「星導」が3枚以上あります。追加で1枚ドローしますか？", () => {
+        drawCards(player, 1, game);
+        log(game, `${card.name}で効果を止めた。`);
+        finishReaction({ negates: true });
+      }, () => {
+        log(game, `${card.name}で効果を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
     log(game, `${card.name}で効果を止めた。`);
     return { negates: true };
   }
@@ -678,37 +754,65 @@ function applyReactionEffect(game, card, player, opponent, event = {}, after = n
     if (targetIndex !== -1) {
       const targetName = cards[opponent.units[targetIndex].id].name;
       if (countThemeInCharge(player, "断刃") >= 3) {
-        destroyUnit(opponent, targetIndex);
-        log(game, `${card.name}で${targetName}を破壊。`);
-      } else {
-        log(game, `${card.name}で攻撃を止めた。`);
+        queueOptionalAdditionalEffect(game, player, card, "チャージに「断刃」が3枚以上あります。追加でそのユニットを破壊しますか？", () => {
+          destroyUnit(opponent, targetIndex);
+          log(game, `${card.name}で${targetName}を破壊。`);
+          finishReaction({ negates: true });
+        }, () => {
+          log(game, `${card.name}で攻撃を止めた。`);
+          finishReaction({ negates: true });
+        });
+        return { pending: true };
       }
+      log(game, `${card.name}で攻撃を止めた。`);
       return { negates: true };
     }
     log(game, `${card.name}で攻撃を止めた。`);
     return { negates: true };
   }
   if (card.effect === "cyberShield") {
-    if (countThemeUnits(player, "電脳") >= 2) drawCards(player, 1, game);
+    if (countThemeUnits(player, "電脳") >= 2) {
+      queueOptionalAdditionalEffect(game, player, card, "自分フィールドに「電脳」ユニットが2体以上います。追加で1枚ドローしますか？", () => {
+        drawCards(player, 1, game);
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      }, () => {
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
     log(game, `${card.name}で攻撃を止めた。`);
     return { negates: true };
   }
   if (card.effect === "cyberCounterhack") {
     if (countThemeUnits(player, "電脳") >= 2) {
-      let immediateResult = null;
-      const queued = chooseRevealReaction(game, player, opponent, () => {
+      queueOptionalAdditionalEffect(game, player, card, "自分フィールドに「電脳」ユニットが2体以上います。追加で相手リアクションを公開しますか？", () => {
+        chooseRevealReaction(game, player, opponent, () => {
+          log(game, `${card.name}で効果を止めた。`);
+          finishReaction({ negates: true });
+        });
+      }, () => {
         log(game, `${card.name}で効果を止めた。`);
-        if (after) after({ negates: true });
-        else immediateResult = { negates: true };
+        finishReaction({ negates: true });
       });
-      if (queued) return { pending: true };
-      return immediateResult || { negates: true };
+      return { pending: true };
     }
     log(game, `${card.name}で効果を止めた。`);
     return { negates: true };
   }
   if (card.effect === "sosaiStreamCancel") {
-    if (hasSosaiPair(player)) drawCards(player, 1, game);
+    if (hasSosaiPair(player)) {
+      queueOptionalAdditionalEffect(game, player, card, "自分フィールドに「双彩」のペアがそろっています。追加で1枚ドローしますか？", () => {
+        drawCards(player, 1, game);
+        log(game, `${card.name}で効果を止めた。`);
+        finishReaction({ negates: true });
+      }, () => {
+        log(game, `${card.name}で効果を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
     log(game, `${card.name}で効果を止めた。`);
     return { negates: true };
   }
@@ -772,8 +876,17 @@ function queueChoice(game, player, zone, list, predicate, choice, handler, empty
     title: choice.title,
     message: choice.message,
     delayBeforeOpenMs: choice.delayBeforeOpenMs || 0,
+    allowPass: Boolean(choice.allowPass),
+    confirmLabel: choice.confirmLabel,
+    passLabel: choice.passLabel,
     candidates,
-    resolve: handler,
+    resolve: (candidate) => {
+      if (!candidate) {
+        emptyHandler();
+        return;
+      }
+      handler(candidate);
+    },
     afterResolve: null,
   };
   return true;
@@ -950,7 +1063,12 @@ function chooseSpecialSummonFromHand(game, player, predicate, choice, opponent =
     after(false);
     return false;
   }
-  return queueChoice(game, player, "hand", player.hand, predicate, choice, (candidate) => {
+  return queueChoice(game, player, "hand", player.hand, predicate, {
+    ...choice,
+    allowPass: choice.allowPass ?? true,
+    confirmLabel: choice.confirmLabel || "召喚する",
+    passLabel: choice.passLabel || "召喚しない",
+  }, (candidate) => {
     const [id] = player.hand.splice(candidate.index, 1);
     player.units[slot] = { id, exhausted: false, atkMod: 0 };
     log(game, `${cards[id].name}を追加召喚。`);
@@ -967,19 +1085,18 @@ function resolveSpecialSummonEffect(game, player, opponent, id, after = () => {}
     after(false);
     return false;
   }
-  addActivation(game, card, seatOf(game, player), "effect");
-  const resolveEffectAfterReactions = (negated) => {
-    if (negated) {
-      log(game, `${card.name}の追加召喚時効果は無効化された。`);
+  const activate = () => activateEffectWithReactions(game, player, opponent, card, card.specialEffect, `${card.name}の追加召喚時効果は無効化された。`, after);
+  if (triggeredEffectIsOptional(card, "追加召喚時")) {
+    queueEffectActivationChoice(game, player, card, {
+      title: `${card.name}の追加召喚時効果`,
+      message: "追加召喚時効果を発動しますか？",
+    }, activate, () => {
+      log(game, `${card.name}の追加召喚時効果は発動しなかった。`);
       after(false);
-      return;
-    }
-    const pending = resolveEffect(game, card.specialEffect, player, opponent, card);
-    if (pending) appendPendingAfter(game, () => after(true));
-    else after(true);
-  };
-  if (queueReactionChoice(game, opponent, player, card, "effect", resolveEffectAfterReactions)) return true;
-  resolveEffectAfterReactions(false);
+    });
+    return true;
+  }
+  activate();
   return true;
 }
 
@@ -1059,7 +1176,11 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "星導カードをサーチ",
         message: "デッキから手札に加えるカードを選んでください。",
       }, () => {
-        if (countThemeInCharge(player, "星導") >= 2) drawCards(player, 1, game);
+        if (countThemeInCharge(player, "星導") >= 2) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "チャージに「星導」が2枚以上あります。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
       });
     case "starLux":
       if (player.chargedThisTurn) {
@@ -1094,14 +1215,20 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "星導ユニットをサーチ",
         message: "デッキから手札に加えるユニットを選んでください。",
       }, () => {
-        if (countThemeInCharge(player, "星導") >= 2) drawCards(player, 1, game);
+        if (countThemeInCharge(player, "星導") >= 2) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "チャージに「星導」が2枚以上あります。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
       });
     case "starLink":
       drawCards(player, 1, game);
       if (controlsThemeUnit(player, "星導")) {
-        return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("星導") && card.cost <= 1, {
-          title: "星導ユニットを追加召喚",
-          message: "手札から追加召喚するユニットを選んでください。",
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「星導」ユニットがいます。追加で手札から召喚しますか？", () => {
+          chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("星導") && card.cost <= 1, {
+            title: "星導ユニットを追加召喚",
+            message: "手札から追加召喚するユニットを選んでください。",
+          });
         });
       }
       return false;
@@ -1128,14 +1255,22 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "星導カードをチャージ",
         message: "墓地からチャージに置く「星導」カードを選んでください。",
       }, () => {
-        if (controlsThemeUnit(player, "星導")) untapOneCharge(player);
+        if (controlsThemeUnit(player, "星導")) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「星導」ユニットがいます。追加でチャージをアクティブにしますか？", () => {
+            untapOneCharge(player);
+          });
+        }
       });
     case "starOrbit":
       drawCards(player, 1, game);
       break;
     case "blackGrinder":
       if (opponent.units.some(Boolean)) damage(game, opponent, 400);
-      if (player.cores.some(Boolean)) drawCards(player, 1, game);
+      if (player.cores.some(Boolean)) {
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分のコアがあります。追加で1枚ドローしますか？", () => {
+          drawCards(player, 1, game);
+        });
+      }
       break;
     case "blackGear":
       if (countThemeInCharge(player, "黒機") >= 2) {
@@ -1163,14 +1298,22 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       break;
     case "blackAnchor":
       return chooseExhaustUnit(game, player, opponent, () => {
-        if (player.cores.some(Boolean)) damage(game, opponent, 700);
+        if (player.cores.some(Boolean)) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分のコアがあります。追加で相手に700ダメージを与えますか？", () => {
+            damage(game, opponent, 700);
+          });
+        }
       });
     case "blackTower":
       damage(game, opponent, 600);
       break;
     case "blackRaid":
       damage(game, opponent, 800);
-      if (controlsThemeUnit(player, "黒機")) return chooseExhaustUnit(game, player, opponent);
+      if (controlsThemeUnit(player, "黒機")) {
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「黒機」ユニットがいます。追加で相手ユニットを行動済みにしますか？", () => {
+          chooseExhaustUnit(game, player, opponent);
+        });
+      }
       break;
     case "bladeTracker":
       return chooseExhaustUnit(game, player, opponent, (exhausted) => {
@@ -1190,7 +1333,11 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       return chooseDestroyExhaustedUnit(game, player, opponent);
     case "bladeMark":
       return chooseExhaustUnit(game, player, opponent, () => {
-        if (controlsThemeUnit(player, "断刃")) damage(game, opponent, 400);
+        if (controlsThemeUnit(player, "断刃")) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「断刃」ユニットがいます。追加で相手に400ダメージを与えますか？", () => {
+            damage(game, opponent, 400);
+          });
+        }
       });
     case "bladeCleave":
       if (hasExhaustedUnit(opponent)) return chooseDestroyExhaustedUnit(game, player, opponent);
@@ -1200,7 +1347,11 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "断刃ユニットをサーチ",
         message: "デッキから手札に加えるユニットを選んでください。",
       }, () => {
-        if (hasExhaustedUnit(opponent)) drawCards(player, 1, game);
+        if (hasExhaustedUnit(opponent)) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "相手の行動済みユニットがいます。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
       });
     case "bladeScaffold":
       return chooseExhaustUnit(game, player, opponent);
@@ -1216,7 +1367,11 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       });
     case "cyberShionSpecial":
       return chooseRevealReaction(game, player, opponent, (revealed) => {
-        if (revealed) damage(game, opponent, 500);
+        if (revealed) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "リアクションを公開しました。追加で相手に500ダメージを与えますか？", () => {
+            damage(game, opponent, 500);
+          });
+        }
       });
     case "cyberYuna":
       return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 2, {
@@ -1240,16 +1395,22 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "電脳ユニットを追加召喚",
         message: "手札から追加召喚するユニットを選んでください。",
       }, opponent, (moved) => {
-        if (moved) drawCards(player, 1, game);
+        if (moved) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "ユニットを追加召喚しました。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
       });
     case "cyberIntrusion": {
       return chooseRevealReaction(game, player, opponent, () => {
         if (countThemeUnits(player, "電脳") >= 2) {
-          chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳"), {
-            title: "電脳ユニットを追加召喚",
-            message: "手札から追加召喚するユニットを選んでください。",
-            delayBeforeOpenMs: 560,
-          }, opponent);
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「電脳」ユニットが2体以上います。追加で手札から召喚しますか？", () => {
+            chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳"), {
+              title: "電脳ユニットを追加召喚",
+              message: "手札から追加召喚するユニットを選んでください。",
+              delayBeforeOpenMs: 560,
+            }, opponent);
+          });
         }
       });
     }
@@ -1265,22 +1426,26 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       }, () => {
         chooseRevealReaction(game, player, opponent, () => {
           if (opponent.reactions.some((entry) => reactionId(entry) && reactionRevealed(entry))) {
-            chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
-              title: "電脳ユニットを追加召喚",
-              message: "手札から追加召喚する「電脳」ユニットを選んでください。",
-              delayBeforeOpenMs: 560,
-            }, opponent);
+            queueOptionalAdditionalEffect(game, player, sourceCard, "公開状態のリアクションがあります。追加で手札から召喚しますか？", () => {
+              chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+                title: "電脳ユニットを追加召喚",
+                message: "手札から追加召喚する「電脳」ユニットを選んでください。",
+                delayBeforeOpenMs: 560,
+              }, opponent);
+            });
           }
         });
       });
     case "probeDrone":
       return chooseRevealReaction(game, player, opponent, (revealed) => {
         if (revealed) {
-          chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 1, {
-            title: "電脳ユニットを追加召喚",
-            message: "手札から追加召喚する「電脳」ユニットを選んでください。",
-            delayBeforeOpenMs: 560,
-          }, opponent);
+          queueOptionalAdditionalEffect(game, player, sourceCard, "リアクションを公開しました。追加で手札から召喚しますか？", () => {
+            chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 1, {
+              title: "電脳ユニットを追加召喚",
+              message: "手札から追加召喚する「電脳」ユニットを選んでください。",
+              delayBeforeOpenMs: 560,
+            }, opponent);
+          });
         }
       });
     case "sosaiHikari":
@@ -1288,18 +1453,30 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         title: "ミントをサーチ",
         message: "デッキから手札に加えるミントを選んでください。",
       }, () => {
-        if (controlsCard(player, "sosai_mint")) drawCards(player, 1, game);
+        if (controlsCard(player, "sosai_mint")) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩のミント」がいます。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
       });
     case "sosaiMint":
       return chooseRevealReaction(game, player, opponent, () => {
-        if (controlsCard(player, "sosai_hikari")) chooseRemoveRevealedReaction(game, player, opponent);
+        if (controlsCard(player, "sosai_hikari")) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩のヒカリ」がいます。追加で表向きリアクションを墓地に送りますか？", () => {
+            chooseRemoveRevealedReaction(game, player, opponent);
+          });
+        }
       });
     case "sosaiNene":
       return chooseFromDeck(game, player, (card) => card.id === "sosai_ruri", {
         title: "ルリをサーチ",
         message: "デッキから手札に加えるルリを選んでください。",
       }, () => {
-        if (controlsCard(player, "sosai_ruri")) chooseReturnUnitToHand(game, player, opponent);
+        if (controlsCard(player, "sosai_ruri")) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩のルリ」がいます。追加で相手ユニットを手札に戻しますか？", () => {
+            chooseReturnUnitToHand(game, player, opponent);
+          });
+        }
       });
     case "sosaiRuri":
       return chooseFromDeck(game, player, (card) => card.id === "sosai_nene", {
@@ -1307,8 +1484,10 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         message: "デッキから手札に加えるネネを選んでください。",
       }, () => {
         if (controlsCard(player, "sosai_nene")) {
-          damage(game, opponent, 700);
-          drawCards(player, 1, game);
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩のネネ」がいます。追加で700ダメージと1枚ドローを行いますか？", () => {
+            damage(game, opponent, 700);
+            drawCards(player, 1, game);
+          });
         }
       });
     case "sosaiCoco":
@@ -1317,27 +1496,41 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         message: "デッキから手札に加えるルナを選んでください。",
       }, () => {
         if (controlsCard(player, "sosai_luna")) {
-          untapOneCharge(player);
-          drawCards(player, 1, game);
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩のルナ」がいます。追加でチャージをアクティブにして1枚ドローしますか？", () => {
+            untapOneCharge(player);
+            drawCards(player, 1, game);
+          });
         }
       });
     case "sosaiLuna":
       damage(game, opponent, 700);
-      if (controlsCard(player, "sosai_coco")) return chooseDestroyUnit(game, player, opponent);
+      if (controlsCard(player, "sosai_coco")) {
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩のココ」がいます。追加で相手ユニットを破壊しますか？", () => {
+          chooseDestroyUnit(game, player, opponent);
+        });
+      }
       break;
     case "sosaiLiveStart":
       return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.name.includes("双彩"), {
         title: "双彩ユニットをサーチ",
         message: "デッキから手札に加えるユニットを選んでください。",
       }, () => {
-        if (hasSosaiPair(player)) drawCards(player, 1, game);
+        if (hasSosaiPair(player)) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩」のペアがそろっています。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
       });
     case "sosaiHeartSync":
       return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("双彩") && card.cost <= 2, {
         title: "双彩ユニットを追加召喚",
         message: "手札から追加召喚するユニットを選んでください。",
       }, opponent, (moved) => {
-        if (moved && hasSosaiPair(player)) drawCards(player, 1, game);
+        if (moved && hasSosaiPair(player)) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩」のペアがそろっています。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
       });
     case "sosaiPopStage":
       drawCards(player, 1, game);
@@ -1352,9 +1545,11 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "genericFieldNotes":
       drawCards(player, 1, game);
       if (!player.units.some(Boolean)) {
-        return chooseFromHandToCharge(game, player, () => true, {
-          title: "手札をチャージ",
-          message: "手札からチャージに置くカードを選んでください。",
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドにユニットがいません。追加で手札1枚をチャージに置きますか？", () => {
+          chooseFromHandToCharge(game, player, () => true, {
+            title: "手札をチャージ",
+            message: "手札からチャージに置くカードを選んでください。",
+          });
         });
       }
       break;

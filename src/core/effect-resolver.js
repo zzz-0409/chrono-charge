@@ -6,6 +6,14 @@
       this.game = game;
     }
 
+    async optionalAdditional(player, sourceCard, message) {
+      return this.game.confirmEffectActivation(player, sourceCard, {
+        title: `${sourceCard?.name || "カード"}の追加効果`,
+        message,
+        confirmLabel: "追加で発動する",
+      });
+    }
+
     async resolve(effect, player, opponent, sourceCard) {
       switch (effect) {
         case "starScout":
@@ -13,7 +21,10 @@
             title: "星導カードをサーチ",
             message: "デッキから手札に加えるカードを選んでください。",
           });
-          if (this.game.countThemeInCharge(player, "星導") >= 2) {
+          if (
+            this.game.countThemeInCharge(player, "星導") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "チャージに「星導」が2枚以上あります。追加で1枚ドローしますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.drawCards(player, 1);
           }
@@ -47,7 +58,10 @@
             title: "星導ユニットをサーチ",
             message: "デッキから手札に加えるユニットを選んでください。",
           });
-          if (this.game.countThemeInCharge(player, "星導") >= 2) {
+          if (
+            this.game.countThemeInCharge(player, "星導") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "チャージに「星導」が2枚以上あります。追加で1枚ドローしますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.drawCards(player, 1);
           }
@@ -55,7 +69,10 @@
         case "starLink":
           this.game.drawCards(player, 1);
           await this.game.afterEffectStep(560);
-          if (this.game.controlsThemeUnit(player, "星導")) {
+          if (
+            this.game.controlsThemeUnit(player, "星導") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「星導」ユニットがいます。追加で手札から召喚しますか？")
+          ) {
             await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.name.includes("星導") && card.cost <= 1, {
               title: "星導ユニットを追加召喚",
               message: "手札から追加召喚するユニットを選んでください。",
@@ -86,7 +103,8 @@
           if (await this.game.moveGraveCardToCharge(player, (card) => card.name.includes("星導"), {
             title: "星導カードをチャージ",
             message: "墓地からチャージに置く「星導」カードを選んでください。",
-          }) && this.game.controlsThemeUnit(player, "星導")) {
+          }) && this.game.controlsThemeUnit(player, "星導") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「星導」ユニットがいます。追加でチャージをアクティブにしますか？")) {
             await this.game.afterEffectStep();
             this.game.untapOneCharge(player);
           }
@@ -96,7 +114,10 @@
           break;
         case "blackGrinder":
           if (opponent.units.some(Boolean)) this.game.damage(opponent, 400);
-          if (player.cores.some(Boolean)) {
+          if (
+            player.cores.some(Boolean) &&
+            await this.optionalAdditional(player, sourceCard, "自分のコアがあります。追加で1枚ドローしますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.drawCards(player, 1);
           }
@@ -128,14 +149,20 @@
         case "blackAnchor":
           await this.game.exhaustBestUnit(opponent);
           await this.game.afterEffectStep();
-          if (player.cores.some(Boolean)) this.game.damage(opponent, 700);
+          if (
+            player.cores.some(Boolean) &&
+            await this.optionalAdditional(player, sourceCard, "自分のコアがあります。追加で相手に700ダメージを与えますか？")
+          ) this.game.damage(opponent, 700);
           break;
         case "blackTower":
           this.game.damage(opponent, 600);
           break;
         case "blackRaid":
           this.game.damage(opponent, 800);
-          if (this.game.controlsThemeUnit(player, "黒機")) {
+          if (
+            this.game.controlsThemeUnit(player, "黒機") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「黒機」ユニットがいます。追加で相手ユニットを行動済みにしますか？")
+          ) {
             await this.game.afterEffectStep();
             await this.game.exhaustBestUnit(opponent);
           }
@@ -161,7 +188,10 @@
           break;
         case "bladeMark":
           await this.game.exhaustBestUnit(opponent);
-          if (this.game.controlsThemeUnit(player, "断刃")) {
+          if (
+            this.game.controlsThemeUnit(player, "断刃") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「断刃」ユニットがいます。追加で相手に400ダメージを与えますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.damage(opponent, 400);
           }
@@ -177,7 +207,10 @@
             title: "断刃ユニットをサーチ",
             message: "デッキから手札に加えるユニットを選んでください。",
           });
-          if (this.game.hasExhaustedUnit(opponent)) {
+          if (
+            this.game.hasExhaustedUnit(opponent) &&
+            await this.optionalAdditional(player, sourceCard, "相手の行動済みユニットがいます。追加で1枚ドローしますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.drawCards(player, 1);
           }
@@ -199,7 +232,10 @@
           break;
         case "cyberShionSpecial": {
           const revealed = await this.game.revealReactions(opponent, 1);
-          if (revealed > 0) {
+          if (
+            revealed > 0 &&
+            await this.optionalAdditional(player, sourceCard, "リアクションを公開しました。追加で相手に500ダメージを与えますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.damage(opponent, 500);
           }
@@ -228,7 +264,8 @@
           if (await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
             title: "電脳ユニットを追加召喚",
             message: "手札から追加召喚するユニットを選んでください。",
-          }, opponent)) {
+          }, opponent) &&
+            await this.optionalAdditional(player, sourceCard, "ユニットを追加召喚しました。追加で1枚ドローしますか？")) {
             await this.game.afterEffectStep();
             this.game.drawCards(player, 1);
           }
@@ -236,7 +273,10 @@
         case "cyberIntrusion": {
           const revealed = await this.game.revealReactions(opponent, 1);
           if (revealed > 0) await this.game.afterEffectStep();
-          if (this.game.countThemeUnits(player, "電脳") >= 2) {
+          if (
+            this.game.countThemeUnits(player, "電脳") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「電脳」ユニットが2体以上います。追加で手札から召喚しますか？")
+          ) {
             await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.name.includes("電脳"), {
               title: "電脳ユニットを追加召喚",
               message: "手札から追加召喚するユニットを選んでください。",
@@ -256,7 +296,10 @@
             message: "デッキから手札に加えるリアクションを選んでください。",
           });
           await this.game.revealReactions(opponent, 1);
-          if (opponent.reactions.some((entry) => entry && this.game.reactionRevealed(entry))) {
+          if (
+            opponent.reactions.some((entry) => entry && this.game.reactionRevealed(entry)) &&
+            await this.optionalAdditional(player, sourceCard, "公開状態のリアクションがあります。追加で手札から召喚しますか？")
+          ) {
             await this.game.afterEffectStep(560);
             await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
               title: "電脳ユニットを追加召喚",
@@ -265,7 +308,10 @@
           }
           break;
         case "probeDrone":
-          if (await this.game.revealReactions(opponent, 1) > 0) {
+          if (
+            await this.game.revealReactions(opponent, 1) > 0 &&
+            await this.optionalAdditional(player, sourceCard, "リアクションを公開しました。追加で手札から召喚しますか？")
+          ) {
             await this.game.afterEffectStep(560);
             await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 1, {
               title: "電脳ユニットを追加召喚",
@@ -278,7 +324,10 @@
             title: "ミントをサーチ",
             message: "デッキから手札に加えるミントを選んでください。",
           });
-          if (this.game.controlsCard(player, "sosai_mint")) {
+          if (
+            this.game.controlsCard(player, "sosai_mint") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩のミント」がいます。追加で1枚ドローしますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.drawCards(player, 1);
           }
@@ -286,7 +335,10 @@
         case "sosaiMint": {
           const revealed = await this.game.revealReactions(opponent, 1);
           if (revealed > 0) await this.game.afterEffectStep();
-          if (this.game.controlsCard(player, "sosai_hikari")) await this.game.removeRevealedReaction(opponent);
+          if (
+            this.game.controlsCard(player, "sosai_hikari") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩のヒカリ」がいます。追加で表向きリアクションを墓地に送りますか？")
+          ) await this.game.removeRevealedReaction(opponent);
           break;
         }
         case "sosaiNene":
@@ -294,7 +346,10 @@
             title: "ルリをサーチ",
             message: "デッキから手札に加えるルリを選んでください。",
           });
-          if (this.game.controlsCard(player, "sosai_ruri")) {
+          if (
+            this.game.controlsCard(player, "sosai_ruri") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩のルリ」がいます。追加で相手ユニットを手札に戻しますか？")
+          ) {
             await this.game.afterEffectStep();
             await this.game.returnBestUnitToHand(opponent);
           }
@@ -304,7 +359,10 @@
             title: "ネネをサーチ",
             message: "デッキから手札に加えるネネを選んでください。",
           });
-          if (this.game.controlsCard(player, "sosai_nene")) {
+          if (
+            this.game.controlsCard(player, "sosai_nene") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩のネネ」がいます。追加で700ダメージと1枚ドローを行いますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.damage(opponent, 700);
             await this.game.afterEffectStep();
@@ -316,7 +374,10 @@
             title: "ルナをサーチ",
             message: "デッキから手札に加えるルナを選んでください。",
           });
-          if (this.game.controlsCard(player, "sosai_luna")) {
+          if (
+            this.game.controlsCard(player, "sosai_luna") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩のルナ」がいます。追加でチャージをアクティブにして1枚ドローしますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.untapOneCharge(player);
             this.game.drawCards(player, 1);
@@ -324,7 +385,10 @@
           break;
         case "sosaiLuna":
           this.game.damage(opponent, 700);
-          if (this.game.controlsCard(player, "sosai_coco")) {
+          if (
+            this.game.controlsCard(player, "sosai_coco") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩のココ」がいます。追加で相手ユニットを破壊しますか？")
+          ) {
             await this.game.afterEffectStep();
             await this.game.destroyBestUnit(opponent);
           }
@@ -334,7 +398,10 @@
             title: "双彩ユニットをサーチ",
             message: "デッキから手札に加えるユニットを選んでください。",
           });
-          if (this.game.hasSosaiPair(player)) {
+          if (
+            this.game.hasSosaiPair(player) &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩」のペアがそろっています。追加で1枚ドローしますか？")
+          ) {
             await this.game.afterEffectStep();
             this.game.drawCards(player, 1);
           }
@@ -343,7 +410,8 @@
           if (await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.name.includes("双彩") && card.cost <= 2, {
             title: "双彩ユニットを追加召喚",
             message: "手札から追加召喚するユニットを選んでください。",
-          }, opponent) && this.game.hasSosaiPair(player)) {
+          }, opponent) && this.game.hasSosaiPair(player) &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩」のペアがそろっています。追加で1枚ドローしますか？")) {
             await this.game.afterEffectStep();
             this.game.drawCards(player, 1);
           }
@@ -361,7 +429,10 @@
           break;
         case "genericFieldNotes":
           this.game.drawCards(player, 1);
-          if (!player.units.some(Boolean)) {
+          if (
+            !player.units.some(Boolean) &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドにユニットがいません。追加で手札1枚をチャージに置きますか？")
+          ) {
             await this.game.afterEffectStep();
             await this.game.moveHandCardToCharge(player, () => true, {
               title: "手札をチャージ",

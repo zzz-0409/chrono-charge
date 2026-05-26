@@ -130,9 +130,7 @@
       try {
         this.player.hand.splice(index, 1);
         this.notify();
-        if (card.effect) await this.showActivation(card, "player", "effect");
-        const negated = card.effect ? await this.resolveReactionWindow({ trigger: "effect", source: card }, this.enemy, this.player) : false;
-        await this.resolvePlayedCard(this.player, this.enemy, card, negated, "player", preferredSlot);
+        await this.resolvePlayedCard(this.player, this.enemy, card, "player", preferredSlot);
         this.checkGameEnd();
         return true;
       } finally {
@@ -183,9 +181,7 @@
       try {
         if (!await this.activateDriveCard(this.player, card)) return false;
         this.notify();
-        await this.showActivation(card, "player", "effect");
-        const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, this.enemy, this.player);
-        await this.resolveDriveCardEffect(this.player, this.enemy, card, negated, "player", preferredSlot);
+        await this.resolveDriveCardEffect(this.player, this.enemy, card, "player", preferredSlot);
         this.checkGameEnd();
         return true;
       } finally {
@@ -300,9 +296,7 @@
       this.enemy.hand.splice(index, 1);
 
       this.notify();
-      if (card.effect) await this.showActivation(card, "enemy", "effect");
-      const negated = card.effect ? await this.resolveReactionWindow({ trigger: "effect", source: card }, this.player, this.enemy) : false;
-      await this.resolvePlayedCard(this.enemy, this.player, card, negated, "enemy");
+      await this.resolvePlayedCard(this.enemy, this.player, card, "enemy");
       this.checkGameEnd();
       this.notify();
     }
@@ -313,9 +307,7 @@
       if (!await this.activateDriveCard(this.enemy, card)) return;
 
       this.notify();
-      await this.showActivation(card, "enemy", "effect");
-      const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, this.player, this.enemy);
-      await this.resolveDriveCardEffect(this.enemy, this.player, card, negated, "enemy");
+      await this.resolveDriveCardEffect(this.enemy, this.player, card, "enemy");
       this.checkGameEnd();
       this.notify();
     }
@@ -325,17 +317,72 @@
       await this.options.showActivation?.({ id: card.id, owner, kind, card });
     }
 
-    async resolvePlayedCard(player, opponent, card, negated, side, preferredSlot = null) {
+    async confirmEffectActivation(player, card, choice = {}) {
+      if (!card) return false;
+      if (player !== this.player) return true;
+      const selected = await this.options.requestCardChoice({
+        zone: "effectActivation",
+        title: choice.title || `${card.name}の効果`,
+        message: choice.message || `${card.name}の効果を発動しますか？`,
+        candidates: [{ id: card.id, index: 0 }],
+        allowPass: true,
+        confirmLabel: choice.confirmLabel || "発動する",
+        passLabel: choice.passLabel || "発動しない",
+      }, this);
+      return selected === 0;
+    }
+
+    effectSectionText(card, triggerLabel) {
+      const text = card?.text || "";
+      const marker = `${triggerLabel}：`;
+      const start = text.indexOf(marker);
+      if (start === -1) return text;
+      const rest = text.slice(start + marker.length);
+      const next = rest.search(/(?:通常召喚時|追加召喚時|召喚時|発動時|効果)：/);
+      return next === -1 ? rest : rest.slice(0, next);
+    }
+
+    triggeredEffectIsOptional(card, triggerLabel) {
+      const section = this.effectSectionText(card, triggerLabel);
+      if (section.includes("発動できる")) return true;
+      if (section.includes("発動する")) return false;
+      return card?.type === "ユニット" || card?.driveKind === "unit" || triggerLabel.includes("召喚");
+    }
+
+    async shouldActivateTriggeredEffect(player, card, triggerLabel) {
+      if (!this.triggeredEffectIsOptional(card, triggerLabel)) return true;
+      return this.confirmEffectActivation(player, card, {
+        title: `${card.name}の${triggerLabel}効果`,
+        message: `${triggerLabel}効果を発動しますか？`,
+      });
+    }
+
+    async resolveEffectActivation(player, opponent, card, effect, negatedMessage) {
+      await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
+      const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
+      if (negated) {
+        this.log(negatedMessage || `${card.name}の効果は無効化された。`);
+        return false;
+      }
+      await this.effects.resolve(effect, player, opponent, card);
+      return true;
+    }
+
+    async resolvePlayedCard(player, opponent, card, side, preferredSlot = null) {
       const prefix = side === "enemy" ? "相手は" : "";
       if (card.type === "ユニット") {
         this.summonUnit(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}を召喚。`);
         this.notify();
-        if (!negated && card.effect) {
-          await this.effects.resolve(card.effect, player, opponent, card);
+        if (card.effect) {
+          const activates = await this.shouldActivateTriggeredEffect(player, card, "通常召喚時");
+          if (!activates) {
+            this.log(`${card.name}の通常召喚時効果は発動しなかった。`);
+            this.afterSummon(player, card.id);
+            return;
+          }
+          await this.resolveEffectActivation(player, opponent, card, card.effect, `${card.name}の通常召喚時効果は無効化された。`);
           this.afterSummon(player, card.id);
-        } else if (negated) {
-          this.log(`${card.name}の通常召喚時効果は無効化された。`);
         } else {
           this.afterSummon(player, card.id);
         }
@@ -345,43 +392,50 @@
       if (card.type === "コア") {
         this.placeCore(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}を発動。`);
-        if (!negated && card.effect) await this.effects.resolve(card.effect, player, opponent, card);
-        if (negated) this.log(`${card.name}の効果は無効化された。`);
+        if (card.effect) await this.resolveEffectActivation(player, opponent, card, card.effect, `${card.name}の効果は無効化された。`);
         return;
       }
 
       if (card.type === "スペル") {
         this.log(`${prefix}${card.name}を発動。`);
-        if (!negated && card.effect) await this.effects.resolve(card.effect, player, opponent, card);
-        if (negated) this.log(`${card.name}は無効化された。`);
+        if (card.effect) await this.resolveEffectActivation(player, opponent, card, card.effect, `${card.name}は無効化された。`);
         player.grave.push(card.id);
       }
     }
 
-    async resolveDriveCardEffect(player, opponent, card, negated, side, preferredSlot = null) {
+    async resolveDriveCardEffect(player, opponent, card, side, preferredSlot = null) {
       const prefix = side === "enemy" ? "相手は" : "";
       if (card.driveKind === "unit") {
         this.summonUnit(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}をドライブ召喚。`);
         this.notify();
-        if (!negated) {
-          await this.applyDriveEffect(card, player, opponent);
+        const activates = await this.shouldActivateTriggeredEffect(player, card, "召喚時");
+        if (!activates) {
+          this.log(`${card.name}の召喚時効果は発動しなかった。`);
           this.afterSummon(player, card.id);
-        } else {
-          this.log(`${card.name}の効果は無効化された。`);
+          return;
         }
+        await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
+        const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
+        if (!negated) await this.applyDriveEffect(card, player, opponent);
+        else this.log(`${card.name}の効果は無効化された。`);
+        this.afterSummon(player, card.id);
         return;
       }
 
       if (card.driveKind === "core") {
         this.placeCore(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}をドライブ発動。`);
+        await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
+        const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
         if (!negated) await this.applyDriveEffect(card, player, opponent);
         else this.log(`${card.name}の効果は無効化された。`);
         return;
       }
 
       this.log(`${prefix}${card.name}をドライブ発動。`);
+      await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
+      const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
       if (!negated) await this.applyDriveEffect(card, player, opponent);
       else this.log(`${card.name}は無効化された。`);
       this.sendToGrave(player, card.id);
@@ -480,7 +534,14 @@
         return { negates: true };
       }
       if (card.effect === "negateEffectDraw") {
-        if (this.countThemeInCharge(player, "星導") >= 3) this.drawCards(player, 1);
+        if (
+          this.countThemeInCharge(player, "星導") >= 3 &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "チャージに「星導」が3枚以上あります。追加で1枚ドローしますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) this.drawCards(player, 1);
         this.log(`${card.name}で効果を止めた。`);
         return { negates: true };
       }
@@ -491,7 +552,14 @@
           : opponent.units.findIndex((unit) => unit && unit.id === event.source?.id);
         if (targetIndex !== -1) {
           const targetName = cards[opponent.units[targetIndex].id].name;
-          if (this.countThemeInCharge(player, "断刃") >= 3) {
+          if (
+            this.countThemeInCharge(player, "断刃") >= 3 &&
+            await this.confirmEffectActivation(player, card, {
+              title: `${card.name}の追加効果`,
+              message: "チャージに「断刃」が3枚以上あります。追加でそのユニットを破壊しますか？",
+              confirmLabel: "追加で発動する",
+            })
+          ) {
             this.destroyUnit(opponent, targetIndex);
             this.log(`${card.name}で${targetName}を破壊。`);
           } else {
@@ -503,17 +571,38 @@
         return { negates: true };
       }
       if (card.effect === "cyberShield") {
-        if (this.countThemeUnits(player, "電脳") >= 2) this.drawCards(player, 1);
+        if (
+          this.countThemeUnits(player, "電脳") >= 2 &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "自分フィールドに「電脳」ユニットが2体以上います。追加で1枚ドローしますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) this.drawCards(player, 1);
         this.log(`${card.name}で攻撃を止めた。`);
         return { negates: true };
       }
       if (card.effect === "cyberCounterhack") {
-        if (this.countThemeUnits(player, "電脳") >= 2) await this.revealReactions(opponent, 1);
+        if (
+          this.countThemeUnits(player, "電脳") >= 2 &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "自分フィールドに「電脳」ユニットが2体以上います。追加で相手リアクションを公開しますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) await this.revealReactions(opponent, 1);
         this.log(`${card.name}で効果を止めた。`);
         return { negates: true };
       }
       if (card.effect === "sosaiStreamCancel") {
-        if (this.hasSosaiPair(player)) this.drawCards(player, 1);
+        if (
+          this.hasSosaiPair(player) &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "自分フィールドに「双彩」のペアがそろっています。追加で1枚ドローしますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) this.drawCards(player, 1);
         this.log(`${card.name}で効果を止めた。`);
         return { negates: true };
       }
@@ -654,10 +743,24 @@
           }, opponent);
           return;
         case "driveSosaiReactAttack":
-          if (this.hasSosaiPair(player)) this.drawCards(player, 1);
+          if (
+            this.hasSosaiPair(player) &&
+            await this.confirmEffectActivation(player, card, {
+              title: `${card.name}の追加効果`,
+              message: "自分フィールドに「双彩」のペアがいます。追加で1枚ドローしますか？",
+              confirmLabel: "追加で発動する",
+            })
+          ) this.drawCards(player, 1);
           return;
         case "driveSosaiReactEffect":
-          if (this.hasSosaiPair(player)) this.drawCards(player, 2);
+          if (
+            this.hasSosaiPair(player) &&
+            await this.confirmEffectActivation(player, card, {
+              title: `${card.name}の追加効果`,
+              message: "自分フィールドに「双彩」のペアがいます。追加で2枚ドローしますか？",
+              confirmLabel: "追加で発動する",
+            })
+          ) this.drawCards(player, 2);
           return;
         case "driveGenericUnit":
           this.drawCards(player, 1);
@@ -717,6 +820,9 @@
       const index = await this.chooseHandIndex(player, predicate, {
         title: choice.title || "追加召喚",
         message: choice.message || "手札から追加召喚するカードを選んでください。",
+        allowPass: choice.allowPass ?? true,
+        confirmLabel: choice.confirmLabel || "召喚する",
+        passLabel: choice.passLabel || "召喚しない",
       });
       if (index === -1) return false;
       const id = player.hand.splice(index, 1)[0];
@@ -730,13 +836,12 @@
     async resolveSpecialSummonEffect(player, opponent, id) {
       const card = cards[id];
       if (!card?.specialEffect) return;
-      await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
-      const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
-      if (negated) {
-        this.log(`${card.name}の追加召喚時効果は無効化された。`);
+      const activates = await this.shouldActivateTriggeredEffect(player, card, "追加召喚時");
+      if (!activates) {
+        this.log(`${card.name}の追加召喚時効果は発動しなかった。`);
         return;
       }
-      await this.effects.resolve(card.specialEffect, player, opponent, card);
+      await this.resolveEffectActivation(player, opponent, card, card.specialEffect, `${card.name}の追加召喚時効果は無効化された。`);
     }
 
     placeCore(player, id, preferredSlot = null) {
@@ -1275,6 +1380,9 @@
         title: choice.title,
         message: choice.message,
         candidates,
+        allowPass: choice.allowPass,
+        confirmLabel: choice.confirmLabel,
+        passLabel: choice.passLabel,
       }, this);
       const candidate = candidates.find((entry) => entry.index === selected);
       return candidate ? candidate.index : -1;

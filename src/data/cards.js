@@ -51,7 +51,7 @@
       art: "assets/cards/art/star-scout.png",
       theme: "星導",
       effect: "starScout",
-      text: "通常召喚時：デッキから「星導」と名のつくカード1枚を手札に加える。自分のチャージに「星導」が2枚以上あるなら、さらに1枚ドロー。",
+      text: "通常召喚時：この効果を発動できる。デッキから「星導」と名のつくカード1枚を手札に加える。自分のチャージに「星導」が2枚以上あるなら、追加で1枚ドローできる。",
     },
     {
       id: "star_lux",
@@ -63,7 +63,7 @@
       art: "assets/cards/art/star-lux.png",
       theme: "星導",
       effect: "starLux",
-      text: "通常召喚時：このターンにチャージしているなら、手札からコスト1以下の「星導」ユニット1体を追加召喚できる。",
+      text: "通常召喚時：この効果を発動できる。このターンにチャージしているなら、手札からコスト1以下の「星導」ユニット1体を追加召喚できる。",
     },
     {
       id: "star_mira",
@@ -75,7 +75,7 @@
       art: "assets/cards/art/star-mira.png",
       theme: "星導",
       effect: "starMira",
-      text: "通常召喚時：墓地から「星導」と名のつくスペル1枚を手札に戻す。戻せなかった場合、1枚ドロー。",
+      text: "通常召喚時：この効果を発動できる。墓地から「星導」と名のつくスペル1枚を手札に戻す。戻せなかった場合、1枚ドロー。",
     },
     {
       id: "star_guard",
@@ -87,7 +87,7 @@
       art: "assets/cards/art/star-guard.png",
       theme: "星導",
       effect: "starKai",
-      text: "通常召喚時：自分のチャージに「星導」が3枚以上あるなら、相手に500ダメージ。このカードは自分のコア1枚につきATK+300。",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「星導」が3枚以上あるなら、相手に500ダメージ。このカードは自分のコア1枚につきATKを300アップする。",
     },
     {
       id: "star_dragon",
@@ -99,7 +99,7 @@
       art: "assets/cards/art/star-dragon.png",
       theme: "星導",
       effect: "starDragon",
-      text: "通常召喚時：自分のチャージに「星導」が4枚以上あるなら、相手ユニット1体を破壊する。なければ相手に1200ダメージ。",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「星導」が4枚以上あるなら、相手ユニット1体を破壊する。なければ相手に1200ダメージ。",
     },
     {
       id: "star_invite",
@@ -110,7 +110,7 @@
       theme: "星導",
       art: "assets/cards/art/star-invite.png",
       effect: "starInvite",
-      text: "デッキから「星導」と名のつくユニット1枚を手札に加える。自分のチャージに「星導」が2枚以上あるなら、1枚ドロー。",
+      text: "発動時：この効果を発動する。デッキから「星導」と名のつくユニット1枚を手札に加える。自分のチャージに「星導」が2枚以上あるなら、追加で1枚ドローできる。",
     },
     {
       id: "star_link",
@@ -121,7 +121,7 @@
       theme: "星導",
       art: "assets/cards/art/star-link.png",
       effect: "starLink",
-      text: "1枚ドロー。その後、自分フィールドに「星導」ユニットがいるなら、手札からコスト1以下の「星導」ユニット1体を召喚できる。",
+      text: "発動時：この効果を発動する。1枚ドロー。その後、自分フィールドに「星導」ユニットがいるなら、追加で手札からコスト1以下の「星導」ユニット1体を召喚できる。",
     },
     {
       id: "star_reignite",
@@ -132,7 +132,7 @@
       theme: "星導",
       art: "assets/cards/art/star-reignite.png",
       effect: "starReignite",
-      text: "墓地から「星導」と名のつくカード1枚を手札に戻す。自分の「星導」チャージ1枚をアクティブにする。",
+      text: "発動時：この効果を発動する。墓地から「星導」と名のつくカード1枚を手札に戻す。自分の「星導」チャージ1枚をアクティブにする。",
     },
     {
       id: "star_orbit",
@@ -143,7 +143,7 @@
       theme: "星導",
       art: "assets/cards/art/star-orbit.png",
       effect: "starOrbit",
-      text: "発動時：1枚ドロー。各ターン、自分が最初に「星導」ユニットを召喚した時、1枚ドロー。",
+      text: "発動時：この効果を発動する。1枚ドロー。各ターン、自分が最初に「星導」ユニットを召喚した時、1枚ドロー。",
     },
     {
       id: "star_wall",
@@ -167,7 +167,7 @@
       trigger: "effect",
       art: "assets/cards/art/star-interference.png",
       effect: "negateEffectDraw",
-      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分のチャージに「星導」が3枚以上あるなら、1枚ドロー。",
+      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分のチャージに「星導」が3枚以上あるなら、追加で1枚ドローできる。",
     },
     {
       id: "star_navigator",
@@ -179,7 +179,7 @@
       art: "assets/cards/art/star-navigator.png",
       theme: "星導",
       effect: "starNavigator",
-      text: "通常召喚時：手札から「星導」と名のつくカード1枚を自分のチャージに置く。その後、デッキから「星導」と名のつくカード1枚を手札に加える。",
+      text: "通常召喚時：この効果を発動できる。手札から「星導」と名のつくカード1枚を自分のチャージに置く。その後、デッキから「星導」と名のつくカード1枚を手札に加える。",
     },
     {
       id: "star_chart",
@@ -190,7 +190,7 @@
       theme: "星導",
       art: "assets/cards/art/star-chart.png",
       effect: "starChart",
-      text: "墓地から「星導」と名のつくカード1枚を自分のチャージに置く。自分フィールドに「星導」ユニットがいるなら、自分のチャージ1枚をアクティブにする。",
+      text: "発動時：この効果を発動する。墓地から「星導」と名のつくカード1枚を自分のチャージに置く。自分フィールドに「星導」ユニットがいるなら、追加で自分のチャージ1枚をアクティブにできる。",
     },
     {
       id: "black_grinder",
@@ -202,7 +202,7 @@
       theme: "黒機",
       art: "assets/cards/art/black-grinder.png",
       effect: "blackGrinder",
-      text: "通常召喚時：相手ユニットがいるなら、相手に400ダメージ。自分のコアがあるなら、さらに1枚ドロー。",
+      text: "通常召喚時：この効果を発動できる。相手ユニットがいるなら、相手に400ダメージ。自分のコアがあるなら、追加で1枚ドローできる。",
     },
     {
       id: "black_gear",
@@ -214,7 +214,7 @@
       theme: "黒機",
       art: "assets/cards/art/black-gear.png",
       effect: "blackGear",
-      text: "通常召喚時：自分のチャージに「黒機」が2枚以上あるなら、手札からコスト1以下の「黒機」ユニット1体を追加召喚できる。",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「黒機」が2枚以上あるなら、手札からコスト1以下の「黒機」ユニット1体を追加召喚できる。",
     },
     {
       id: "black_anchor",
@@ -226,7 +226,7 @@
       theme: "黒機",
       art: "assets/cards/art/black-anchor.png",
       effect: "blackAnchor",
-      text: "通常召喚時：相手ユニット1体を次の相手ターン終了まで行動済みにする。自分のコアがあるなら、相手に700ダメージ。",
+      text: "通常召喚時：この効果を発動できる。相手ユニット1体を次の相手ターン終了まで行動済みにする。自分のコアがあるなら、追加で相手に700ダメージを与えられる。",
     },
     {
       id: "black_tower",
@@ -237,7 +237,7 @@
       theme: "黒機",
       art: "assets/cards/art/black-tower.png",
       effect: "blackTower",
-      text: "発動時：相手に600ダメージ。自分の「黒機」ユニットはATK+200。",
+      text: "発動時：この効果を発動する。相手に600ダメージ。自分の「黒機」ユニットはATKを200アップする。",
     },
     {
       id: "black_raid",
@@ -248,7 +248,7 @@
       theme: "黒機",
       art: "assets/cards/art/black-raid.png",
       effect: "blackRaid",
-      text: "相手に800ダメージ。自分フィールドに「黒機」ユニットがいるなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+      text: "発動時：この効果を発動する。相手に800ダメージ。自分フィールドに「黒機」ユニットがいるなら、追加で相手ユニット1体を次の相手ターン終了まで行動済みにできる。",
     },
     {
       id: "black_claw",
@@ -272,7 +272,7 @@
       theme: "黒機",
       art: "assets/cards/art/black-supply-engineer.png",
       effect: "blackSupplyEngineer",
-      text: "通常召喚時：自分フィールドに「黒機」コアがあるなら、デッキから「黒機」スペル1枚を手札に加える。なければ、相手に300ダメージ。",
+      text: "通常召喚時：この効果を発動できる。自分フィールドに「黒機」コアがあるなら、デッキから「黒機」スペル1枚を手札に加える。なければ、相手に300ダメージ。",
     },
     {
       id: "black_binding_gunner",
@@ -284,7 +284,7 @@
       theme: "黒機",
       art: "assets/cards/art/black-binding-gunner.png",
       effect: "blackBindingGunner",
-      text: "通常召喚時：自分フィールドに「黒機」コアがあるなら、相手ユニット1体を次の相手ターン終了まで行動済みにし、1枚ドロー。",
+      text: "通常召喚時：この効果を発動できる。自分フィールドに「黒機」コアがあるなら、相手ユニット1体を次の相手ターン終了まで行動済みにし、1枚ドロー。",
     },
     {
       id: "blade_tracker",
@@ -296,7 +296,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-tracker.png",
       effect: "bladeTracker",
-      text: "通常召喚時：相手ユニット1体を次の相手ターン終了まで行動済みにする。できなかったなら、相手に300ダメージ。",
+      text: "通常召喚時：この効果を発動できる。相手ユニット1体を次の相手ターン終了まで行動済みにする。できなかったなら、相手に300ダメージ。",
     },
     {
       id: "blade_marksmith",
@@ -308,7 +308,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-marksmith.png",
       effect: "bladeMarksmith",
-      text: "通常召喚時：相手の行動済みユニットがいるなら、1枚ドロー。",
+      text: "通常召喚時：この効果を発動できる。相手の行動済みユニットがいるなら、1枚ドロー。",
     },
     {
       id: "blade_edgeguard",
@@ -320,7 +320,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-edgeguard.png",
       effect: "bladeEdgeguard",
-      text: "通常召喚時：自分のチャージに「断刃」が2枚以上あるなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「断刃」が2枚以上あるなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
     },
     {
       id: "blade_executioner",
@@ -332,7 +332,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-executioner.png",
       effect: "bladeExecutioner",
-      text: "通常召喚時：相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+      text: "通常召喚時：この効果を発動できる。相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
     },
     {
       id: "blade_arbiter",
@@ -344,7 +344,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-arbiter.png",
       effect: "bladeArbiter",
-      text: "通常召喚時：相手の行動済みユニット1体を破壊する。自分のチャージに「断刃」が4枚以上あるなら、かわりに相手ユニット1体を破壊する。",
+      text: "通常召喚時：この効果を発動できる。相手の行動済みユニット1体を破壊する。自分のチャージに「断刃」が4枚以上あるなら、かわりに相手ユニット1体を破壊する。",
     },
     {
       id: "blade_mark",
@@ -355,7 +355,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-mark.png",
       effect: "bladeMark",
-      text: "相手ユニット1体を次の相手ターン終了まで行動済みにする。自分フィールドに「断刃」ユニットがいるなら、相手に400ダメージ。",
+      text: "発動時：この効果を発動する。相手ユニット1体を次の相手ターン終了まで行動済みにする。自分フィールドに「断刃」ユニットがいるなら、追加で相手に400ダメージを与えられる。",
     },
     {
       id: "blade_cleave",
@@ -366,7 +366,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-cleave.png",
       effect: "bladeCleave",
-      text: "相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+      text: "発動時：この効果を発動する。相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
     },
     {
       id: "blade_warrant",
@@ -377,7 +377,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-warrant.png",
       effect: "bladeWarrant",
-      text: "デッキから「断刃」と名のつくユニット1枚を手札に加える。相手の行動済みユニットがいるなら、1枚ドロー。",
+      text: "発動時：この効果を発動する。デッキから「断刃」と名のつくユニット1枚を手札に加える。相手の行動済みユニットがいるなら、追加で1枚ドローできる。",
     },
     {
       id: "blade_scaffold",
@@ -388,7 +388,7 @@
       theme: "断刃",
       art: "assets/cards/art/blade-scaffold.png",
       effect: "bladeScaffold",
-      text: "発動時：相手ユニット1体を次の相手ターン終了まで行動済みにする。自分の「断刃」ユニットはATK+200。",
+      text: "発動時：この効果を発動する。相手ユニット1体を次の相手ターン終了まで行動済みにする。自分の「断刃」ユニットはATKを200アップする。",
     },
     {
       id: "blade_counter",
@@ -400,7 +400,7 @@
       trigger: "attack",
       art: "assets/cards/art/blade-counter.png",
       effect: "bladeCounter",
-      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にする。自分のチャージに「断刃」が3枚以上あるなら、そのユニットを破壊する。",
+      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にする。自分のチャージに「断刃」が3枚以上あるなら、追加でそのユニットを破壊できる。",
     },
     {
       id: "cyber_mio",
@@ -412,7 +412,7 @@
       theme: "電脳",
       art: "assets/cards/art/cyber-mio.png",
       effect: "cyberMio",
-      text: "通常召喚時：手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。",
+      text: "通常召喚時：この効果を発動できる。手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。",
     },
     {
       id: "cyber_rei",
@@ -424,7 +424,7 @@
       theme: "電脳",
       art: "assets/cards/art/cyber-rei.png",
       specialEffect: "cyberReiSpecial",
-      text: "追加召喚時：デッキから「電脳」と名のつくリアクション1枚を手札に加える。",
+      text: "追加召喚時：この効果を発動できる。デッキから「電脳」と名のつくリアクション1枚を手札に加える。",
     },
     {
       id: "cyber_shion",
@@ -436,7 +436,7 @@
       theme: "電脳",
       art: "assets/cards/art/cyber-shion.png",
       specialEffect: "cyberShionSpecial",
-      text: "追加召喚時：相手のセットリアクション1枚を表向きにする。表向きにしたなら、相手に500ダメージ。",
+      text: "追加召喚時：この効果を発動できる。相手のセットリアクション1枚を表向きにする。表向きにしたなら、追加で相手に500ダメージを与えられる。",
     },
     {
       id: "cyber_yuna",
@@ -449,7 +449,7 @@
       art: "assets/cards/art/cyber-yuna.png",
       effect: "cyberYuna",
       specialEffect: "cyberYunaSpecial",
-      text: "通常召喚時：手札からコスト2以下の「電脳」ユニット1体を追加召喚できる。追加召喚時：自分のタップ済みチャージ1枚をアクティブにする。",
+      text: "通常召喚時：この効果を発動できる。手札からコスト2以下の「電脳」ユニット1体を追加召喚できる。追加召喚時：この効果を発動できる。自分のタップ済みチャージ1枚をアクティブにする。",
     },
     {
       id: "cyber_akari",
@@ -461,7 +461,7 @@
       theme: "電脳",
       art: "assets/cards/art/cyber-akari.png",
       specialEffect: "cyberAkariSpecial",
-      text: "追加召喚時：2枚ドロー。その後、手札1枚を墓地に送る。相手の表向きリアクション1枚を墓地に送る。",
+      text: "追加召喚時：この効果を発動できる。2枚ドロー。その後、手札1枚を墓地に送る。相手の表向きリアクション1枚を墓地に送る。",
     },
     {
       id: "cyber_preview",
@@ -472,7 +472,7 @@
       theme: "電脳",
       art: "assets/cards/art/cyber-preview.png",
       effect: "cyberPreview",
-      text: "発動時：手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。追加召喚したなら、1枚ドロー。",
+      text: "発動時：この効果を発動する。手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。追加召喚したなら、追加で1枚ドローできる。",
     },
     {
       id: "cyber_intrusion",
@@ -483,7 +483,7 @@
       theme: "電脳",
       art: "assets/cards/art/cyber-intrusion.png",
       effect: "cyberIntrusion",
-      text: "発動時：相手のセットリアクション1枚を表向きにする。自分フィールドに「電脳」ユニットが2体以上いるなら、手札から「電脳」ユニット1体を追加召喚できる。",
+      text: "発動時：この効果を発動する。相手のセットリアクション1枚を表向きにする。自分フィールドに「電脳」ユニットが2体以上いるなら、追加で手札から「電脳」ユニット1体を追加召喚できる。",
     },
     {
       id: "cyber_network",
@@ -494,7 +494,7 @@
       theme: "電脳",
       art: "assets/cards/art/cyber-network.png",
       effect: "cyberNetwork",
-      text: "発動時：手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。自分の「電脳」ユニットはATK+100。",
+      text: "発動時：この効果を発動する。手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。自分の「電脳」ユニットはATKを100アップする。",
     },
     {
       id: "cyber_backchannel",
@@ -505,7 +505,7 @@
       theme: "電脳",
       art: "assets/cards/art/cyber-intrusion.png",
       effect: "cyberBackchannel",
-      text: "デッキから「電脳」または無属性のリアクション1枚を手札に加える。さらに相手のセット中リアクション1枚を公開状態にする。公開状態のリアクションがあるなら、手札からコスト2以下の「電脳」ユニット1体を追加召喚できる。",
+      text: "デッキから「電脳」または無属性のリアクション1枚を手札に加える。相手のセット中リアクション1枚を公開状態にする。公開状態のリアクションがあるなら、追加で手札からコスト2以下の「電脳」ユニット1体を追加召喚できる。",
     },
     {
       id: "cyber_shield",
@@ -517,7 +517,7 @@
       trigger: "attack",
       art: "assets/cards/art/cyber-shield.png",
       effect: "cyberShield",
-      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にする。自分フィールドに「電脳」ユニットが2体以上いるなら、1枚ドロー。",
+      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にする。自分フィールドに「電脳」ユニットが2体以上いるなら、追加で1枚ドローできる。",
     },
     {
       id: "cyber_counterhack",
@@ -529,7 +529,7 @@
       trigger: "effect",
       art: "assets/cards/art/cyber-counterhack.png",
       effect: "cyberCounterhack",
-      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分フィールドに「電脳」ユニットが2体以上いるなら、相手のセットリアクション1枚を表向きにする。",
+      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分フィールドに「電脳」ユニットが2体以上いるなら、追加で相手のセットリアクション1枚を表向きにできる。",
     },
     {
       id: "sosai_hikari",
@@ -541,7 +541,7 @@
       theme: "双彩",
       art: "assets/cards/art/sosai-hikari.png",
       effect: "sosaiHikari",
-      text: "通常召喚時：デッキから「双彩のミント」1枚を手札に加える。自分フィールドに「双彩のミント」がいるなら、1枚ドロー。",
+      text: "通常召喚時：この効果を発動できる。デッキから「双彩のミント」1枚を手札に加える。自分フィールドに「双彩のミント」がいるなら、追加で1枚ドローできる。",
     },
     {
       id: "sosai_mint",
@@ -553,7 +553,7 @@
       theme: "双彩",
       art: "assets/cards/art/sosai-mint.png",
       effect: "sosaiMint",
-      text: "通常召喚時：相手のセットリアクション1枚を表向きにする。自分フィールドに「双彩のヒカリ」がいるなら、相手の表向きリアクション1枚を墓地に送る。",
+      text: "通常召喚時：この効果を発動できる。相手のセットリアクション1枚を表向きにする。自分フィールドに「双彩のヒカリ」がいるなら、追加で相手の表向きリアクション1枚を墓地に送れる。",
     },
     {
       id: "sosai_nene",
@@ -565,7 +565,7 @@
       theme: "双彩",
       art: "assets/cards/art/sosai-nene.png",
       effect: "sosaiNene",
-      text: "通常召喚時：デッキから「双彩のルリ」1枚を手札に加える。自分フィールドに「双彩のルリ」がいるなら、相手ユニット1体を手札に戻す。",
+      text: "通常召喚時：この効果を発動できる。デッキから「双彩のルリ」1枚を手札に加える。自分フィールドに「双彩のルリ」がいるなら、追加で相手ユニット1体を手札に戻せる。",
     },
     {
       id: "sosai_ruri",
@@ -577,7 +577,7 @@
       theme: "双彩",
       art: "assets/cards/art/sosai-ruri.png",
       effect: "sosaiRuri",
-      text: "通常召喚時：デッキから「双彩のネネ」1枚を手札に加える。自分フィールドに「双彩のネネ」がいるなら、相手に700ダメージ。その後、1枚ドロー。",
+      text: "通常召喚時：この効果を発動できる。デッキから「双彩のネネ」1枚を手札に加える。自分フィールドに「双彩のネネ」がいるなら、追加で相手に700ダメージを与え、1枚ドローできる。",
     },
     {
       id: "sosai_coco",
@@ -589,7 +589,7 @@
       theme: "双彩",
       art: "assets/cards/art/sosai-coco.png",
       effect: "sosaiCoco",
-      text: "通常召喚時：デッキから「双彩のルナ」1枚を手札に加える。自分フィールドに「双彩のルナ」がいるなら、自分のタップ済みチャージ1枚をアクティブにし、1枚ドロー。",
+      text: "通常召喚時：この効果を発動できる。デッキから「双彩のルナ」1枚を手札に加える。自分フィールドに「双彩のルナ」がいるなら、追加で自分のタップ済みチャージ1枚をアクティブにし、1枚ドローできる。",
     },
     {
       id: "sosai_luna",
@@ -601,7 +601,7 @@
       theme: "双彩",
       art: "assets/cards/art/sosai-luna.png",
       effect: "sosaiLuna",
-      text: "通常召喚時：相手に700ダメージ。自分フィールドに「双彩のココ」がいるなら、相手ユニット1体を破壊する。",
+      text: "通常召喚時：この効果を発動できる。相手に700ダメージ。自分フィールドに「双彩のココ」がいるなら、追加で相手ユニット1体を破壊できる。",
     },
     {
       id: "sosai_live_start",
@@ -612,7 +612,7 @@
       theme: "双彩",
       art: "assets/cards/art/sosai-live-start.png",
       effect: "sosaiLiveStart",
-      text: "発動時：デッキから「双彩」ユニット1枚を手札に加える。自分フィールドに「双彩」のペアがそろっているなら、1枚ドロー。",
+      text: "発動時：この効果を発動する。デッキから「双彩」ユニット1枚を手札に加える。自分フィールドに「双彩」のペアがそろっているなら、追加で1枚ドローできる。",
     },
     {
       id: "sosai_heart_sync",
@@ -623,7 +623,7 @@
       theme: "双彩",
       art: "assets/cards/art/sosai-heart-sync.png",
       effect: "sosaiHeartSync",
-      text: "発動時：手札からコスト2以下の「双彩」ユニット1体を追加召喚できる。自分フィールドに「双彩」のペアがそろっているなら、1枚ドロー。",
+      text: "発動時：この効果を発動する。手札からコスト2以下の「双彩」ユニット1体を追加召喚できる。自分フィールドに「双彩」のペアがそろっているなら、追加で1枚ドローできる。",
     },
     {
       id: "sosai_pop_stage",
@@ -634,7 +634,7 @@
       theme: "双彩",
       art: "assets/cards/art/sosai-pop-stage.png",
       effect: "sosaiPopStage",
-      text: "発動時：1枚ドロー。自分の「双彩」ユニットは、相方がいるならATK+300。",
+      text: "発動時：この効果を発動する。1枚ドロー。自分の「双彩」ユニットは、相方がいるならATKを300アップする。",
     },
     {
       id: "sosai_stream_cancel",
@@ -646,7 +646,7 @@
       trigger: "effect",
       art: "assets/cards/art/sosai-stream-cancel.png",
       effect: "sosaiStreamCancel",
-      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分フィールドに「双彩」のペアがそろっているなら、1枚ドロー。",
+      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分フィールドに「双彩」のペアがそろっているなら、追加で1枚ドローできる。",
     },
     {
       id: "generic_vanguard",
@@ -669,7 +669,7 @@
       theme: "",
       art: "assets/cards/art/generic-survey-team.png",
       effect: "genericSurveyTeam",
-      text: "通常召喚時：自分のチャージ枚数が相手より少ないなら、手札1枚を自分のチャージに置く。",
+      text: "通常召喚時：この効果を発動できる。自分のチャージ枚数が相手より少ないなら、手札1枚を自分のチャージに置く。",
     },
     {
       id: "generic_watchman",
@@ -692,7 +692,7 @@
       theme: "",
       art: "assets/cards/art/generic-watchman.png",
       effect: "probeDrone",
-      text: "通常召喚時：相手のセット中リアクション1枚を公開状態にする。公開できたなら、手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。",
+      text: "通常召喚時：この効果を発動できる。相手のセット中リアクション1枚を公開状態にする。公開できたなら、追加で手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。",
     },
     {
       id: "generic_duelist",
@@ -815,7 +815,7 @@
       theme: "",
       art: "assets/cards/art/generic-transfer.png",
       effect: "drawDiscard",
-      text: "2枚ドロー。その後、手札1枚を墓地に送る。",
+      text: "発動時：この効果を発動する。2枚ドロー。その後、手札1枚を墓地に送る。",
     },
     {
       id: "generic_watch_signal",
@@ -850,7 +850,7 @@
       theme: "",
       art: "assets/cards/art/generic-field-notes.png",
       effect: "genericFieldNotes",
-      text: "1枚ドロー。自分フィールドにユニットがいないなら、その後、手札1枚を自分のチャージに置く。",
+      text: "発動時：この効果を発動する。1枚ドロー。自分フィールドにユニットがいないなら、追加で手札1枚を自分のチャージに置ける。",
     },
     {
       id: "generic_bind",
@@ -861,7 +861,7 @@
       theme: "",
       art: "assets/cards/art/generic-bind.png",
       effect: "bindUnit",
-      text: "相手ユニット1体を次の相手ターン終了まで行動済みにする。相手に500ダメージ。",
+      text: "発動時：この効果を発動する。相手ユニット1体を次の相手ターン終了まで行動済みにする。相手に500ダメージ。",
     },
     {
       id: "generic_recall",
@@ -872,7 +872,7 @@
       theme: "",
       art: "assets/cards/art/generic-recall.png",
       effect: "recallUnit",
-      text: "墓地からユニット1体を手札に戻す。",
+      text: "発動時：この効果を発動する。墓地からユニット1体を手札に戻す。",
     },
     {
       id: "generic_zero",
@@ -883,7 +883,7 @@
       theme: "",
       art: "assets/cards/art/generic-zero.png",
       effect: "zeroCore",
-      text: "発動時：1枚ドロー。各ターン、自分が最初にチャージした時、1枚ドローし、手札1枚を墓地に送る。",
+      text: "発動時：この効果を発動する。1枚ドロー。各ターン、自分が最初にチャージした時、1枚ドローし、手札1枚を墓地に送る。",
     },
   ];
 
@@ -900,7 +900,7 @@
       driveKind: "unit",
       driveCost: { materials: [{ theme: "星導", type: "ユニット", count: 1 }, { theme: "星導", count: 2 }] },
       driveEffect: "driveStarUnit",
-      text: "召喚条件：場かチャージの「星導」ユニット1枚と、場かチャージの任意の「星導」カード2枚を墓地に送る。召喚時：3枚ドローし、自分のチャージ2枚をアクティブにする。",
+      text: "召喚条件：場かチャージの「星導」ユニット1枚と、場かチャージの任意の「星導」カード2枚を墓地に送る。召喚時：この効果を発動できる。3枚ドローし、自分のチャージ2枚をアクティブにする。",
     },
     {
       id: "drive_star_core",
@@ -913,7 +913,7 @@
       driveKind: "core",
       driveCost: { materials: [{ theme: "星導", type: "コア", count: 1 }, { theme: "星導", count: 2 }] },
       driveEffect: "driveStarCore",
-      text: "発動条件：場かチャージの「星導」コア1枚と、場かチャージの任意の「星導」カード2枚を墓地に送る。発動時：1枚ドロー。自分の「星導」ユニットはATK+300。",
+      text: "発動条件：場かチャージの「星導」コア1枚と、場かチャージの任意の「星導」カード2枚を墓地に送る。発動時：この効果を発動する。1枚ドロー。自分の「星導」ユニットはATKを300アップする。",
     },
     {
       id: "drive_star_spell",
@@ -926,7 +926,7 @@
       driveKind: "spell",
       driveCost: { materials: [{ theme: "星導", type: "スペル", count: 1 }, { theme: "星導", count: 2 }] },
       driveEffect: "driveStarSpell",
-      text: "発動条件：チャージの「星導」スペル1枚と、場かチャージの任意の「星導」カード2枚を墓地に送る。デッキから「星導」カード1枚を手札に加え、1枚ドロー。",
+      text: "発動条件：チャージの「星導」スペル1枚と、場かチャージの任意の「星導」カード2枚を墓地に送る。発動時：この効果を発動する。デッキから「星導」カード1枚を手札に加え、1枚ドロー。",
     },
     {
       id: "drive_star_react_attack",
@@ -968,7 +968,7 @@
       driveKind: "unit",
       driveCost: { materials: [{ theme: "黒機", type: "ユニット", count: 1 }, { theme: "黒機", count: 2 }] },
       driveEffect: "driveBlackUnit",
-      text: "召喚条件：場かチャージの「黒機」ユニット1枚と、場かチャージの任意の「黒機」カード2枚を墓地に送る。召喚時：相手に1500ダメージ。相手ユニット1体を破壊する。",
+      text: "召喚条件：場かチャージの「黒機」ユニット1枚と、場かチャージの任意の「黒機」カード2枚を墓地に送る。召喚時：この効果を発動できる。相手に1500ダメージ。相手ユニット1体を破壊する。",
     },
     {
       id: "drive_black_core",
@@ -981,7 +981,7 @@
       driveKind: "core",
       driveCost: { materials: [{ theme: "黒機", type: "コア", count: 1 }, { theme: "黒機", count: 2 }] },
       driveEffect: "driveBlackCore",
-      text: "発動条件：場かチャージの「黒機」コア1枚と、場かチャージの任意の「黒機」カード2枚を墓地に送る。発動時：相手に500ダメージ。自分の「黒機」ユニットはATK+300。",
+      text: "発動条件：場かチャージの「黒機」コア1枚と、場かチャージの任意の「黒機」カード2枚を墓地に送る。発動時：この効果を発動する。相手に500ダメージ。自分の「黒機」ユニットはATKを300アップする。",
     },
     {
       id: "drive_black_spell",
@@ -994,7 +994,7 @@
       driveKind: "spell",
       driveCost: { materials: [{ theme: "黒機", type: "スペル", count: 1 }, { theme: "黒機", count: 2 }] },
       driveEffect: "driveBlackSpell",
-      text: "発動条件：チャージの「黒機」スペル1枚と、場かチャージの任意の「黒機」カード2枚を墓地に送る。相手ユニット1体を破壊し、相手に1000ダメージ。",
+      text: "発動条件：チャージの「黒機」スペル1枚と、場かチャージの任意の「黒機」カード2枚を墓地に送る。発動時：この効果を発動する。相手ユニット1体を破壊し、相手に1000ダメージ。",
     },
     {
       id: "drive_black_react_attack",
@@ -1036,7 +1036,7 @@
       driveKind: "unit",
       driveCost: { materials: [{ theme: "断刃", type: "ユニット", count: 1 }, { theme: "断刃", count: 2 }] },
       driveEffect: "driveBladeUnit",
-      text: "召喚条件：場かチャージの「断刃」ユニット1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。召喚時：相手ユニット1体を次の相手ターン終了まで行動済みにし、その後、相手の行動済みユニット1体を破壊する。",
+      text: "召喚条件：場かチャージの「断刃」ユニット1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。召喚時：この効果を発動できる。相手ユニット1体を次の相手ターン終了まで行動済みにし、その後、相手の行動済みユニット1体を破壊する。",
     },
     {
       id: "drive_blade_core",
@@ -1049,7 +1049,7 @@
       driveKind: "core",
       driveCost: { materials: [{ theme: "断刃", type: "コア", count: 1 }, { theme: "断刃", count: 2 }] },
       driveEffect: "driveBladeCore",
-      text: "発動条件：場かチャージの「断刃」コア1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。発動時：相手ユニット1体を次の相手ターン終了まで行動済みにする。自分の「断刃」ユニットはATK+300。",
+      text: "発動条件：場かチャージの「断刃」コア1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。発動時：この効果を発動する。相手ユニット1体を次の相手ターン終了まで行動済みにする。自分の「断刃」ユニットはATKを300アップする。",
     },
     {
       id: "drive_blade_spell",
@@ -1062,7 +1062,7 @@
       driveKind: "spell",
       driveCost: { materials: [{ theme: "断刃", type: "スペル", count: 1 }, { theme: "断刃", count: 2 }] },
       driveEffect: "driveBladeSpell",
-      text: "発動条件：チャージの「断刃」スペル1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。相手ユニット1体を次の相手ターン終了まで行動済みにし、行動済みユニット1体を破壊する。",
+      text: "発動条件：チャージの「断刃」スペル1枚と、場かチャージの任意の「断刃」カード2枚を墓地に送る。発動時：この効果を発動する。相手ユニット1体を次の相手ターン終了まで行動済みにし、行動済みユニット1体を破壊する。",
     },
     {
       id: "drive_blade_react_attack",
@@ -1104,7 +1104,7 @@
       driveKind: "unit",
       driveCost: { materials: [{ theme: "電脳", type: "ユニット", count: 1 }, { theme: "電脳", count: 2 }] },
       driveEffect: "driveCyberUnit",
-      text: "召喚条件：場かチャージの「電脳」ユニット1枚と、場かチャージの任意の「電脳」カード2枚を墓地に送る。召喚時：相手のセットリアクション1枚を表向きにし、手札から「電脳」ユニット1体を追加召喚できる。",
+      text: "召喚条件：場かチャージの「電脳」ユニット1枚と、場かチャージの任意の「電脳」カード2枚を墓地に送る。召喚時：この効果を発動できる。相手のセットリアクション1枚を表向きにし、手札から「電脳」ユニット1体を追加召喚できる。",
     },
     {
       id: "drive_cyber_core",
@@ -1117,7 +1117,7 @@
       driveKind: "core",
       driveCost: { materials: [{ theme: "電脳", type: "コア", count: 1 }, { theme: "電脳", count: 2 }] },
       driveEffect: "driveCyberCore",
-      text: "発動条件：場かチャージの「電脳」コア1枚と、場かチャージの任意の「電脳」カード2枚を墓地に送る。発動時：手札からコスト2以下の「電脳」ユニット1体を追加召喚できる。自分の「電脳」ユニットはATK+200。",
+      text: "発動条件：場かチャージの「電脳」コア1枚と、場かチャージの任意の「電脳」カード2枚を墓地に送る。発動時：この効果を発動する。手札からコスト2以下の「電脳」ユニット1体を追加召喚できる。自分の「電脳」ユニットはATKを200アップする。",
     },
     {
       id: "drive_cyber_spell",
@@ -1130,7 +1130,7 @@
       driveKind: "spell",
       driveCost: { materials: [{ theme: "電脳", type: "スペル", count: 1 }, { theme: "電脳", count: 2 }] },
       driveEffect: "driveCyberSpell",
-      text: "発動条件：チャージの「電脳」スペル1枚と、場かチャージの任意の「電脳」カード2枚を墓地に送る。相手のセットリアクションを2枚まで表向きにし、1枚ドロー。",
+      text: "発動条件：チャージの「電脳」スペル1枚と、場かチャージの任意の「電脳」カード2枚を墓地に送る。発動時：この効果を発動する。相手のセットリアクションを2枚まで表向きにし、1枚ドロー。",
     },
     {
       id: "drive_cyber_react_attack",
@@ -1172,7 +1172,7 @@
       driveKind: "unit",
       driveCost: { materials: [{ id: "sosai_hikari", source: "field", count: 1 }, { id: "sosai_mint", source: "field", count: 1 }, { theme: "双彩", source: "charge", count: 1 }] },
       driveEffect: "driveSosaiUnit",
-      text: "召喚条件：場の「双彩のヒカリ」と場の「双彩のミント」、チャージの任意の「双彩」カード1枚を墓地に送る。召喚時：デッキから「双彩」ユニット1枚を手札に加え、2枚ドロー。",
+      text: "召喚条件：場の「双彩のヒカリ」と場の「双彩のミント」、チャージの任意の「双彩」カード1枚を墓地に送る。召喚時：この効果を発動できる。デッキから「双彩」ユニット1枚を手札に加え、2枚ドロー。",
     },
     {
       id: "drive_sosai_nene_ruri_unit",
@@ -1186,7 +1186,7 @@
       driveKind: "unit",
       driveCost: { materials: [{ id: "sosai_nene", source: "field", count: 1 }, { id: "sosai_ruri", source: "field", count: 1 }, { theme: "双彩", source: "charge", count: 1 }] },
       driveEffect: "driveSosaiNeneRuriUnit",
-      text: "召喚条件：場の「双彩のネネ」と場の「双彩のルリ」、チャージの任意の「双彩」カード1枚を墓地に送る。召喚時：相手ユニット1体を手札に戻し、相手に700ダメージ。1枚ドロー。",
+      text: "召喚条件：場の「双彩のネネ」と場の「双彩のルリ」、チャージの任意の「双彩」カード1枚を墓地に送る。召喚時：この効果を発動できる。相手ユニット1体を手札に戻し、相手に700ダメージ。1枚ドロー。",
     },
     {
       id: "drive_sosai_coco_luna_unit",
@@ -1200,7 +1200,7 @@
       driveKind: "unit",
       driveCost: { materials: [{ id: "sosai_coco", source: "field", count: 1 }, { id: "sosai_luna", source: "field", count: 1 }, { theme: "双彩", source: "charge", count: 1 }] },
       driveEffect: "driveSosaiCocoLunaUnit",
-      text: "召喚条件：場の「双彩のココ」と場の「双彩のルナ」、チャージの任意の「双彩」カード1枚を墓地に送る。召喚時：自分のタップ済みチャージ1枚をアクティブにし、1枚ドロー。相手ユニット1体を破壊する。",
+      text: "召喚条件：場の「双彩のココ」と場の「双彩のルナ」、チャージの任意の「双彩」カード1枚を墓地に送る。召喚時：この効果を発動できる。自分のタップ済みチャージ1枚をアクティブにし、1枚ドロー。相手ユニット1体を破壊する。",
     },
     {
       id: "drive_sosai_core",
@@ -1213,7 +1213,7 @@
       driveKind: "core",
       driveCost: { materials: [{ theme: "双彩", type: "コア", count: 1 }, { theme: "双彩", count: 2 }] },
       driveEffect: "driveSosaiCore",
-      text: "発動条件：場かチャージの「双彩」コア1枚と、場かチャージの任意の「双彩」カード2枚を墓地に送る。発動時：1枚ドロー。自分の「双彩」ユニットは、相方がいるならATK+500。",
+      text: "発動条件：場かチャージの「双彩」コア1枚と、場かチャージの任意の「双彩」カード2枚を墓地に送る。発動時：この効果を発動する。1枚ドロー。自分の「双彩」ユニットは、相方がいるならATKを500アップする。",
     },
     {
       id: "drive_sosai_spell",
@@ -1226,7 +1226,7 @@
       driveKind: "spell",
       driveCost: { materials: [{ theme: "双彩", type: "スペル", count: 1 }, { theme: "双彩", count: 2 }] },
       driveEffect: "driveSosaiSpell",
-      text: "発動条件：チャージの「双彩」スペル1枚と、場かチャージの任意の「双彩」カード2枚を墓地に送る。墓地から「双彩」ユニット1体を手札に戻し、手札からコスト2以下の「双彩」ユニット1体を追加召喚できる。",
+      text: "発動条件：チャージの「双彩」スペル1枚と、場かチャージの任意の「双彩」カード2枚を墓地に送る。発動時：この効果を発動する。墓地から「双彩」ユニット1体を手札に戻し、手札からコスト2以下の「双彩」ユニット1体を追加召喚できる。",
     },
     {
       id: "drive_sosai_react_attack",
@@ -1240,7 +1240,7 @@
       driveKind: "reaction",
       driveCost: { materials: [{ theme: "双彩", type: "リアクション", count: 1 }, { theme: "双彩", count: 2 }] },
       driveEffect: "driveSosaiReactAttack",
-      text: "発動条件：相手ユニットの攻撃宣言時、場かチャージの「双彩」リアクション1枚と、場かチャージの任意の「双彩」カード2枚を墓地に送る。効果：その攻撃を無効にし、自分フィールドに「双彩」のペアがいるなら1枚ドロー。",
+      text: "発動条件：相手ユニットの攻撃宣言時、場かチャージの「双彩」リアクション1枚と、場かチャージの任意の「双彩」カード2枚を墓地に送る。効果：その攻撃を無効にし、自分フィールドに「双彩」のペアがいるなら追加で1枚ドローできる。",
     },
     {
       id: "drive_sosai_react_effect",
@@ -1254,7 +1254,7 @@
       driveKind: "reaction",
       driveCost: { materials: [{ theme: "双彩", type: "リアクション", count: 1 }, { theme: "双彩", count: 2 }] },
       driveEffect: "driveSosaiReactEffect",
-      text: "発動条件：相手がカード効果を発動した時、場かチャージの「双彩」リアクション1枚と、場かチャージの任意の「双彩」カード2枚を墓地に送る。効果：その効果を無効にし、自分フィールドに「双彩」のペアがいるなら2枚ドロー。",
+      text: "発動条件：相手がカード効果を発動した時、場かチャージの「双彩」リアクション1枚と、場かチャージの任意の「双彩」カード2枚を墓地に送る。効果：その効果を無効にし、自分フィールドに「双彩」のペアがいるなら追加で2枚ドローできる。",
     },
     {
       id: "drive_generic_unit",
@@ -1268,7 +1268,7 @@
       driveKind: "unit",
       driveCost: { type: "ユニット", field: 1, charge: 1 },
       driveEffect: "driveGenericUnit",
-      text: "召喚条件：場のユニット1体とチャージのユニット1枚を墓地に送る。召喚時：1枚ドロー。",
+      text: "召喚条件：場のユニット1体とチャージのユニット1枚を墓地に送る。召喚時：この効果を発動できる。1枚ドロー。",
     },
     {
       id: "drive_generic_core",
@@ -1281,7 +1281,7 @@
       driveKind: "core",
       driveCost: { type: "コア", field: 1, charge: 1 },
       driveEffect: "driveGenericCore",
-      text: "発動条件：場のコア1枚とチャージのコア1枚を墓地に送る。発動時：2枚ドローし、手札1枚を墓地に送る。",
+      text: "発動条件：場のコア1枚とチャージのコア1枚を墓地に送る。発動時：この効果を発動する。2枚ドローし、手札1枚を墓地に送る。",
     },
     {
       id: "drive_generic_spell",
@@ -1294,7 +1294,7 @@
       driveKind: "spell",
       driveCost: { type: "スペル", charge: 2 },
       driveEffect: "driveGenericSpell",
-      text: "発動条件：チャージのスペル2枚を墓地に送る。相手ユニット1体を次の相手ターン終了まで行動済みにし、1枚ドロー。",
+      text: "発動条件：チャージのスペル2枚を墓地に送る。発動時：この効果を発動する。相手ユニット1体を次の相手ターン終了まで行動済みにし、1枚ドロー。",
     },
     {
       id: "drive_generic_react_attack",
