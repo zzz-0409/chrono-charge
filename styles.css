@@ -3755,8 +3755,17 @@ select {
   line-height: 15.97px;
 }
 
+.game-card:not(.drive-card-type) .card-face .rules-box {
+  height: 22%;
+}
+
+.game-card.type-unit:not(.drive-card-type) .card-face .rules-box {
+  height: 20.8%;
+}
+
 .game-card.type-spell:not(.drive-card-type) .card-face .rules-box {
   top: 72.6%;
+  height: 22.8%;
 }
 
 .game-card .card-face .card-effect {
@@ -3767,6 +3776,7 @@ select {
 }
 
 .game-card:not(.drive-card-type) .card-face .card-effect {
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -3785,11 +3795,6 @@ select {
 .game-card .card-face .card-effect.effect-xxs {
   font-size: 9.28px;
   line-height: 9.28px;
-}
-
-.game-card:not(.drive-card-type) .card-face .card-effect.effect-xxs {
-  font-size: 10.88px;
-  line-height: 11.32px;
 }
 
 .game-card .card-face .card-art {
