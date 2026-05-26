@@ -1468,6 +1468,13 @@ select {
   object-fit: cover;
 }
 
+.card-art.has-image {
+  background:
+    var(--card-art-url) center / cover no-repeat,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 45%),
+    #111820;
+}
+
 .placeholder-art {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 48%),

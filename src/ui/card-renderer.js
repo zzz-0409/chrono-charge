@@ -395,8 +395,7 @@
       if (card.art) {
         preloadCardArt(card.art);
         return `
-          <div class="${artClass}">
-            <img src="${card.art}" alt="${card.name}" decoding="async" loading="eager">
+          <div class="${artClass} has-image" style="--card-art-url: url('${escapeCssUrl(card.art)}')" aria-label="${escapeHtml(card.name)}">
           </div>
         `;
       }
@@ -572,6 +571,17 @@
       ">": "&gt;",
       "\"": "&quot;",
       "'": "&#39;",
+    })[char]);
+  }
+
+  function escapeCssUrl(value) {
+    return String(value).replace(/[\\'"\n\r\f]/g, (char) => ({
+      "\\": "\\\\",
+      "'": "\\'",
+      "\"": "\\\"",
+      "\n": "\\A ",
+      "\r": "\\D ",
+      "\f": "\\C ",
     })[char]);
   }
 
