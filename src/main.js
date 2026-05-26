@@ -124,12 +124,15 @@
   if (playerPiles) {
     const fieldCommand = document.createElement("div");
     fieldCommand.className = "turn-command-field";
+    const fieldStatus = document.createElement("div");
+    fieldStatus.className = "turn-status";
+    fieldStatus.append(els.turnBadge, els.phaseBadge);
     const fieldEndTurn = document.createElement("button");
     fieldEndTurn.id = "endTurnFieldButton";
     fieldEndTurn.className = "primary-button";
     fieldEndTurn.type = "button";
     fieldEndTurn.textContent = "ターン終了";
-    fieldCommand.append(fieldEndTurn);
+    fieldCommand.append(fieldStatus, fieldEndTurn);
     playerPiles.prepend(fieldCommand);
     els.endTurnButton = fieldEndTurn;
   }
@@ -162,6 +165,7 @@
     els.packTab?.classList.toggle("active", showPack || showPackResult);
     els.duelTab?.classList.toggle("active", showDuelMenu || showDuel);
     els.appShell?.classList.toggle("compact-header", !showHome);
+    els.appShell?.classList.toggle("duel-active", showDuel);
     const accountEnabled = showHome;
     els.loginButton.disabled = !accountEnabled;
     els.displayNameInput.disabled = !accountEnabled;
