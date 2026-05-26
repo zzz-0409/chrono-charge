@@ -365,7 +365,8 @@
 
     normalizeMain(source = {}) {
       const result = {};
-      Object.entries(source).forEach(([id, count]) => {
+      const entries = Array.isArray(source) ? Object.entries(countIds(source)) : Object.entries(source || {});
+      entries.forEach(([id, count]) => {
         if (!cards[id] || cards[id].driveKind || cards[id].type === "環境") return;
         const safeCount = Math.max(0, Math.min(MAX_COPIES, Number(count) || 0));
         if (safeCount > 0) result[id] = safeCount;
@@ -676,12 +677,11 @@
       if (!cards[id] || isDriveCard(cards[id]) || cards[id].type === "環境") return { ok: false, reason: "unknown" };
       if (this.total >= DECK_SIZE) return { ok: false, reason: "full" };
       const limit = this.deckLimit(id, false);
-      if (this.deckCount(id, false) >= limit) return { ok: false, reason: limit >= MAX_COPIES ? "copies" : "owned" };
+      if (this.deckCount(id, false) >= limit) return { ok: false, reason: "copies" };
       if (finish === ROYAL_FINISH) {
         if ((this.royalCounts[id] || 0) >= this.ownedCount(id, ROYAL_FINISH)) return { ok: false, reason: "owned" };
         this.royalCounts[id] = (this.royalCounts[id] || 0) + 1;
       } else {
-        if ((this.counts[id] || 0) >= this.ownedCount(id)) return { ok: false, reason: "owned" };
         this.counts[id] = (this.counts[id] || 0) + 1;
       }
       return { ok: true };
@@ -698,12 +698,11 @@
       if (!isDriveCard(cards[id])) return { ok: false, reason: "unknown" };
       if (this.driveTotal >= DRIVE_DECK_SIZE) return { ok: false, reason: "full" };
       const limit = this.deckLimit(id, true);
-      if (this.deckCount(id, true) >= limit) return { ok: false, reason: limit >= MAX_DRIVE_COPIES ? "copies" : "owned" };
+      if (this.deckCount(id, true) >= limit) return { ok: false, reason: "copies" };
       if (finish === ROYAL_FINISH) {
         if ((this.driveRoyalCounts[id] || 0) >= this.ownedCount(id, ROYAL_FINISH)) return { ok: false, reason: "owned" };
         this.driveRoyalCounts[id] = (this.driveRoyalCounts[id] || 0) + 1;
       } else {
-        if ((this.driveCounts[id] || 0) >= this.ownedCount(id)) return { ok: false, reason: "owned" };
         this.driveCounts[id] = (this.driveCounts[id] || 0) + 1;
       }
       return { ok: true };
@@ -790,8 +789,7 @@
     deckLimit(id, drive = false) {
       const copyLimit = drive ? MAX_DRIVE_COPIES : MAX_COPIES;
       if (!cards[id]) return 0;
-      if (this.isAuthorAccount) return copyLimit;
-      return Math.min(copyLimit, this.totalOwnedCount(id));
+      return copyLimit;
     }
 
     validateActiveDeckOwnership() {

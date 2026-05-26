@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260526-deck-favorite";
+const CACHE_VERSION = "chrono-drive-pwa-20260526-bottom-nav";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260526deckFavorite",
+  "/styles.css?v=20260526bottomNav",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -15,7 +15,7 @@ const APP_SHELL_URLS = [
   "/assets/home/home-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
   "/src/data/cards.js?v=20260526optionaleffects",
-  "/src/core/deck-store.js?v=20260526deckFavorite",
+  "/src/core/deck-store.js?v=20260526missingDeckCards",
   "/src/core/effect-resolver.js?v=20260526optionaleffects",
   "/src/core/cpu-controller.js?v=20260525safeattack",
   "/src/core/duel-game.js?v=20260526optionaleffects",
@@ -23,11 +23,11 @@ const APP_SHELL_URLS = [
   "/src/ui/card-renderer.js?v=20260526rubyfix",
   "/src/ui/sound-effects.js?v=20260522h",
   "/src/ui/card-zoom.js?v=20260522k",
-  "/src/ui/deck-builder-view.js?v=20260526dismantlelabel",
+  "/src/ui/deck-builder-view.js?v=20260526missingDeckCards",
   "/src/ui/pack-view.js?v=20260525zoom",
   "/src/net/online-client.js?v=20260525openingattack",
   "/src/ui/duel-view.js?v=20260526reactionhandcue",
-  "/src/main.js?v=20260526deckFavorite"
+  "/src/main.js?v=20260526bottomNav"
 ];
 
 self.addEventListener("install", (event) => {

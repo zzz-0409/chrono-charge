@@ -33,20 +33,20 @@
 
     bindEvents() {
       this.els.saveDeckButton.addEventListener("click", () => this.saveActiveDeck());
-      this.els.savePresetButton.addEventListener("click", () => this.saveActiveDeck());
-      this.els.saveAsPresetButton.addEventListener("click", () => {
+      this.els.savePresetButton?.addEventListener("click", () => this.saveActiveDeck());
+      this.els.saveAsPresetButton?.addEventListener("click", () => {
         const deck = this.store.saveAs(this.els.deckNameInput.value || this.store.nextDeckName());
-        this.els.deckPresetSelect.value = this.store.activeDeckId;
+        if (this.els.deckPresetSelect) this.els.deckPresetSelect.value = this.store.activeDeckId;
         this.render();
         this.toast(`${deck.name}を新規保存しました。`);
       });
-      this.els.loadDeckButton.addEventListener("click", () => {
+      this.els.loadDeckButton?.addEventListener("click", () => {
         if (!this.store.loadPreset(this.els.deckPresetSelect.value)) return;
         this.selectedCardId = this.firstSelectedId();
         this.render();
         this.toast(`${this.store.activeDeck.name}を読み込みました。`);
       });
-      this.els.deletePresetButton.addEventListener("click", async () => {
+      this.els.deletePresetButton?.addEventListener("click", async () => {
         const deck = this.store.activeAccountData.decks[this.els.deckPresetSelect.value];
         if (!deck) return;
         if (!(await this.confirmDeleteDeck(deck.name))) return;
@@ -64,11 +64,11 @@
       this.els.displayNameInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") this.saveDisplayName();
       });
-      this.els.deckPresetSelect.addEventListener("change", () => this.renderProfilePanel());
+      this.els.deckPresetSelect?.addEventListener("change", () => this.renderProfilePanel());
       this.els.autoBuildButton.addEventListener("click", () => {
         const label = this.store.autoBuild(this.els.autoBuildMode.value);
         this.selectedCardId = this.firstSelectedId();
-        this.els.deckPresetSelect.value = this.store.activeDeckId;
+        if (this.els.deckPresetSelect) this.els.deckPresetSelect.value = this.store.activeDeckId;
         this.render();
         if (this.store.total < DECK_SIZE || this.store.driveTotal < DRIVE_DECK_SIZE) {
           this.toast(`${label}を作成しましたが、所持カード不足で枚数が足りません。`);
@@ -181,6 +181,7 @@
     }
 
     render(options = {}) {
+      const deckScrollTop = options.preserveDeckScroll && this.els.deckList ? this.els.deckList.scrollTop : 0;
       this.ensureSelectedCard();
       this.renderResources();
       this.renderProfilePanel();
@@ -189,6 +190,7 @@
       this.renderDeckPanel();
       CardRenderer.preview(this.selectedCardId, this.els.cardPreview, { finish: this.selectedFinish });
       this.renderPreviewDeckControls();
+      if (options.preserveDeckScroll && this.els.deckList) this.els.deckList.scrollTop = deckScrollTop;
     }
 
     renderResources() {
@@ -197,8 +199,8 @@
     }
 
     saveActiveDeck() {
-      const deck = this.store.save(this.els.deckNameInput.value);
-      this.els.deckPresetSelect.value = this.store.activeDeckId;
+      const deck = this.store.save(this.els.deckNameInput?.value || this.store.activeDeck?.name);
+      if (this.els.deckPresetSelect) this.els.deckPresetSelect.value = this.store.activeDeckId;
       this.render({ preserveLibraryScroll: true });
       this.toast(`${deck.name}を保存しました。`);
       return deck;
@@ -207,7 +209,7 @@
     hasUnsavedChanges() {
       const deck = this.store.activeDeck;
       if (!deck) return false;
-      const currentName = normalizeCompareName(this.els.deckNameInput.value || deck.name);
+      const currentName = normalizeCompareName(this.els.deckNameInput?.value || deck.name);
       if (currentName !== normalizeCompareName(deck.name)) return true;
       return !sameCounts(this.store.counts, deck.mainDeck)
         || !sameCounts(this.store.royalCounts, deck.mainDeckRoyal)
@@ -217,7 +219,7 @@
 
     renderProfilePanel() {
       const activeDeck = this.store.activeDeck;
-      const selectedId = this.els.deckPresetSelect.value || this.store.activeDeckId;
+      const selectedId = this.els.deckPresetSelect?.value || this.store.activeDeckId;
       const loggedIn = this.store.isAuthenticated;
       if (document.activeElement !== this.els.displayNameInput) {
         this.els.displayNameInput.value = this.store.displayName || "";
@@ -227,19 +229,21 @@
       this.els.logoutButton.hidden = !loggedIn;
       this.els.saveDisplayNameButton.disabled = false;
 
-      this.els.deckPresetSelect.replaceChildren();
-      this.store.deckPresets.forEach((deck) => {
-        const option = document.createElement("option");
-        option.value = deck.id;
-        option.textContent = deck.name;
-        option.selected = deck.id === (this.store.activeAccountData.decks[selectedId] ? selectedId : this.store.activeDeckId);
-        this.els.deckPresetSelect.append(option);
-      });
+      if (this.els.deckPresetSelect) {
+        this.els.deckPresetSelect.replaceChildren();
+        this.store.deckPresets.forEach((deck) => {
+          const option = document.createElement("option");
+          option.value = deck.id;
+          option.textContent = deck.name;
+          option.selected = deck.id === (this.store.activeAccountData.decks[selectedId] ? selectedId : this.store.activeDeckId);
+          this.els.deckPresetSelect.append(option);
+        });
+      }
 
-      if (document.activeElement !== this.els.deckNameInput) {
+      if (this.els.deckNameInput && document.activeElement !== this.els.deckNameInput) {
         this.els.deckNameInput.value = activeDeck.name;
       }
-      this.els.deletePresetButton.disabled = this.store.deckPresets.length <= 1;
+      if (this.els.deletePresetButton) this.els.deletePresetButton.disabled = this.store.deckPresets.length <= 1;
     }
 
     renderLibrary(options = {}) {
@@ -645,7 +649,7 @@
       const count = normalCounts[this.selectedCardId] || 0;
       const royalCount = royalCounts[this.selectedCardId] || 0;
       const totalCount = count + royalCount;
-      const canAdd = count < owned && totalCount < limit && total < size;
+      const canAdd = totalCount < limit && total < size;
       const canAddRoyal = royalCount < royalOwned && totalCount < limit && total < size;
       const canRemove = count > 0;
       const canRemoveRoyal = royalCount > 0;
@@ -709,7 +713,7 @@
       this.toastDeckResult(result);
       this.selectedCardId = id;
       this.selectedFinish = finish;
-      this.render({ preserveLibraryScroll: true });
+      this.render({ preserveLibraryScroll: true, preserveDeckScroll: true });
     }
 
     removeCardFromDeck(id, finish = "normal") {
@@ -718,7 +722,7 @@
       else this.store.remove(id, finish);
       this.selectedCardId = id;
       this.selectedFinish = finish;
-      this.render({ preserveLibraryScroll: true });
+      this.render({ preserveLibraryScroll: true, preserveDeckScroll: true });
     }
 
     bulkDismantleExtras() {
@@ -756,7 +760,11 @@
         ...Object.entries(royalCounts).filter(([, count]) => count > 0).map(([id, count]) => ({ id, count, finish: "royal" })),
       ].sort((a, b) => sortCardRows(cards[a.id], cards[b.id]) || a.finish.localeCompare(b.finish));
       this.els.deckList.replaceChildren();
-      rows.forEach((entry) => this.els.deckList.append(this.createDeckRow(entry.id, entry.count, entry.finish)));
+      rows.forEach((entry) => {
+        for (let copyIndex = 0; copyIndex < entry.count; copyIndex += 1) {
+          this.els.deckList.append(this.createDeckRow(entry.id, entry.count, entry.finish, copyIndex));
+        }
+      });
     }
 
     createDeckRowLegacy(id, normalCount = 0, royalCount = 0) {
@@ -854,51 +862,42 @@
       return row;
     }
 
-    createDeckRow(id, count = 0, finish = "normal") {
+    createDeckRow(id, count = 0, finish = "normal", copyIndex = 0) {
       const card = cards[id];
       const driveMode = this.deckMode === "drive";
       const limit = this.store.deckLimit(id, driveMode);
-      const total = driveMode ? this.store.driveTotal : this.store.total;
-      const size = driveMode ? DRIVE_DECK_SIZE : DECK_SIZE;
-      const typeLabel = driveMode ? CardRenderer.shortDriveType(card.type) : card.type;
       const normalCounts = driveMode ? this.store.driveCounts : this.store.counts;
       const royalCounts = driveMode ? this.store.driveRoyalCounts : this.store.royalCounts;
       const totalCount = (normalCounts[id] || 0) + (royalCounts[id] || 0);
+      const finishCount = Math.max(0, Number(count) || 0);
       const finishOwned = this.store.ownedCount(id, finish);
-      const isRoyal = finish === "royal";
-      const isMissingOwned = count > finishOwned && !this.store.isAuthorAccount;
-      const row = document.createElement("div");
-      row.className = `deck-row main-deck-row split-finish-row${isRoyal ? " royal-deck-row" : ""}${isMissingOwned ? " missing-owned-card" : ""}${this.selectedCardId === id && this.selectedFinish === finish ? " selected" : ""}`;
-      row.innerHTML = `
-        <div>
-          <div class="deck-row-main">
-            <span class="cost-chip">${card.cost}</span>
-            <span class="card-name">${CardRenderer.rubyText(card.name)}</span>
-          </div>
-          <div class="deck-row-sub">${CardRenderer.metaLabelHtml(card, {
-            shortDrive: driveMode,
-            ownedLabel: `所持${finishOwned}`,
-            totalLabel: `合計${totalCount}/${limit}`,
-          })}${isMissingOwned ? ` <span class="missing-owned-label">不足</span>` : ""}</div>
-        </div>
-        <div class="deck-row-controls">
-          <div class="deck-row-stepper">
-            <button class="mini-button" type="button" data-action="remove">-</button>
-            <span class="deck-row-count-stack">
-              <span class="finish-row-label">${isRoyal ? "R" : "N"}</span>
-              <strong>${count}</strong>
-            </span>
-            <button class="mini-button" type="button" data-action="add">+</button>
-          </div>
-        </div>
-      `;
-      this.bindDeckRowSelection(row, id, finish);
-      const removeButton = row.querySelector('[data-action="remove"]');
-      const addButton = row.querySelector('[data-action="add"]');
-      removeButton.addEventListener("click", () => this.removeCardFromDeck(id, finish));
-      addButton.addEventListener("click", () => this.addCardToDeck(id, finish));
-      removeButton.disabled = count <= 0;
-      addButton.disabled = count >= finishOwned || totalCount >= limit || total >= size;
+      const isMissingOwned = copyIndex >= finishOwned && !this.store.isAuthorAccount;
+      const row = CardRenderer.tcgCard(id, {
+        finish,
+        interactive: true,
+        selected: this.selectedCardId === id && this.selectedFinish === finish,
+      });
+      row.classList.add("library-card", "deck-list-card");
+      row.classList.toggle("missing-owned-card", isMissingOwned);
+      row.dataset.cardId = id;
+      row.dataset.finish = finish;
+      row.dataset.copyIndex = String(copyIndex);
+      row.dataset.copyCount = String(finishCount);
+      row.dataset.deckCount = String(totalCount);
+      row.dataset.deckLimit = String(limit);
+      row.setAttribute("aria-label", `${card.name} ${finish} copy ${copyIndex + 1} of ${finishCount}, total ${totalCount} of ${limit}`);
+      row.addEventListener("click", () => {
+        this.selectedCardId = id;
+        this.selectedFinish = finish;
+        this.render({ preserveLibraryScroll: true, preserveDeckScroll: true });
+        this.scrollLibraryToCard(id, finish);
+      });
+      if (isMissingOwned) {
+        const badge = document.createElement("span");
+        badge.className = "deck-copy-badge missing";
+        badge.textContent = "!";
+        row.append(badge);
+      }
       return row;
     }
   }

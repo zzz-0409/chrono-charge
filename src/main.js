@@ -25,11 +25,15 @@
     deckSelectView: document.querySelector("#deckSelectView"),
     builderView: document.querySelector("#builderView"),
     packView: document.querySelector("#packView"),
+    duelMenuView: document.querySelector("#duelMenuView"),
     duelView: document.querySelector("#duelView"),
     saveDeckButton: document.querySelector("#saveDeckButton"),
     createRoomButton: document.querySelector("#createRoomButton"),
     joinRoomButton: document.querySelector("#joinRoomButton"),
     newDuelButton: document.querySelector("#newDuelButton"),
+    modeCreateRoomButton: document.querySelector("#modeCreateRoomButton"),
+    modeJoinRoomButton: document.querySelector("#modeJoinRoomButton"),
+    modeCpuDuelButton: document.querySelector("#modeCpuDuelButton"),
     loginButton: document.querySelector("#loginButton"),
     displayNameInput: document.querySelector("#displayNameInput"),
     accountUsernameLabel: document.querySelector("#accountUsernameLabel"),
@@ -134,16 +138,18 @@
     const showDeckSelect = view === "deckSelect";
     const showBuilder = view === "builder";
     const showPack = view === "pack";
+    const showDuelMenu = view === "duelMenu";
     const showDuel = view === "duel";
     els.homeView.hidden = !showHome;
     els.deckSelectView.hidden = !showDeckSelect;
     els.builderView.hidden = !showBuilder;
     els.packView.hidden = !showPack;
+    els.duelMenuView.hidden = !showDuelMenu;
     els.duelView.hidden = !showDuel;
-    els.homeTab.classList.toggle("active", showHome);
-    els.builderTab.classList.toggle("active", showDeckSelect || showBuilder);
-    els.packTab.classList.toggle("active", showPack);
-    els.duelTab.classList.toggle("active", showDuel);
+    els.homeTab?.classList.toggle("active", showHome);
+    els.builderTab?.classList.toggle("active", showDeckSelect || showBuilder);
+    els.packTab?.classList.toggle("active", showPack);
+    els.duelTab?.classList.toggle("active", showDuelMenu || showDuel);
     const accountEnabled = showHome || showBuilder;
     els.loginButton.disabled = !accountEnabled;
     els.displayNameInput.disabled = !accountEnabled;
@@ -373,9 +379,12 @@
       deck.driveDeck,
       deck.driveDeckRoyal,
     ];
-    return entries.flatMap((source = {}) => (
-      Object.entries(source || {}).flatMap(([id, count]) => Array(Math.max(0, Number(count) || 0)).fill(id))
-    ));
+    return entries.flatMap((source = {}) => deckSourceIds(source));
+  }
+
+  function deckSourceIds(source = {}) {
+    if (Array.isArray(source)) return source.filter((id) => cards[id]);
+    return Object.entries(source || {}).flatMap(([id, count]) => Array(Math.max(0, Number(count) || 0)).fill(id));
   }
 
   function openDeckPresetForEdit(id) {
@@ -450,7 +459,10 @@
   function openDeckFavoriteDialog(id) {
     const deck = store.activeAccountData.decks[id];
     if (!deck) return;
-    const ids = [...new Set(deckIds(deck))].filter((cardId) => cards[cardId]);
+    let ids = [...new Set(deckIds(deck))].filter((cardId) => cards[cardId]);
+    if (ids.length === 0 && id === store.activeDeckId) {
+      ids = [...new Set([...store.list, ...store.driveList])].filter((cardId) => cards[cardId]);
+    }
     let selectedId = deck.favoriteCardId || ids[0] || "";
     const modal = document.createElement("div");
     modal.className = "modal-dialog deck-favorite-dialog";
@@ -548,7 +560,7 @@
     duelView.startOnline(game);
   };
 
-  els.createRoomButton.addEventListener("click", async () => {
+  const createRoomDuel = async () => {
     if (!canUseOnline()) return;
     const deckSet = requireDeck();
     if (!deckSet) return;
@@ -559,9 +571,9 @@
     } catch (error) {
       toast(error.message || "ルーム作成に失敗しました。");
     }
-  });
+  };
 
-  els.joinRoomButton.addEventListener("click", async () => {
+  const joinRoomDuel = async () => {
     if (!canUseOnline()) return;
     const deckSet = requireDeck();
     if (!deckSet) return;
@@ -574,12 +586,19 @@
     } catch (error) {
       toast(error.message || "ルーム参加に失敗しました。");
     }
-  });
+  };
 
-  els.homeTab.addEventListener("click", () => navigateView("home"));
-  els.builderTab.addEventListener("click", () => navigateView("deckSelect"));
-  els.packTab.addEventListener("click", () => navigateView("pack"));
-  els.duelTab.addEventListener("click", () => navigateView("duel"));
+  els.createRoomButton.addEventListener("click", createRoomDuel);
+  els.joinRoomButton.addEventListener("click", joinRoomDuel);
+  els.newDuelButton.addEventListener("click", () => startCpuDuel());
+  els.modeCreateRoomButton?.addEventListener("click", createRoomDuel);
+  els.modeJoinRoomButton?.addEventListener("click", joinRoomDuel);
+  els.modeCpuDuelButton?.addEventListener("click", () => startCpuDuel());
+
+  els.homeTab?.addEventListener("click", () => navigateView("home"));
+  els.builderTab?.addEventListener("click", () => navigateView("deckSelect"));
+  els.packTab?.addEventListener("click", () => navigateView("pack"));
+  els.duelTab?.addEventListener("click", () => navigateView("duelMenu"));
   els.deckSelectHomeButton?.addEventListener("click", () => navigateView("home"));
   els.deckPresetGrid?.addEventListener("click", (event) => {
     const createButton = event.target.closest("[data-create-deck]");

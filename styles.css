@@ -145,7 +145,7 @@ button {
 .app-header {
   min-height: var(--app-header-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 440px 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   margin-bottom: var(--app-header-gap);
@@ -535,6 +535,16 @@ button:disabled {
   transform: translateX(-50%);
 }
 
+.shared-bottom-nav {
+  position: static;
+  left: auto;
+  bottom: auto;
+  width: min(640px, 100%);
+  justify-self: center;
+  align-self: end;
+  transform: none;
+}
+
 .home-shortcut-button {
   min-height: 76px;
   justify-content: center;
@@ -567,7 +577,7 @@ button:disabled {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 14px;
   border: 1px solid rgba(112, 223, 230, 0.22);
   border-radius: 8px;
@@ -713,10 +723,12 @@ button:disabled {
 
 .deck-favorite-dialog {
   width: min(860px, calc(100% - 24px));
-  max-height: min(660px, calc(100% - 32px));
+  height: min(660px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 10px;
+  overflow: hidden;
 }
 
 .favorite-card-grid {
@@ -725,6 +737,7 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   gap: 12px;
+  align-content: start;
   padding: 4px 4px 10px;
   scrollbar-width: thin;
 }
@@ -780,7 +793,7 @@ button:disabled {
 .builder-view {
   height: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 328px 280px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 280px;
   gap: 12px;
   align-items: start;
 }
@@ -802,6 +815,7 @@ button:disabled {
 .deck-panel,
 .preview-panel {
   height: 100%;
+  min-width: 0;
   min-height: 0;
   padding: 14px;
   overflow: hidden;
@@ -896,8 +910,8 @@ button:disabled {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 132px 112px 92px;
-  gap: 10px;
+  grid-template-columns: minmax(140px, 1fr) 118px 104px 84px;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
@@ -946,7 +960,7 @@ select {
   overflow-x: hidden;
   padding: 6px 8px 10px;
   display: grid;
-  grid-template-columns: repeat(5, var(--card-list-width));
+  grid-template-columns: repeat(auto-fit, var(--card-list-width));
   grid-auto-rows: auto;
   gap: 12px 10px;
   align-items: stretch;
@@ -1680,11 +1694,16 @@ select {
 }
 
 .deck-list {
-  overflow: auto;
-  padding-right: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 8px 10px;
   display: grid;
-  gap: 7px;
+  grid-template-columns: repeat(auto-fit, var(--card-list-width));
+  grid-auto-rows: auto;
+  gap: 12px 10px;
   align-content: start;
+  align-items: stretch;
+  justify-content: center;
 }
 
 .deck-panel {
@@ -1701,6 +1720,49 @@ select {
   grid-row: 4;
   height: auto;
   min-height: 0;
+}
+
+.deck-list-card {
+  position: relative;
+}
+
+.deck-list-card.missing-owned-card {
+  border-color: rgba(238, 107, 97, 0.94);
+  opacity: 0.48;
+  filter: grayscale(0.72) brightness(0.58);
+  box-shadow:
+    0 0 0 1px rgba(238, 107, 97, 0.28),
+    0 0 18px rgba(238, 107, 97, 0.22);
+}
+
+.deck-list-card.missing-owned-card.selected {
+  opacity: 0.66;
+  filter: grayscale(0.38) brightness(0.72);
+}
+
+.deck-copy-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 2;
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  border-radius: 999px;
+  padding: 0 5px;
+  color: #12161c;
+  background: #f0b95c;
+  font-size: 0.64rem;
+  font-weight: 1000;
+  line-height: 1;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.28);
+}
+
+.deck-copy-badge.missing {
+  color: #fff2f0;
+  background: #ee6b61;
 }
 
 .deck-row {
@@ -1982,6 +2044,87 @@ select {
 
 .preview-card-slot {
   min-height: 0;
+}
+
+.duel-menu-view {
+  height: 100%;
+  min-height: 0;
+}
+
+.duel-menu-stage {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  border: 1px solid rgba(112, 223, 230, 0.22);
+  border-radius: 8px;
+  padding: 18px;
+  overflow: hidden;
+  background:
+    linear-gradient(120deg, rgba(4, 8, 15, 0.9), rgba(13, 17, 31, 0.7) 48%, rgba(10, 12, 18, 0.88)),
+    url("assets/board/duel-board-cyberpunk-layout.png");
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.38), 0 18px 34px var(--shadow);
+}
+
+.duel-menu-head {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.duel-menu-head h2 {
+  font-size: 1.45rem;
+}
+
+.duel-mode-grid {
+  min-height: 0;
+  align-self: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.duel-mode-card {
+  min-height: 214px;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 16px;
+  border: 1px solid rgba(136, 214, 255, 0.3);
+  border-radius: 8px;
+  padding: 18px;
+  background:
+    linear-gradient(180deg, rgba(16, 24, 34, 0.82), rgba(8, 12, 18, 0.92)),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.34), inset 0 0 18px rgba(88, 190, 255, 0.08);
+}
+
+.duel-mode-card h3 {
+  margin-top: 6px;
+  font-size: 1.42rem;
+}
+
+.duel-mode-card.disabled {
+  opacity: 0.58;
+  filter: grayscale(0.45);
+}
+
+.duel-mode-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.duel-mode-card > .primary-button,
+.duel-mode-card > .ghost-button,
+.duel-mode-actions .primary-button,
+.duel-mode-actions .ghost-button {
+  min-height: 46px;
+  justify-content: center;
 }
 
 .zoomable-card {

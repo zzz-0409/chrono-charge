@@ -12,9 +12,9 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=20260526deckFavorite">
+    <link rel="stylesheet" href="styles.css?v=20260526bottomNav">
     <script defer src="src/data/cards.js?v=20260526optionaleffects"></script>
-    <script defer src="src/core/deck-store.js?v=20260526deckFavorite"></script>
+    <script defer src="src/core/deck-store.js?v=20260526missingDeckCards"></script>
     <script defer src="src/core/effect-resolver.js?v=20260526optionaleffects"></script>
     <script defer src="src/core/cpu-controller.js?v=20260525safeattack"></script>
     <script defer src="src/core/duel-game.js?v=20260526optionaleffects"></script>
@@ -22,11 +22,11 @@
     <script defer src="src/ui/card-renderer.js?v=20260526rubyfix"></script>
     <script defer src="src/ui/sound-effects.js?v=20260522h"></script>
     <script defer src="src/ui/card-zoom.js?v=20260522k"></script>
-    <script defer src="src/ui/deck-builder-view.js?v=20260526dismantlelabel"></script>
+    <script defer src="src/ui/deck-builder-view.js?v=20260526missingDeckCards"></script>
     <script defer src="src/ui/pack-view.js?v=20260525zoom"></script>
     <script defer src="src/net/online-client.js?v=20260525openingattack"></script>
     <script defer src="src/ui/duel-view.js?v=20260526reactionhandcue"></script>
-    <script defer src="src/main.js?v=20260526deckFavorite"></script>
+    <script defer src="src/main.js?v=20260526bottomNav"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -163,12 +163,6 @@
             </div>
           </div>
         </div>
-        <nav class="view-tabs" aria-label="画面切替">
-          <button id="homeTab" class="tab-button active" type="button">ホーム</button>
-          <button id="builderTab" class="tab-button" type="button">デッキ編集</button>
-          <button id="packTab" class="tab-button" type="button">パック開封</button>
-          <button id="duelTab" class="tab-button" type="button">デュエル</button>
-        </nav>
         <div class="header-actions resource-strip" aria-label="所持アイテム">
           <span class="resource-pill" title="ガチャ石"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> <strong id="headerGachaStoneCount">0</strong></span>
           <span class="resource-pill" title="分解石"><img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> <strong id="headerDustCount">0</strong></span>
@@ -183,7 +177,7 @@
               <h2>Chrono Drive</h2>
             </div>
             <div class="home-action-stack" aria-label="メインメニュー">
-              <button class="home-action-button primary" type="button" data-nav-view="duel">
+              <button class="home-action-button primary" type="button" data-nav-view="duelMenu">
                 <span class="home-action-icon"><svg><use href="#icon-core"></use></svg></span>
                 <span>対戦</span>
               </button>
@@ -205,7 +199,7 @@
                 <svg><use href="#icon-star"></use></svg>
                 <span>パック</span>
               </button>
-              <button class="home-shortcut-button" type="button" data-nav-view="duel">
+              <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
                 <svg><use href="#icon-core"></use></svg>
                 <span>デュエル</span>
               </button>
@@ -220,9 +214,22 @@
                 <p class="eyebrow">Deck Presets</p>
                 <h2>デッキ一覧</h2>
               </div>
-              <button id="deckSelectHomeButton" class="ghost-button" type="button">ホーム</button>
             </div>
             <div id="deckPresetGrid" class="deck-preset-grid" aria-label="プリセットデッキ一覧"></div>
+            <div class="home-bottom-nav shared-bottom-nav" aria-label="ショートカット">
+              <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
+                <svg><use href="#icon-circuit"></use></svg>
+                <span>デッキ</span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-nav-view="pack">
+                <svg><use href="#icon-star"></use></svg>
+                <span>パック</span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
+                <svg><use href="#icon-core"></use></svg>
+                <span>デュエル</span>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -307,21 +314,7 @@
           <aside class="preview-panel" aria-label="カード詳細">
             <div id="cardPreview" class="preview-card-slot"></div>
             <div id="previewDeckControls" class="preview-deck-controls" aria-label="選択カードの投入枚数"></div>
-            <section class="deck-profile-panel" aria-label="デッキ保存">
-              <div class="profile-grid">
-                <label class="profile-field preset-select-field">
-                  <span>プリセット</span>
-                  <select id="deckPresetSelect"></select>
-                </label>
-                <button id="loadDeckButton" class="ghost-button" type="button">読込</button>
-                <label class="profile-field deck-name-field">
-                  <span>デッキ名</span>
-                  <input id="deckNameInput" type="text" autocomplete="off" maxlength="32">
-                </label>
-                <button id="savePresetButton" class="ghost-button" type="button">上書き</button>
-                <button id="saveAsPresetButton" class="ghost-button" type="button">新規保存</button>
-                <button id="deletePresetButton" class="ghost-button danger" type="button">削除</button>
-              </div>
+            <section class="deck-profile-panel" aria-label="おまかせ編成">
               <div class="auto-build-row">
                 <label class="profile-field">
                   <span>おまかせ</span>
@@ -361,6 +354,57 @@
             </div>
             <div id="packResultGrid" class="pack-result-list pack-page-results" aria-label="開封結果"></div>
           </section>
+        </section>
+
+        <section id="duelMenuView" class="view duel-menu-view" hidden>
+          <div class="duel-menu-stage">
+            <div class="duel-menu-head">
+              <div>
+                <p class="eyebrow">Duel Mode</p>
+                <h2>デュエル</h2>
+              </div>
+            </div>
+            <div class="duel-mode-grid" aria-label="デュエルモード選択">
+              <section class="duel-mode-card disabled">
+                <div>
+                  <p class="eyebrow">Ranked</p>
+                  <h3>ランク戦</h3>
+                </div>
+                <span class="soft-badge">未実装</span>
+              </section>
+              <section class="duel-mode-card">
+                <div>
+                  <p class="eyebrow">Room</p>
+                  <h3>ルーム戦</h3>
+                </div>
+                <div class="duel-mode-actions">
+                  <button id="modeCreateRoomButton" class="primary-button" type="button">ルーム作成</button>
+                  <button id="modeJoinRoomButton" class="ghost-button" type="button">ルーム参加</button>
+                </div>
+              </section>
+              <section class="duel-mode-card">
+                <div>
+                  <p class="eyebrow">CPU</p>
+                  <h3>CPU戦</h3>
+                </div>
+                <button id="modeCpuDuelButton" class="primary-button" type="button">対戦開始</button>
+              </section>
+            </div>
+            <div class="home-bottom-nav shared-bottom-nav" aria-label="ショートカット">
+              <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
+                <svg><use href="#icon-circuit"></use></svg>
+                <span>デッキ</span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-nav-view="pack">
+                <svg><use href="#icon-star"></use></svg>
+                <span>パック</span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
+                <svg><use href="#icon-core"></use></svg>
+                <span>デュエル</span>
+              </button>
+            </div>
+          </div>
         </section>
 
         <section id="duelView" class="view duel-view" hidden>
