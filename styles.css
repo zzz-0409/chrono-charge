@@ -3766,6 +3766,12 @@ select {
   line-height: 15.77px;
 }
 
+.game-card:not(.drive-card-type) .card-face .card-effect {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .game-card .card-face .card-effect.effect-sm {
   font-size: 12.48px;
   line-height: 13.48px;
@@ -3779,6 +3785,11 @@ select {
 .game-card .card-face .card-effect.effect-xxs {
   font-size: 9.28px;
   line-height: 9.28px;
+}
+
+.game-card:not(.drive-card-type) .card-face .card-effect.effect-xxs {
+  font-size: 10.88px;
+  line-height: 11.32px;
 }
 
 .game-card .card-face .card-art {

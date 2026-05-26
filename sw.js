@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260526-drive-meta-lift";
+const CACHE_VERSION = "chrono-drive-pwa-20260526-normal-effect-scroll";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260526driveMetaLift",
+  "/styles.css?v=20260526normalEffectScroll",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
