@@ -102,7 +102,7 @@
       this.game = new DuelGame({
         playerDeck: deckList,
         playerDriveDeck: driveDeckList,
-        cpuName: cpuChoice.name,
+        cpuName: this.cpuDisplayName(cpuChoice.name),
         cpuDeck: expandDeck(cpuChoice.deck),
         cpuDriveDeck: expandDeck(cpuChoice.driveDeck),
         onChange: () => this.render(),
@@ -120,6 +120,10 @@
         ? cpuDecks
         : [{ name: "CPU: 黒機", deck: cpuDeck, driveDeck: cpuDriveDeck }];
       return options[Math.floor(Math.random() * options.length)] || options[0];
+    }
+
+    cpuDisplayName(name) {
+      return String(name || "CPU").replace(/^CPU:\s*/, "") || "CPU";
     }
 
     startOnline(game) {
@@ -149,6 +153,7 @@
     render() {
       if (!this.game) return;
       this.renderLp();
+      this.renderDuelistNames();
       this.renderZones();
       this.playPlacementSoundForBoardIncrease();
       this.renderPiles();
@@ -192,6 +197,11 @@
       this.els.enemyLp.textContent = this.game.enemy.lp;
       this.els.playerLpBar.style.width = `${Math.max(0, (this.game.player.lp / MAX_LP) * 100)}%`;
       this.els.enemyLpBar.style.width = `${Math.max(0, (this.game.enemy.lp / MAX_LP) * 100)}%`;
+    }
+
+    renderDuelistNames() {
+      if (this.els.playerNameplate) this.els.playerNameplate.textContent = this.game.player?.name || "Player";
+      if (this.els.enemyNameplate) this.els.enemyNameplate.textContent = this.game.enemy?.name || "Opponent";
     }
 
     renderZones() {

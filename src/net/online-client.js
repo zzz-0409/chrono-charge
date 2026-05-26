@@ -29,19 +29,19 @@
       this.seat = session.seat;
     }
 
-    static async createRoom(deck, driveDeck) {
+    static async createRoom(deck, driveDeck, playerName = "Player") {
       const session = await requestJson("/api/rooms", {
         method: "POST",
-        body: { deck, driveDeck },
+        body: { deck, driveDeck, playerName },
       });
       this.saveSession(session);
       return new OnlineClient(session);
     }
 
-    static async joinRoom(roomId, deck, driveDeck) {
+    static async joinRoom(roomId, deck, driveDeck, playerName = "Player") {
       const session = await requestJson(`/api/rooms/${normalizeRoomId(roomId)}/join`, {
         method: "POST",
-        body: { deck, driveDeck },
+        body: { deck, driveDeck, playerName },
       });
       this.saveSession(session);
       return new OnlineClient(session);

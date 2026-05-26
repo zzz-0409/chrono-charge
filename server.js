@@ -133,7 +133,8 @@ async function handleApi(req, res, url) {
     const body = await readJson(req);
     const deck = validateDeck(body.deck);
     const driveDeck = validateDriveDeck(body.driveDeck);
-    const room = createRoom(deck, driveDeck);
+    const playerName = normalizeAccountName(body.playerName || body.displayName || "Player");
+    const room = createRoom(deck, driveDeck, playerName);
     sendJson(res, 200, {
       roomId: room.id,
       playerId: room.players.host.id,
@@ -163,6 +164,7 @@ async function handleApi(req, res, url) {
     }
     room.players.guest = {
       id: makeId(12),
+      name: normalizeAccountName(body.playerName || body.displayName || "Player"),
       deck: validateDeck(body.deck),
       driveDeck: validateDriveDeck(body.driveDeck),
     };
@@ -321,7 +323,7 @@ async function handleAuthenticatedAccountApi(req, res) {
   sendJson(res, 405, { error: "method not allowed" });
 }
 
-function createRoom(deck, driveDeck) {
+function createRoom(deck, driveDeck, playerName = "Player") {
   let id = "";
   do {
     id = makeId(5);
@@ -331,7 +333,7 @@ function createRoom(deck, driveDeck) {
     status: "waiting",
     version: 1,
     players: {
-      host: { id: makeId(12), deck, driveDeck },
+      host: { id: makeId(12), name: normalizeAccountName(playerName), deck, driveDeck },
       guest: null,
     },
     game: null,
@@ -353,8 +355,8 @@ function startRoomGame(room) {
     finished: false,
     winner: null,
     pendingChoice: null,
-    host: newDuelist("Host", room.players.host.deck, room.players.host.driveDeck),
-    guest: newDuelist("Guest", room.players.guest.deck, room.players.guest.driveDeck),
+    host: newDuelist(room.players.host.name || "Host", room.players.host.deck, room.players.host.driveDeck),
+    guest: newDuelist(room.players.guest.name || "Guest", room.players.guest.deck, room.players.guest.driveDeck),
     logItems: [
       `ルーム ${room.id}: オンラインデュエル開始。`,
       `先攻は${firstActive === "host" ? "ホスト" : "ゲスト"}です。`,

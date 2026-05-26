@@ -86,8 +86,10 @@
     previewDeckControls: document.querySelector("#previewDeckControls"),
     enemyLp: document.querySelector("#enemyLp"),
     enemyLpBar: document.querySelector("#enemyLpBar"),
+    enemyNameplate: document.querySelector("#enemyNameplate"),
     playerLp: document.querySelector("#playerLp"),
     playerLpBar: document.querySelector("#playerLpBar"),
+    playerNameplate: document.querySelector("#playerNameplate"),
     turnBadge: document.querySelector("#turnBadge"),
     phaseBadge: document.querySelector("#phaseBadge"),
     enemyDeckInfo: document.querySelector("#enemyDeckInfo"),
@@ -710,7 +712,7 @@
     const deckSet = requireDeck();
     if (!deckSet) return;
     try {
-      const client = await OnlineClient.createRoom(deckSet.deck, deckSet.driveDeck);
+      const client = await OnlineClient.createRoom(deckSet.deck, deckSet.driveDeck, store.displayName);
       startOnlineDuel(client);
       toast(`ルーム ${client.roomId} を作成しました。`);
     } catch (error) {
@@ -725,7 +727,7 @@
     const roomId = await askRoomId();
     if (!roomId) return;
     try {
-      const client = await OnlineClient.joinRoom(roomId, deckSet.deck, deckSet.driveDeck);
+      const client = await OnlineClient.joinRoom(roomId, deckSet.deck, deckSet.driveDeck, store.displayName);
       startOnlineDuel(client);
       toast(`ルーム ${client.roomId} に参加しました。`);
     } catch (error) {
@@ -733,9 +735,9 @@
     }
   };
 
-  els.createRoomButton.addEventListener("click", createRoomDuel);
-  els.joinRoomButton.addEventListener("click", joinRoomDuel);
-  els.newDuelButton.addEventListener("click", () => startCpuDuel());
+  els.createRoomButton?.addEventListener("click", createRoomDuel);
+  els.joinRoomButton?.addEventListener("click", joinRoomDuel);
+  els.newDuelButton?.addEventListener("click", () => startCpuDuel());
   els.duelSelectedDeckButton?.addEventListener("click", openDuelDeckSelector);
   els.modeCreateRoomButton?.addEventListener("click", createRoomDuel);
   els.modeJoinRoomButton?.addEventListener("click", joinRoomDuel);

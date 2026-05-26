@@ -466,21 +466,21 @@
         <section id="duelView" class="view duel-view" hidden>
           <section class="duel-topline">
             <div class="duelist-summary">
-              <span class="nameplate enemy">CPU: 黒機</span>
+              <span id="enemyNameplate" class="nameplate enemy">黒機</span>
               <div class="lp-bar"><span id="enemyLpBar"></span></div>
               <strong id="enemyLp">8000</strong>
             </div>
             <div class="phase-strip">
               <span id="turnBadge" class="soft-badge">Turn 1</span>
               <span id="phaseBadge" class="phase-badge">自分ターン</span>
-              <div class="duel-actions">
+              <div class="duel-actions" hidden>
                 <button id="createRoomButton" class="ghost-button" type="button">ルーム作成</button>
                 <button id="joinRoomButton" class="ghost-button" type="button">ルーム参加</button>
                 <button id="newDuelButton" class="primary-button" type="button">対戦開始</button>
               </div>
             </div>
             <div class="duelist-summary player">
-              <span class="nameplate">Player</span>
+              <span id="playerNameplate" class="nameplate">Player</span>
               <div class="lp-bar"><span id="playerLpBar"></span></div>
               <strong id="playerLp">8000</strong>
             </div>
