@@ -3003,19 +3003,6 @@ select {
   overflow: hidden;
 }
 
-.tcg-card.small .card-name {
-  font-size: 0.56rem;
-}
-
-.tcg-card.small .cost-chip {
-  width: 18px;
-  font-size: 0.58rem;
-}
-
-.tcg-card.small .type-line {
-  font-size: 0.48rem;
-}
-
 .core-row .zone-slot {
   width: calc(var(--card-field-rotated-width) + 6px);
   min-height: calc(var(--card-field-rotated-height) + 2px);
@@ -3302,33 +3289,9 @@ select {
   font-size: 0.38rem;
 }
 
-.hand-zone .tcg-card .card-name {
-  font-size: 0.34rem;
-}
-
-.hand-zone .tcg-card .cost-chip {
-  font-size: 0.38rem;
-}
-
-.hand-zone .tcg-card .type-line {
-  font-size: 0.24rem;
-}
-
 .hand-zone .tcg-card .card-effect {
   font-size: 0.27rem;
   line-height: 0.96;
-}
-
-.tcg-card.small .card-name {
-  font-size: 0.24rem;
-}
-
-.tcg-card.small .cost-chip {
-  font-size: 0.26rem;
-}
-
-.tcg-card.small .type-line {
-  font-size: 0.18rem;
 }
 
 .tcg-card.small .battle-stats {
