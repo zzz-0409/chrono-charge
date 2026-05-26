@@ -551,9 +551,9 @@ button:disabled {
   position: absolute;
   left: 50%;
   bottom: 24px;
-  width: min(640px, calc(100% - 80px));
+  width: min(760px, calc(100% - 80px));
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   transform: translateX(-50%);
 }
@@ -562,7 +562,7 @@ button:disabled {
   position: static;
   left: auto;
   bottom: auto;
-  width: min(640px, 100%);
+  width: min(760px, 100%);
   justify-self: center;
   align-self: end;
   transform: none;

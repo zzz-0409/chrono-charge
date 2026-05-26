@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=20260526compactHeaderBack">
+    <link rel="stylesheet" href="styles.css?v=20260526bottomHomeButton">
     <script defer src="src/data/cards.js?v=20260526optionaleffects"></script>
     <script defer src="src/core/deck-store.js?v=20260526missingDeckCards"></script>
     <script defer src="src/core/effect-resolver.js?v=20260526optionaleffects"></script>
@@ -26,7 +26,7 @@
     <script defer src="src/ui/pack-view.js?v=20260526packResultFlow"></script>
     <script defer src="src/net/online-client.js?v=20260525openingattack"></script>
     <script defer src="src/ui/duel-view.js?v=20260526reactionhandcue"></script>
-    <script defer src="src/main.js?v=20260526compactHeaderBack"></script>
+    <script defer src="src/main.js?v=20260526bottomHomeButton"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -109,6 +109,10 @@
   </head>
   <body>
     <svg class="sprite-sheet" aria-hidden="true">
+      <symbol id="icon-home" viewBox="0 0 64 64">
+        <path d="M8 32 32 10l24 22-5 6-5-4v21H18V34l-5 4-5-6Z"/>
+        <path d="M27 55V39h10v16H27Z"/>
+      </symbol>
       <symbol id="icon-star" viewBox="0 0 64 64">
         <path d="M32 4 39 24 60 25 43 38 49 59 32 47 15 59 21 38 4 25 25 24 32 4Z"/>
       </symbol>
@@ -191,6 +195,10 @@
               </button>
             </div>
             <div class="home-bottom-nav" aria-label="ショートカット">
+              <button class="home-shortcut-button" type="button" data-nav-view="home">
+                <svg><use href="#icon-home"></use></svg>
+                <span>ホーム</span>
+              </button>
               <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
                 <svg><use href="#icon-circuit"></use></svg>
                 <span>デッキ</span>
@@ -217,6 +225,10 @@
             </div>
             <div id="deckPresetGrid" class="deck-preset-grid" aria-label="プリセットデッキ一覧"></div>
             <div class="home-bottom-nav shared-bottom-nav" aria-label="ショートカット">
+              <button class="home-shortcut-button" type="button" data-nav-view="home">
+                <svg><use href="#icon-home"></use></svg>
+                <span>ホーム</span>
+              </button>
               <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
                 <svg><use href="#icon-circuit"></use></svg>
                 <span>デッキ</span>
@@ -358,6 +370,10 @@
             <div id="selectedPackPreview" class="pack-selected-preview" aria-label="選択中のパック"></div>
           </section>
           <div class="home-bottom-nav shared-bottom-nav" aria-label="ショートカット">
+            <button class="home-shortcut-button" type="button" data-nav-view="home">
+              <svg><use href="#icon-home"></use></svg>
+              <span>ホーム</span>
+            </button>
             <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
               <svg><use href="#icon-circuit"></use></svg>
               <span>デッキ</span>
@@ -427,6 +443,10 @@
               </section>
             </div>
             <div class="home-bottom-nav shared-bottom-nav" aria-label="ショートカット">
+              <button class="home-shortcut-button" type="button" data-nav-view="home">
+                <svg><use href="#icon-home"></use></svg>
+                <span>ホーム</span>
+              </button>
               <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
                 <svg><use href="#icon-circuit"></use></svg>
                 <span>デッキ</span>
