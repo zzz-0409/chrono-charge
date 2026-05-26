@@ -26,7 +26,7 @@ const APP_SHELL_URLS = [
   "/src/ui/deck-builder-view.js?v=20260526missingDeckCards",
   "/src/ui/pack-view.js?v=20260526packResultFlow",
   "/src/net/online-client.js?v=20260525openingattack",
-  "/src/ui/duel-view.js?v=20260526reactionhandcue",
+  "/src/ui/duel-view.js?v=20260526resultHome",
   "/src/main.js?v=20260526bottomHomeButton"
 ];
 

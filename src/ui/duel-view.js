@@ -1348,17 +1348,18 @@
         <p>${resultMessage(won, online)}</p>
         <p class="result-reward"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> +${reward}</p>
         <div class="modal-actions">
-          ${online ? "" : `<button id="resultRestart" class="primary-button" type="button">再戦</button>`}
-          <button id="resultBuilder" class="ghost-button" type="button">デッキ編集</button>
+          <button id="resultRestart" class="primary-button" type="button"${this.restart ? "" : " disabled"}>再戦</button>
+          <button id="resultHome" class="ghost-button" type="button">ホームに戻る</button>
         </div>
       `;
-      modal.querySelector("#resultRestart")?.addEventListener("click", () => {
+      modal.querySelector("#resultRestart").addEventListener("click", () => {
+        if (!this.restart) return;
         this.closeModal();
         this.restart?.();
       });
-      modal.querySelector("#resultBuilder").addEventListener("click", () => {
+      modal.querySelector("#resultHome").addEventListener("click", () => {
         this.closeModal();
-        this.setView("builder");
+        this.setView("home");
       });
       this.openModal(modal);
     }
