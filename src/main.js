@@ -11,6 +11,7 @@
     ScaleManager,
     OnlineClient,
     OnlineGameProxy,
+    cards,
   } = window.Chrono;
 
   const els = {
@@ -21,6 +22,7 @@
     packTab: document.querySelector("#packTab"),
     duelTab: document.querySelector("#duelTab"),
     homeView: document.querySelector("#homeView"),
+    deckSelectView: document.querySelector("#deckSelectView"),
     builderView: document.querySelector("#builderView"),
     packView: document.querySelector("#packView"),
     duelView: document.querySelector("#duelView"),
@@ -42,6 +44,8 @@
     autoBuildMode: document.querySelector("#autoBuildMode"),
     autoBuildButton: document.querySelector("#autoBuildButton"),
     bulkDismantleButton: document.querySelector("#bulkDismantleButton"),
+    deckPresetGrid: document.querySelector("#deckPresetGrid"),
+    deckSelectHomeButton: document.querySelector("#deckSelectHomeButton"),
     headerGachaStoneCount: document.querySelector("#headerGachaStoneCount"),
     headerDustCount: document.querySelector("#headerDustCount"),
     gachaStoneCount: document.querySelector("#gachaStoneCount"),
@@ -127,15 +131,17 @@
 
   const setView = (view) => {
     const showHome = view === "home";
+    const showDeckSelect = view === "deckSelect";
     const showBuilder = view === "builder";
     const showPack = view === "pack";
     const showDuel = view === "duel";
     els.homeView.hidden = !showHome;
+    els.deckSelectView.hidden = !showDeckSelect;
     els.builderView.hidden = !showBuilder;
     els.packView.hidden = !showPack;
     els.duelView.hidden = !showDuel;
     els.homeTab.classList.toggle("active", showHome);
-    els.builderTab.classList.toggle("active", showBuilder);
+    els.builderTab.classList.toggle("active", showDeckSelect || showBuilder);
     els.packTab.classList.toggle("active", showPack);
     els.duelTab.classList.toggle("active", showDuel);
     const accountEnabled = showHome || showBuilder;
@@ -143,6 +149,7 @@
     els.displayNameInput.disabled = !accountEnabled;
     els.saveDisplayNameButton.disabled = !accountEnabled;
     els.logoutButton.disabled = !accountEnabled;
+    if (showDeckSelect) renderDeckSelectView();
     if (showPack) packView?.render();
   };
 
@@ -289,6 +296,100 @@
     onCollectionChange: () => builderView.render({ preserveLibraryScroll: true }),
   });
 
+  function renderDeckSelectView() {
+    if (!els.deckPresetGrid) return;
+    const deckCards = store.deckPresets.map((deck) => deckPresetCardHtml(deck)).join("");
+    els.deckPresetGrid.innerHTML = `
+      <button class="deck-preset-card deck-preset-create" type="button" data-create-deck="true">
+        <span class="deck-preset-plus">+</span>
+        <span class="deck-preset-info">
+          <span class="deck-preset-title">新規デッキ</span>
+          <span class="deck-preset-meta"><span>現在の内容から作成</span></span>
+        </span>
+      </button>
+      ${deckCards}
+    `;
+  }
+
+  function deckPresetCardHtml(deck) {
+    const mainTotal = deckCount(deck.mainDeck) + deckCount(deck.mainDeckRoyal);
+    const driveTotal = deckCount(deck.driveDeck) + deckCount(deck.driveDeckRoyal);
+    const theme = deckTheme(deck);
+    const image = deckPreviewImage(deck);
+    const selected = deck.id === store.activeDeckId ? " selected" : "";
+    return `
+      <button class="deck-preset-card${selected}" type="button" data-deck-id="${escapeHtml(deck.id)}">
+        <span class="deck-preset-art"><img src="${escapeHtml(image)}" alt=""></span>
+        <span class="deck-preset-info">
+          <span class="deck-preset-title">${escapeHtml(deck.name)}</span>
+          <span class="deck-preset-meta">
+            <span>${mainTotal}/${DECK_SIZE}</span>
+            <span>D ${driveTotal}/${DRIVE_DECK_SIZE}</span>
+            <span>${escapeHtml(theme)}</span>
+          </span>
+        </span>
+      </button>
+    `;
+  }
+
+  function deckCount(source = {}) {
+    return Object.values(source || {}).reduce((sum, count) => sum + (Number(count) || 0), 0);
+  }
+
+  function deckPreviewImage(deck) {
+    const ids = deckIds(deck);
+    const ace = ids
+      .map((id) => cards[id])
+      .filter(Boolean)
+      .sort((a, b) => (b.cost || 0) - (a.cost || 0))[0];
+    return ace?.art || "assets/cards/card-back.png";
+  }
+
+  function deckTheme(deck) {
+    const counts = new Map();
+    deckIds(deck).forEach((id) => {
+      const theme = cards[id]?.theme;
+      if (!theme) return;
+      counts.set(theme, (counts.get(theme) || 0) + 1);
+    });
+    let bestTheme = "混成";
+    let bestCount = 0;
+    counts.forEach((count, theme) => {
+      if (count > bestCount) {
+        bestTheme = theme;
+        bestCount = count;
+      }
+    });
+    return bestTheme;
+  }
+
+  function deckIds(deck) {
+    const entries = [
+      deck.mainDeck,
+      deck.mainDeckRoyal,
+      deck.driveDeck,
+      deck.driveDeckRoyal,
+    ];
+    return entries.flatMap((source = {}) => (
+      Object.entries(source || {}).flatMap(([id, count]) => Array(Math.max(0, Number(count) || 0)).fill(id))
+    ));
+  }
+
+  function openDeckPresetForEdit(id) {
+    if (!store.loadPreset(id)) return;
+    builderView.selectedCardId = builderView.firstSelectedId();
+    builderView.render();
+    setView("builder");
+  }
+
+  function createDeckPresetForEdit() {
+    const deck = store.saveAs(store.nextDeckName());
+    builderView.selectedCardId = builderView.firstSelectedId();
+    builderView.render();
+    setView("builder");
+    toast(`${deck.name}を作成しました。`);
+  }
+
   const requireDeck = () => {
     const deck = store.list;
     const driveDeck = store.driveList;
@@ -362,9 +463,19 @@
   });
 
   els.homeTab.addEventListener("click", () => navigateView("home"));
-  els.builderTab.addEventListener("click", () => navigateView("builder"));
+  els.builderTab.addEventListener("click", () => navigateView("deckSelect"));
   els.packTab.addEventListener("click", () => navigateView("pack"));
   els.duelTab.addEventListener("click", () => navigateView("duel"));
+  els.deckSelectHomeButton?.addEventListener("click", () => navigateView("home"));
+  els.deckPresetGrid?.addEventListener("click", (event) => {
+    const createButton = event.target.closest("[data-create-deck]");
+    if (createButton) {
+      createDeckPresetForEdit();
+      return;
+    }
+    const deckButton = event.target.closest("[data-deck-id]");
+    if (deckButton) openDeckPresetForEdit(deckButton.dataset.deckId);
+  });
   document.querySelectorAll("[data-nav-view]").forEach((button) => {
     button.addEventListener("click", () => navigateView(button.dataset.navView));
   });

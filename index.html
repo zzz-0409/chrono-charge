@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=20260526homeView">
+    <link rel="stylesheet" href="styles.css?v=20260526deckSelect">
     <script defer src="src/data/cards.js?v=20260526optionaleffects"></script>
     <script defer src="src/core/deck-store.js?v=20260525dismantlefix"></script>
     <script defer src="src/core/effect-resolver.js?v=20260526optionaleffects"></script>
@@ -26,7 +26,7 @@
     <script defer src="src/ui/pack-view.js?v=20260525zoom"></script>
     <script defer src="src/net/online-client.js?v=20260525openingattack"></script>
     <script defer src="src/ui/duel-view.js?v=20260526reactionhandcue"></script>
-    <script defer src="src/main.js?v=20260526homeView"></script>
+    <script defer src="src/main.js?v=20260526deckSelect"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -187,7 +187,7 @@
                 <span class="home-action-icon"><svg><use href="#icon-core"></use></svg></span>
                 <span>対戦</span>
               </button>
-              <button class="home-action-button" type="button" data-nav-view="builder">
+              <button class="home-action-button" type="button" data-nav-view="deckSelect">
                 <span class="home-action-icon"><svg><use href="#icon-circuit"></use></svg></span>
                 <span>デッキ編集</span>
               </button>
@@ -197,7 +197,7 @@
               </button>
             </div>
             <div class="home-bottom-nav" aria-label="ショートカット">
-              <button class="home-shortcut-button" type="button" data-nav-view="builder">
+              <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
                 <svg><use href="#icon-circuit"></use></svg>
                 <span>デッキ</span>
               </button>
@@ -210,6 +210,19 @@
                 <span>デュエル</span>
               </button>
             </div>
+          </div>
+        </section>
+
+        <section id="deckSelectView" class="view deck-select-view" hidden>
+          <div class="deck-select-stage">
+            <div class="deck-select-head">
+              <div>
+                <p class="eyebrow">Deck Presets</p>
+                <h2>デッキ一覧</h2>
+              </div>
+              <button id="deckSelectHomeButton" class="ghost-button" type="button">ホーム</button>
+            </div>
+            <div id="deckPresetGrid" class="deck-preset-grid" aria-label="プリセットデッキ一覧"></div>
           </div>
         </section>
 
