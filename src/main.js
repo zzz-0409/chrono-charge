@@ -338,6 +338,9 @@
 
   function deckPreviewImage(deck) {
     const ids = deckIds(deck);
+    if (deck.favoriteCardId && ids.includes(deck.favoriteCardId) && cards[deck.favoriteCardId]?.art) {
+      return cards[deck.favoriteCardId].art;
+    }
     const ace = ids
       .map((id) => cards[id])
       .filter(Boolean)
@@ -380,6 +383,117 @@
     builderView.selectedCardId = builderView.firstSelectedId();
     builderView.render();
     setView("builder");
+  }
+
+  function openDeckPresetActions(id) {
+    const deck = store.activeAccountData.decks[id];
+    if (!deck) return;
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog deck-action-dialog";
+    modal.innerHTML = `
+      <h2>${escapeHtml(deck.name)}</h2>
+      <div class="deck-action-list">
+        <button class="primary-button" type="button" data-action="edit">カード編集</button>
+        <button class="ghost-button" type="button" data-action="rename">デッキ名編集</button>
+        <button class="ghost-button" type="button" data-action="favorite">お気に入りカード選択</button>
+      </div>
+      <div class="modal-actions modal-actions-row">
+        <button class="ghost-button" type="button" data-action="cancel">閉じる</button>
+      </div>
+    `;
+    modal.querySelector('[data-action="edit"]').addEventListener("click", () => {
+      closeAppModal();
+      openDeckPresetForEdit(id);
+    });
+    modal.querySelector('[data-action="rename"]').addEventListener("click", () => openDeckRenameDialog(id));
+    modal.querySelector('[data-action="favorite"]').addEventListener("click", () => openDeckFavoriteDialog(id));
+    modal.querySelector('[data-action="cancel"]').addEventListener("click", closeAppModal);
+    openAppModal(modal);
+  }
+
+  function openDeckRenameDialog(id) {
+    const deck = store.activeAccountData.decks[id];
+    if (!deck) return;
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog app-input-dialog";
+    modal.innerHTML = `
+      <h2>デッキ名編集</h2>
+      <label class="modal-field">
+        <span>デッキ名</span>
+        <input id="deckRenameInput" type="text" autocomplete="off" maxlength="32" value="${escapeHtml(deck.name)}">
+      </label>
+      <div class="modal-actions modal-actions-row">
+        <button class="ghost-button" type="button" data-action="cancel">キャンセル</button>
+        <button class="primary-button" type="button" data-action="save">保存</button>
+      </div>
+    `;
+    const input = modal.querySelector("#deckRenameInput");
+    const save = () => {
+      const renamed = store.renamePreset(id, input.value);
+      if (!renamed) return;
+      builderView.render({ preserveLibraryScroll: true });
+      renderDeckSelectView();
+      closeAppModal();
+      toast(`${renamed.name}に変更しました。`);
+    };
+    modal.querySelector('[data-action="cancel"]').addEventListener("click", closeAppModal);
+    modal.querySelector('[data-action="save"]').addEventListener("click", save);
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      save();
+    });
+    openAppModal(modal);
+    window.setTimeout(() => input.focus(), 0);
+  }
+
+  function openDeckFavoriteDialog(id) {
+    const deck = store.activeAccountData.decks[id];
+    if (!deck) return;
+    const ids = [...new Set(deckIds(deck))].filter((cardId) => cards[cardId]);
+    let selectedId = deck.favoriteCardId || ids[0] || "";
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog deck-favorite-dialog";
+    modal.innerHTML = `
+      <h2>お気に入りカード選択</h2>
+      <p class="small-note">このデッキに入っているカードから1枚選びます。</p>
+      <div class="favorite-card-grid">
+        ${ids.map((cardId) => favoriteCardButtonHtml(cardId, cardId === selectedId)).join("") || '<div class="small-note">選択できるカードがありません。</div>'}
+      </div>
+      <div class="modal-actions modal-actions-row">
+        <button class="ghost-button" type="button" data-action="cancel">キャンセル</button>
+        <button class="primary-button" type="button" data-action="save">設定</button>
+      </div>
+    `;
+    const grid = modal.querySelector(".favorite-card-grid");
+    grid.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-favorite-card-id]");
+      if (!button) return;
+      selectedId = button.dataset.favoriteCardId;
+      grid.querySelectorAll(".favorite-card-option").forEach((option) => {
+        option.classList.toggle("selected", option === button);
+      });
+    });
+    modal.querySelector('[data-action="cancel"]').addEventListener("click", closeAppModal);
+    modal.querySelector('[data-action="save"]').addEventListener("click", () => {
+      if (!selectedId || !store.setDeckFavoriteCard(id, selectedId)) return;
+      builderView.render({ preserveLibraryScroll: true });
+      renderDeckSelectView();
+      closeAppModal();
+      toast(`${cards[selectedId].name}をデッキアイコンにしました。`);
+    });
+    openAppModal(modal);
+  }
+
+  function favoriteCardButtonHtml(id, selected) {
+    const card = cards[id];
+    const image = card.art || "assets/cards/card-back.png";
+    return `
+      <button class="favorite-card-option${selected ? " selected" : ""}" type="button" data-favorite-card-id="${escapeHtml(id)}">
+        <span class="favorite-card-art"><img src="${escapeHtml(image)}" alt=""></span>
+        <span class="favorite-card-name">${escapeHtml(card.name)}</span>
+      </button>
+    `;
   }
 
   function createDeckPresetForEdit() {
@@ -474,7 +588,7 @@
       return;
     }
     const deckButton = event.target.closest("[data-deck-id]");
-    if (deckButton) openDeckPresetForEdit(deckButton.dataset.deckId);
+    if (deckButton) openDeckPresetActions(deckButton.dataset.deckId);
   });
   document.querySelectorAll("[data-nav-view]").forEach((button) => {
     button.addEventListener("click", () => navigateView(button.dataset.navView));

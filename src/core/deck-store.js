@@ -294,7 +294,10 @@
         deck.driveDeck || deck.driveCounts || starterDriveDeck,
         deck.mainDeckRoyal || deck.royalCounts || {},
         deck.driveDeckRoyal || deck.driveRoyalCounts || {},
-        deck.updatedAt
+        {
+          favoriteCardId: deck.favoriteCardId,
+          updatedAt: deck.updatedAt,
+        }
       );
     }
 
@@ -336,16 +339,28 @@
       };
     }
 
-    createDeck(id, name, mainDeck, driveDeck, mainDeckRoyal = {}, driveDeckRoyal = {}, updatedAt = new Date().toISOString()) {
+    createDeck(id, name, mainDeck, driveDeck, mainDeckRoyal = {}, driveDeckRoyal = {}, meta = {}) {
+      const normalizedMain = this.normalizeMain(mainDeck);
+      const normalizedDrive = this.normalizeDrive(driveDeck);
+      const normalizedMainRoyal = this.normalizeMain(mainDeckRoyal);
+      const normalizedDriveRoyal = this.normalizeDrive(driveDeckRoyal || {});
+      const deckMeta = typeof meta === "string" ? { updatedAt: meta } : meta || {};
       return {
         id,
         name: normalizeDeckName(name),
-        mainDeck: this.normalizeMain(mainDeck),
-        driveDeck: this.normalizeDrive(driveDeck),
-        mainDeckRoyal: this.normalizeMain(mainDeckRoyal),
-        driveDeckRoyal: this.normalizeDrive(driveDeckRoyal || {}),
-        updatedAt,
+        mainDeck: normalizedMain,
+        driveDeck: normalizedDrive,
+        mainDeckRoyal: normalizedMainRoyal,
+        driveDeckRoyal: normalizedDriveRoyal,
+        favoriteCardId: this.normalizeDeckFavorite(deckMeta.favoriteCardId, normalizedMain, normalizedMainRoyal, normalizedDrive, normalizedDriveRoyal),
+        updatedAt: deckMeta.updatedAt || new Date().toISOString(),
       };
+    }
+
+    normalizeDeckFavorite(favoriteCardId, mainDeck = {}, mainDeckRoyal = {}, driveDeck = {}, driveDeckRoyal = {}) {
+      const id = String(favoriteCardId || "");
+      if (!cards[id]) return "";
+      return [mainDeck, mainDeckRoyal, driveDeck, driveDeckRoyal].some((source) => (Number(source?.[id]) || 0) > 0) ? id : "";
     }
 
     normalizeMain(source = {}) {
@@ -377,7 +392,9 @@
 
     saveActiveDeck(name = this.activeDeck?.name) {
       const account = this.activeAccountData;
-      const deck = this.createDeck(this.activeDeckId, name, this.counts, this.driveCounts, this.royalCounts, this.driveRoyalCounts);
+      const deck = this.createDeck(this.activeDeckId, name, this.counts, this.driveCounts, this.royalCounts, this.driveRoyalCounts, {
+        favoriteCardId: this.activeDeck?.favoriteCardId,
+      });
       account.decks[this.activeDeckId] = deck;
       account.activeDeckId = this.activeDeckId;
       return deck;
@@ -386,9 +403,12 @@
     saveAs(name) {
       const account = this.activeAccountData;
       const id = uniqueDeckId(account.decks);
+      const favoriteCardId = this.activeDeck?.favoriteCardId;
       this.activeDeckId = id;
       account.activeDeckId = id;
-      const deck = this.createDeck(id, name || this.nextDeckName(), this.counts, this.driveCounts, this.royalCounts, this.driveRoyalCounts);
+      const deck = this.createDeck(id, name || this.nextDeckName(), this.counts, this.driveCounts, this.royalCounts, this.driveRoyalCounts, {
+        favoriteCardId,
+      });
       account.decks[id] = deck;
       this.persist();
       return deck;
@@ -418,6 +438,26 @@
         this.loadPreset(this.activeDeckId);
         return true;
       }
+      this.persist();
+      return true;
+    }
+
+    renamePreset(id, name) {
+      const deck = this.activeAccountData.decks[id];
+      if (!deck) return null;
+      deck.name = normalizeDeckName(name);
+      deck.updatedAt = new Date().toISOString();
+      this.persist();
+      return deck;
+    }
+
+    setDeckFavoriteCard(id, cardId) {
+      const deck = this.activeAccountData.decks[id];
+      if (!deck) return false;
+      const favoriteCardId = this.normalizeDeckFavorite(cardId, deck.mainDeck, deck.mainDeckRoyal, deck.driveDeck, deck.driveDeckRoyal);
+      if (!favoriteCardId) return false;
+      deck.favoriteCardId = favoriteCardId;
+      deck.updatedAt = new Date().toISOString();
       this.persist();
       return true;
     }

@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260526-deck-select";
+const CACHE_VERSION = "chrono-drive-pwa-20260526-deck-favorite";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260526deckSelect",
+  "/styles.css?v=20260526deckFavorite",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -15,7 +15,7 @@ const APP_SHELL_URLS = [
   "/assets/home/home-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
   "/src/data/cards.js?v=20260526optionaleffects",
-  "/src/core/deck-store.js?v=20260525dismantlefix",
+  "/src/core/deck-store.js?v=20260526deckFavorite",
   "/src/core/effect-resolver.js?v=20260526optionaleffects",
   "/src/core/cpu-controller.js?v=20260525safeattack",
   "/src/core/duel-game.js?v=20260526optionaleffects",
@@ -27,7 +27,7 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260525zoom",
   "/src/net/online-client.js?v=20260525openingattack",
   "/src/ui/duel-view.js?v=20260526reactionhandcue",
-  "/src/main.js?v=20260526deckSelect"
+  "/src/main.js?v=20260526deckFavorite"
 ];
 
 self.addEventListener("install", (event) => {

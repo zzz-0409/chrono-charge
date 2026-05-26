@@ -694,6 +694,89 @@ button:disabled {
   line-height: 1;
 }
 
+.deck-action-dialog {
+  width: min(430px, calc(100% - 24px));
+}
+
+.deck-action-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.deck-action-list .primary-button,
+.deck-action-list .ghost-button {
+  min-height: 48px;
+  justify-content: center;
+  font-weight: 900;
+}
+
+.deck-favorite-dialog {
+  width: min(860px, calc(100% - 24px));
+  max-height: min(660px, calc(100% - 32px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.favorite-card-grid {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 12px;
+  padding: 4px 4px 10px;
+  scrollbar-width: thin;
+}
+
+.favorite-card-option {
+  min-height: 168px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  border: 1px solid rgba(136, 214, 255, 0.26);
+  border-radius: 8px;
+  padding: 7px;
+  color: #edf8ff;
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.favorite-card-option.selected {
+  border-color: rgba(255, 220, 120, 0.9);
+  box-shadow: 0 0 20px rgba(255, 220, 120, 0.2);
+}
+
+.favorite-card-option:hover {
+  transform: translateY(-2px);
+  border-color: rgba(132, 230, 255, 0.72);
+}
+
+.favorite-card-art {
+  min-height: 0;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(4, 8, 13, 0.74);
+}
+
+.favorite-card-art img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.favorite-card-name {
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.16;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .builder-view {
   height: 100%;
   display: grid;
