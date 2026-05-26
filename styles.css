@@ -891,10 +891,6 @@ select {
   font-size: 0.42em;
 }
 
-.card-zoom-shell .preview-card rt {
-  font-size: 0.46em;
-}
-
 .cost-chip {
   width: 30px;
   aspect-ratio: 1;
