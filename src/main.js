@@ -32,6 +32,7 @@
     createRoomButton: document.querySelector("#createRoomButton"),
     joinRoomButton: document.querySelector("#joinRoomButton"),
     newDuelButton: document.querySelector("#newDuelButton"),
+    duelSelectedDeckButton: document.querySelector("#duelSelectedDeckButton"),
     modeCreateRoomButton: document.querySelector("#modeCreateRoomButton"),
     modeJoinRoomButton: document.querySelector("#modeJoinRoomButton"),
     modeCpuDuelButton: document.querySelector("#modeCpuDuelButton"),
@@ -165,6 +166,7 @@
     els.logoutButton.disabled = !accountEnabled;
     if (showDeckSelect) renderDeckSelectView();
     if (showPack || showPackResult) packView?.render();
+    if (showDuelMenu) renderDuelMenuDeckCard();
   };
 
   const openAppModal = (content) => {
@@ -311,12 +313,6 @@
     onCollectionChange: () => builderView.render({ preserveLibraryScroll: true }),
   });
 
-  const DUEL_MODE_LABELS = {
-    createRoom: "ルーム作成",
-    joinRoom: "ルーム参加",
-    cpu: "CPU戦",
-  };
-
   function renderDeckSelectView() {
     if (!els.deckPresetGrid) return;
     const deckCards = store.deckPresets.map((deck) => deckPresetCardHtml(deck)).join("");
@@ -329,6 +325,40 @@
         </span>
       </button>
       ${deckCards}
+    `;
+  }
+
+  function renderDuelMenuDeckCard() {
+    const button = els.duelSelectedDeckButton;
+    if (!button) return;
+    const deck = store.activeDeck || store.deckPresets[0];
+    if (!deck) {
+      button.disabled = true;
+      button.classList.remove("ready", "unusable");
+      button.innerHTML = `<span class="duel-selected-deck-empty">デッキがありません</span>`;
+      return;
+    }
+    const mainTotal = deckCount(deck.mainDeck) + deckCount(deck.mainDeckRoyal);
+    const driveTotal = deckCount(deck.driveDeck) + deckCount(deck.driveDeckRoyal);
+    const image = deckPreviewImage(deck);
+    const theme = deckTheme(deck);
+    const issues = duelDeckIssues(deck);
+    const ready = issues.length === 0;
+    button.disabled = false;
+    button.classList.toggle("ready", ready);
+    button.classList.toggle("unusable", !ready);
+    button.innerHTML = `
+      <span class="duel-selected-deck-head">
+        <span class="eyebrow">Preset Deck</span>
+        <strong>${escapeHtml(deck.name)}</strong>
+      </span>
+      <span class="duel-selected-deck-art"><img src="${escapeHtml(image)}" alt=""></span>
+      <span class="deck-preset-meta duel-selected-deck-meta">
+        <span>${mainTotal}/${DECK_SIZE}</span>
+        <span>D ${driveTotal}/${DRIVE_DECK_SIZE}</span>
+        <span>${escapeHtml(theme)}</span>
+      </span>
+      <span class="duel-deck-status">${escapeHtml(ready ? "使用可能" : issues[0])}</span>
     `;
   }
 
@@ -602,13 +632,12 @@
     toast(`${deck.name}を作成しました。`);
   }
 
-  function openDuelDeckPicker(mode, onReady) {
-    const label = DUEL_MODE_LABELS[mode] || "対戦";
+  function openDuelDeckSelector() {
     const modal = document.createElement("div");
     modal.className = "modal-dialog duel-deck-dialog";
     modal.innerHTML = `
-      <h2>${escapeHtml(label)}で使うデッキ</h2>
-      <p class="small-note">プリセットから使用デッキを1つ選んでください。</p>
+      <h2>使用デッキ選択</h2>
+      <p class="small-note">対戦で使うプリセットデッキを1つ選んでください。</p>
       <div class="duel-deck-choice-grid">
         ${store.deckPresets.map((deck) => duelDeckChoiceHtml(deck)).join("")}
       </div>
@@ -619,10 +648,13 @@
     modal.querySelector(".duel-deck-choice-grid").addEventListener("click", (event) => {
       const button = event.target.closest("[data-duel-deck-id]");
       if (!button) return;
+      if (!store.loadPreset(button.dataset.duelDeckId)) return;
       closeAppModal();
-      Promise.resolve(onReady(button.dataset.duelDeckId)).catch((error) => {
-        toast(error.message || "デッキ選択に失敗しました。");
-      });
+      builderView.selectedCardId = builderView.firstSelectedId();
+      builderView.render({ preserveLibraryScroll: true });
+      renderDuelMenuDeckCard();
+      renderDeckSelectView();
+      toast(`${store.activeDeck.name}を使用デッキに設定しました。`);
     });
     modal.querySelector('[data-action="cancel"]').addEventListener("click", closeAppModal);
     openAppModal(modal);
@@ -652,30 +684,12 @@
     return { deck, driveDeck };
   };
 
-  const preparePresetDeckForDuel = (deckId) => {
-    if (!store.loadPreset(deckId)) return null;
-    builderView.selectedCardId = builderView.firstSelectedId();
-    builderView.render({ preserveLibraryScroll: true });
-    return requireDeck();
-  };
-
   const startCpuDuel = () => {
     const deckSet = requireDeck();
     if (!deckSet) return;
     duelView.start(deckSet.deck, deckSet.driveDeck, {
       mainRoyalIds: store.royalBattleIds,
       driveRoyalIds: store.driveRoyalBattleIds,
-    });
-  };
-
-  const chooseDeckAndStartCpuDuel = () => {
-    openDuelDeckPicker("cpu", (deckId) => {
-      const deckSet = preparePresetDeckForDuel(deckId);
-      if (!deckSet) return;
-      duelView.start(deckSet.deck, deckSet.driveDeck, {
-        mainRoyalIds: store.royalBattleIds,
-        driveRoyalIds: store.driveRoyalBattleIds,
-      });
     });
   };
 
@@ -703,21 +717,6 @@
     }
   };
 
-  const chooseDeckAndCreateRoomDuel = () => {
-    if (!canUseOnline()) return;
-    openDuelDeckPicker("createRoom", async (deckId) => {
-      const deckSet = preparePresetDeckForDuel(deckId);
-      if (!deckSet) return;
-      try {
-        const client = await OnlineClient.createRoom(deckSet.deck, deckSet.driveDeck);
-        startOnlineDuel(client);
-        toast(`ルーム ${client.roomId} を作成しました。`);
-      } catch (error) {
-        toast(error.message || "ルーム作成に失敗しました。");
-      }
-    });
-  };
-
   const joinRoomDuel = async () => {
     if (!canUseOnline()) return;
     const deckSet = requireDeck();
@@ -733,29 +732,13 @@
     }
   };
 
-  const chooseDeckAndJoinRoomDuel = () => {
-    if (!canUseOnline()) return;
-    openDuelDeckPicker("joinRoom", async (deckId) => {
-      const deckSet = preparePresetDeckForDuel(deckId);
-      if (!deckSet) return;
-      const roomId = await askRoomId();
-      if (!roomId) return;
-      try {
-        const client = await OnlineClient.joinRoom(roomId, deckSet.deck, deckSet.driveDeck);
-        startOnlineDuel(client);
-        toast(`ルーム ${client.roomId} に参加しました。`);
-      } catch (error) {
-        toast(error.message || "ルーム参加に失敗しました。");
-      }
-    });
-  };
-
   els.createRoomButton.addEventListener("click", createRoomDuel);
   els.joinRoomButton.addEventListener("click", joinRoomDuel);
   els.newDuelButton.addEventListener("click", () => startCpuDuel());
-  els.modeCreateRoomButton?.addEventListener("click", chooseDeckAndCreateRoomDuel);
-  els.modeJoinRoomButton?.addEventListener("click", chooseDeckAndJoinRoomDuel);
-  els.modeCpuDuelButton?.addEventListener("click", chooseDeckAndStartCpuDuel);
+  els.duelSelectedDeckButton?.addEventListener("click", openDuelDeckSelector);
+  els.modeCreateRoomButton?.addEventListener("click", createRoomDuel);
+  els.modeJoinRoomButton?.addEventListener("click", joinRoomDuel);
+  els.modeCpuDuelButton?.addEventListener("click", () => startCpuDuel());
 
   els.homeTab?.addEventListener("click", () => navigateView("home"));
   els.builderTab?.addEventListener("click", () => navigateView("deckSelect"));
