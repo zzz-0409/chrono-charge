@@ -1069,6 +1069,25 @@ select {
   justify-content: center;
 }
 
+.collection-grid.builder-drop-target,
+.deck-list.builder-drop-target {
+  outline: 2px solid rgba(96, 214, 210, 0.7);
+  outline-offset: -4px;
+  background: rgba(96, 214, 210, 0.08);
+}
+
+.library-card[draggable="true"],
+.deck-list-card[draggable="true"] {
+  cursor: grab;
+}
+
+.library-card.builder-dragging,
+.deck-list-card.builder-dragging {
+  opacity: 0.62;
+  transform: scale(0.98);
+  cursor: grabbing;
+}
+
 .game-card {
   --card-width: var(--card-base-width);
   --card-height: var(--card-base-height);

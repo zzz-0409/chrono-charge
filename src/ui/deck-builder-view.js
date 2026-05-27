@@ -35,6 +35,7 @@
       this.els.saveDeckButton.addEventListener("click", () => this.saveActiveDeck());
       this.els.savePresetButton?.addEventListener("click", () => this.saveActiveDeck());
       this.els.saveAsPresetButton?.addEventListener("click", () => {
+        if (!this.validateDeckBeforeSave()) return;
         const deck = this.store.saveAs(this.els.deckNameInput.value || this.store.nextDeckName());
         if (this.els.deckPresetSelect) this.els.deckPresetSelect.value = this.store.activeDeckId;
         this.render();
@@ -66,7 +67,7 @@
       });
       this.els.deckPresetSelect?.addEventListener("change", () => this.renderProfilePanel());
       this.els.autoBuildButton.addEventListener("click", () => {
-        const label = this.store.autoBuild(this.els.autoBuildMode.value);
+        const label = this.store.autoBuild(this.els.autoBuildMode.value, { ownedOnly: this.ownedOnly });
         this.selectedCardId = this.firstSelectedId();
         if (this.els.deckPresetSelect) this.els.deckPresetSelect.value = this.store.activeDeckId;
         this.render();
@@ -90,6 +91,7 @@
       this.els.cardPreview.addEventListener("click", (event) => CardZoom.openFromEvent(event));
       this.els.mainDeckModeButton?.addEventListener("click", () => this.setDeckMode("main"));
       this.els.driveDeckModeButton?.addEventListener("click", () => this.setDeckMode("drive"));
+      this.bindDeckBuilderDropEvents();
     }
 
     openAuthDialog() {
@@ -193,17 +195,119 @@
       if (options.preserveDeckScroll && this.els.deckList) this.els.deckList.scrollTop = deckScrollTop;
     }
 
+    bindDeckBuilderDropEvents() {
+      this.els.collectionGrid?.addEventListener("dragover", (event) => this.handleBuilderDragOver(event, "library"));
+      this.els.collectionGrid?.addEventListener("dragleave", (event) => this.handleBuilderDragLeave(event));
+      this.els.collectionGrid?.addEventListener("drop", (event) => this.handleBuilderDrop(event, "library"));
+      this.els.deckList?.addEventListener("dragover", (event) => this.handleBuilderDragOver(event, "deck"));
+      this.els.deckList?.addEventListener("dragleave", (event) => this.handleBuilderDragLeave(event));
+      this.els.deckList?.addEventListener("drop", (event) => this.handleBuilderDrop(event, "deck"));
+    }
+
+    makeBuilderCardDraggable(element, payload) {
+      if (!element || !cards[payload?.id]) return;
+      element.draggable = true;
+      element.addEventListener("dragstart", (event) => {
+        this.builderDragPayload = payload;
+        element.classList.add("builder-dragging");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("application/x-chrono-builder-card", JSON.stringify(payload));
+        event.dataTransfer.setData("text/plain", cards[payload.id].name);
+      });
+      element.addEventListener("dragend", () => {
+        this.builderDragPayload = null;
+        element.classList.remove("builder-dragging");
+        this.clearBuilderDropTargets();
+      });
+    }
+
+    currentBuilderDragPayload(event) {
+      if (this.builderDragPayload) return this.builderDragPayload;
+      const text = event.dataTransfer?.getData("application/x-chrono-builder-card");
+      if (!text) return null;
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    }
+
+    acceptsBuilderDrop(payload, target) {
+      if (!payload || !cards[payload.id]) return false;
+      if (target === "deck") return payload.source === "library";
+      if (target === "library") return payload.source === "deck";
+      return false;
+    }
+
+    handleBuilderDragOver(event, target) {
+      const payload = this.currentBuilderDragPayload(event);
+      if (!this.acceptsBuilderDrop(payload, target)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      event.currentTarget.classList.add("builder-drop-target");
+    }
+
+    handleBuilderDragLeave(event) {
+      if (event.currentTarget.contains(event.relatedTarget)) return;
+      event.currentTarget.classList.remove("builder-drop-target");
+    }
+
+    handleBuilderDrop(event, target) {
+      const payload = this.currentBuilderDragPayload(event);
+      if (!this.acceptsBuilderDrop(payload, target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.clearBuilderDropTargets();
+
+      const driveMode = Boolean(payload.drive);
+      if (target === "deck") {
+        const result = driveMode ? this.store.addDrive(payload.id, payload.finish) : this.store.add(payload.id, payload.finish);
+        this.toastDeckResult(result, driveMode);
+        if (!result.ok) return;
+      } else {
+        if (driveMode) this.store.removeDrive(payload.id, payload.finish);
+        else this.store.remove(payload.id, payload.finish);
+      }
+
+      this.deckMode = driveMode ? "drive" : "main";
+      this.selectedCardId = payload.id;
+      this.selectedFinish = payload.finish || "normal";
+      this.render({ preserveLibraryScroll: true, preserveDeckScroll: true });
+    }
+
+    clearBuilderDropTargets() {
+      this.els.collectionGrid?.classList.remove("builder-drop-target");
+      this.els.deckList?.classList.remove("builder-drop-target");
+    }
+
     renderResources() {
       if (this.els.headerGachaStoneCount) this.els.headerGachaStoneCount.textContent = this.store.isAuthorAccount ? "作者" : String(this.store.gems);
       if (this.els.headerDustCount) this.els.headerDustCount.textContent = String(this.store.dust);
     }
 
     saveActiveDeck() {
+      if (!this.validateDeckBeforeSave()) return null;
       const deck = this.store.save(this.els.deckNameInput?.value || this.store.activeDeck?.name);
       if (this.els.deckPresetSelect) this.els.deckPresetSelect.value = this.store.activeDeckId;
       this.render({ preserveLibraryScroll: true });
       this.toast(`${deck.name}を保存しました。`);
       return deck;
+    }
+
+    validateDeckBeforeSave() {
+      const size = this.store.validateActiveDeckSize();
+      if (size.ok) return true;
+      if (size.mainOver && size.driveOver) {
+        this.toast(`通常デッキは${DECK_SIZE}枚、ドライブデッキは${DRIVE_DECK_SIZE}枚までです。枚数を減らしてください。`);
+      } else if (size.mainOver) {
+        this.toast(`通常デッキが${DECK_SIZE}枚を超えています。枚数を減らしてください。`);
+      } else {
+        this.toast(`ドライブデッキが${DRIVE_DECK_SIZE}枚を超えています。枚数を減らしてください。`);
+      }
+      if (size.mainOver && this.deckMode !== "main") this.deckMode = "main";
+      else if (size.driveOver && this.deckMode !== "drive") this.deckMode = "drive";
+      this.render({ preserveLibraryScroll: true, preserveDeckScroll: true });
+      return false;
     }
 
     hasUnsavedChanges() {
@@ -278,6 +382,12 @@
         normalButton.dataset.cardId = card.id;
         normalButton.dataset.finish = "normal";
         normalButton.classList.toggle("unowned-card", owned <= 0 && !this.store.isAuthorAccount);
+        this.makeBuilderCardDraggable(normalButton, {
+          source: "library",
+          id: card.id,
+          finish: "normal",
+          drive: this.deckMode === "drive",
+        });
         normalButton.addEventListener("click", () => this.handleCardClick(card.id, "normal"));
         this.els.collectionGrid.append(normalButton);
         if (royalOwned > 0) {
@@ -289,6 +399,12 @@
           });
           royalButton.dataset.cardId = card.id;
           royalButton.dataset.finish = "royal";
+          this.makeBuilderCardDraggable(royalButton, {
+            source: "library",
+            id: card.id,
+            finish: "royal",
+            drive: this.deckMode === "drive",
+          });
           royalButton.addEventListener("click", () => this.handleCardClick(card.id, "royal"));
           this.els.collectionGrid.append(royalButton);
         }
@@ -438,13 +554,13 @@
       this.render({ preserveLibraryScroll: true });
     }
 
-    toastDeckResult(result) {
+    toastDeckResult(result, driveMode = this.deckMode === "drive") {
       if (result.ok) return;
       if (result.reason === "owned") {
         this.toast("所持枚数が足りません。パックで入手してください。");
         return;
       }
-      if (this.deckMode === "drive") {
+      if (driveMode) {
         if (result.reason === "full") this.toast("ドライブデッキは10枚までです。");
         if (result.reason === "copies") this.toast(`ドライブカードは各${MAX_DRIVE_COPIES}枚までです。`);
         return;
@@ -644,13 +760,11 @@
       const owned = this.store.ownedCount(this.selectedCardId);
       const royalOwned = this.store.ownedCount(this.selectedCardId, "royal");
       const limit = this.store.deckLimit(this.selectedCardId, driveMode);
-      const total = driveMode ? this.store.driveTotal : this.store.total;
-      const size = driveMode ? DRIVE_DECK_SIZE : DECK_SIZE;
       const count = normalCounts[this.selectedCardId] || 0;
       const royalCount = royalCounts[this.selectedCardId] || 0;
       const totalCount = count + royalCount;
-      const canAdd = totalCount < limit && total < size;
-      const canAddRoyal = royalCount < royalOwned && totalCount < limit && total < size;
+      const canAdd = totalCount < limit;
+      const canAddRoyal = royalCount < royalOwned && totalCount < limit;
       const canRemove = count > 0;
       const canRemoveRoyal = royalCount > 0;
       const activeFinish = this.selectedFinish === "royal" ? "royal" : "normal";
@@ -886,6 +1000,12 @@
       row.dataset.deckCount = String(totalCount);
       row.dataset.deckLimit = String(limit);
       row.setAttribute("aria-label", `${card.name} ${finish} copy ${copyIndex + 1} of ${finishCount}, total ${totalCount} of ${limit}`);
+      this.makeBuilderCardDraggable(row, {
+        source: "deck",
+        id,
+        finish,
+        drive: driveMode,
+      });
       row.addEventListener("click", () => {
         this.selectedCardId = id;
         this.selectedFinish = finish;

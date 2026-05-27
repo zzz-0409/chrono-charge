@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260527-opponent-layout";
+const CACHE_VERSION = "chrono-drive-pwa-20260527-deck-builder-dnd";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260527opponentLayout",
+  "/styles.css?v=20260527deckbuilderdnd",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -15,7 +15,7 @@ const APP_SHELL_URLS = [
   "/assets/home/home-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
   "/src/data/cards.js?v=20260526optionaleffects",
-  "/src/core/deck-store.js?v=20260526missingDeckCards",
+  "/src/core/deck-store.js?v=20260527deckbuilderdnd",
   "/src/core/effect-resolver.js?v=20260526optionaleffects",
   "/src/core/cpu-controller.js?v=20260525safeattack",
   "/src/core/duel-game.js?v=20260526optionaleffects",
@@ -23,11 +23,11 @@ const APP_SHELL_URLS = [
   "/src/ui/card-renderer.js?v=20260527rubyfix",
   "/src/ui/sound-effects.js?v=20260522h",
   "/src/ui/card-zoom.js?v=20260522k",
-  "/src/ui/deck-builder-view.js?v=20260526missingDeckCards",
+  "/src/ui/deck-builder-view.js?v=20260527deckbuilderdnd",
   "/src/ui/pack-view.js?v=20260526packResultFlow",
   "/src/net/online-client.js?v=20260525openingattack",
   "/src/ui/duel-view.js?v=20260527thumbs",
-  "/src/main.js?v=20260527thumbs"
+  "/src/main.js?v=20260527deckbuilderdnd"
 ];
 
 self.addEventListener("install", (event) => {

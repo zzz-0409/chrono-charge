@@ -31,6 +31,14 @@
   const ROYAL_FINISH = "royal";
   const ROYAL_RATE = 0.01;
   const ROYAL_PACK_RATE = 0.001;
+  const AUTO_BUILD_THEMES = {
+    star: "星導",
+    black: "黒機",
+    blade: "断刃",
+    cyber: "電脳",
+    sosai: "双彩",
+    balance: "",
+  };
   const PACK_COVERS = {
     "星導": { image: "assets/packs/star-pack.png", ace: "star_dragon" },
     "黒機": { image: "assets/packs/black-pack.png", ace: "black_anchor" },
@@ -568,10 +576,14 @@
       window.clearTimeout(this.remoteSaveTimer);
     }
 
-    autoBuild(mode = "star") {
+    autoBuild(mode = "star", options = {}) {
       const template = autoDeckTemplates[mode] || autoDeckTemplates.star;
-      const mainDeck = this.preferRoyalCopies(this.completeMainDeck(template.main), false);
-      const driveDeck = this.preferRoyalCopies(this.completeDriveDeck(template.drive), true);
+      const buildOptions = {
+        ownedOnly: Boolean(options.ownedOnly),
+        theme: AUTO_BUILD_THEMES[mode] || "",
+      };
+      const mainDeck = this.preferRoyalCopies(this.completeMainDeck(template.main, buildOptions), false);
+      const driveDeck = this.preferRoyalCopies(this.completeDriveDeck(template.drive, buildOptions), true);
       this.counts = mainDeck.normal;
       this.royalCounts = mainDeck.royal;
       this.driveCounts = driveDeck.normal;
@@ -579,14 +591,14 @@
       return template.label;
     }
 
-    completeMainDeck(source) {
-      const result = this.normalizeMainForOwned(source);
+    completeMainDeck(source, options = {}) {
+      const result = this.normalizeMainForOwned(source, options);
       const candidates = Object.values(cards)
         .filter((card) => !isDriveCard(card) && card.type !== "環境")
-        .sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name, "ja"));
+        .sort((a, b) => sortAutoBuildCandidates(a, b, options.theme));
 
       for (const card of candidates) {
-        const limit = this.deckLimit(card.id, false);
+        const limit = this.autoBuildLimit(card.id, false, options.ownedOnly);
         while ((result[card.id] || 0) < limit && deckTotal(result) < DECK_SIZE) {
           result[card.id] = (result[card.id] || 0) + 1;
         }
@@ -596,12 +608,15 @@
       return result;
     }
 
-    completeDriveDeck(source) {
-      const result = this.normalizeDriveForOwned(source);
-      for (const card of drivePool) {
+    completeDriveDeck(source, options = {}) {
+      const result = this.normalizeDriveForOwned(source, options);
+      const candidates = drivePool.slice().sort((a, b) => sortAutoBuildCandidates(a, b, options.theme));
+      for (const card of candidates) {
         if (deckTotal(result) >= DRIVE_DECK_SIZE) break;
-        if (result[card.id] || this.deckLimit(card.id, true) <= 0) continue;
-        result[card.id] = 1;
+        const limit = this.autoBuildLimit(card.id, true, options.ownedOnly);
+        while ((result[card.id] || 0) < limit && deckTotal(result) < DRIVE_DECK_SIZE) {
+          result[card.id] = (result[card.id] || 0) + 1;
+        }
       }
       return result;
     }
@@ -623,27 +638,33 @@
       };
     }
 
-    normalizeMainForOwned(source = {}) {
+    normalizeMainForOwned(source = {}, options = {}) {
       const result = {};
       Object.entries(source).forEach(([id, count]) => {
         if (!cards[id] || cards[id].driveKind || cards[id].type === "環境") return;
-        const limit = this.deckLimit(id, false);
+        const limit = this.autoBuildLimit(id, false, options.ownedOnly);
         const safeCount = Math.max(0, Math.min(limit, Number(count) || 0));
         if (safeCount > 0) result[id] = safeCount;
       });
       return trimDeck(result, DECK_SIZE);
     }
 
-    normalizeDriveForOwned(source = starterDriveDeck) {
+    normalizeDriveForOwned(source = starterDriveDeck, options = {}) {
       const result = {};
       const entries = Array.isArray(source) ? Object.entries(countIds(source)) : Object.entries(source || {});
       entries.forEach(([id, count]) => {
         if (!isDriveCard(cards[id])) return;
-        const limit = this.deckLimit(id, true);
+        const limit = this.autoBuildLimit(id, true, options.ownedOnly);
         const safeCount = Math.max(0, Math.min(limit, Number(count) || 0));
         if (safeCount > 0) result[id] = safeCount;
       });
       return trimDeck(result, DRIVE_DECK_SIZE);
+    }
+
+    autoBuildLimit(id, drive = false, ownedOnly = false) {
+      const copyLimit = this.deckLimit(id, drive);
+      if (!ownedOnly) return copyLimit;
+      return Math.min(copyLimit, this.totalOwnedCount(id));
     }
 
     persist() {
@@ -676,7 +697,6 @@
 
     add(id, finish = "normal") {
       if (!cards[id] || isDriveCard(cards[id]) || cards[id].type === "環境") return { ok: false, reason: "unknown" };
-      if (this.total >= DECK_SIZE) return { ok: false, reason: "full" };
       const limit = this.deckLimit(id, false);
       if (this.deckCount(id, false) >= limit) return { ok: false, reason: "copies" };
       if (finish === ROYAL_FINISH) {
@@ -697,7 +717,6 @@
 
     addDrive(id, finish = "normal") {
       if (!isDriveCard(cards[id])) return { ok: false, reason: "unknown" };
-      if (this.driveTotal >= DRIVE_DECK_SIZE) return { ok: false, reason: "full" };
       const limit = this.deckLimit(id, true);
       if (this.deckCount(id, true) >= limit) return { ok: false, reason: "copies" };
       if (finish === ROYAL_FINISH) {
@@ -803,6 +822,20 @@
       return {
         ok: missing.length === 0,
         missing,
+      };
+    }
+
+    validateActiveDeckSize() {
+      const mainTotal = this.total;
+      const driveTotal = this.driveTotal;
+      return {
+        ok: mainTotal <= DECK_SIZE && driveTotal <= DRIVE_DECK_SIZE,
+        mainTotal,
+        driveTotal,
+        mainLimit: DECK_SIZE,
+        driveLimit: DRIVE_DECK_SIZE,
+        mainOver: mainTotal > DECK_SIZE,
+        driveOver: driveTotal > DRIVE_DECK_SIZE,
       };
     }
 
@@ -1202,6 +1235,24 @@
         result[card.id] = 1;
       });
     return result;
+  }
+
+  function sortAutoBuildCandidates(a, b, theme = "") {
+    const themeA = autoBuildThemeRank(a, theme);
+    const themeB = autoBuildThemeRank(b, theme);
+    if (themeA !== themeB) return themeA - themeB;
+    const costA = Number.isFinite(a.cost) ? a.cost : 0;
+    const costB = Number.isFinite(b.cost) ? b.cost : 0;
+    if (costA !== costB) return costA - costB;
+    if (a.type !== b.type) return a.type.localeCompare(b.type, "ja");
+    return a.name.localeCompare(b.name, "ja");
+  }
+
+  function autoBuildThemeRank(card, theme = "") {
+    if (!theme) return 0;
+    if (card.theme === theme) return 0;
+    if (!card.theme) return 1;
+    return 2;
   }
 
   function isDriveCard(card) {

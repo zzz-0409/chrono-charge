@@ -212,7 +212,7 @@
     if (els.builderView.hidden || !builderView?.hasUnsavedChanges?.()) return true;
     const choice = await askSaveBeforeLeaving();
     if (choice === "cancel") return false;
-    if (choice === "save") builderView.saveActiveDeck();
+    if (choice === "save") return Boolean(builderView.saveActiveDeck());
     return true;
   };
 
@@ -637,6 +637,10 @@
   }
 
   function createDeckPresetForEdit() {
+    if (!builderView.validateDeckBeforeSave()) {
+      setView("builder");
+      return;
+    }
     const deck = store.saveAs(store.nextDeckName());
     builderView.selectedCardId = builderView.firstSelectedId();
     builderView.render();
