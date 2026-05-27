@@ -165,7 +165,18 @@
     els.packTab?.classList.toggle("active", showPack || showPackResult);
     els.duelTab?.classList.toggle("active", showDuelMenu || showDuel);
     els.appShell?.classList.toggle("compact-header", !showHome);
+    els.appShell?.classList.toggle("duel-menu-active", showDuelMenu);
     els.appShell?.classList.toggle("duel-active", showDuel);
+    const activeNavView = showDeckSelect || showBuilder
+      ? "deckSelect"
+      : showPack || showPackResult
+        ? "pack"
+        : showDuelMenu || showDuel
+          ? "duelMenu"
+          : "home";
+    document.querySelectorAll("[data-nav-view]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.navView === activeNavView);
+    });
     const accountEnabled = showHome;
     els.loginButton.disabled = !accountEnabled;
     els.displayNameInput.disabled = !accountEnabled;
@@ -356,8 +367,11 @@
     button.classList.toggle("unusable", !ready);
     button.innerHTML = `
       <span class="duel-selected-deck-head">
-        <span class="eyebrow">Preset Deck</span>
-        <strong>${escapeHtml(deck.name)}</strong>
+        <span class="duel-mode-emblem duel-mode-emblem-deck" aria-hidden="true"></span>
+        <span>
+          <span class="eyebrow">Preset Deck</span>
+          <strong>${escapeHtml(deck.name)}</strong>
+        </span>
       </span>
       <span class="duel-selected-deck-art"><img src="${escapeHtml(image)}" alt=""></span>
       <span class="deck-preset-meta duel-selected-deck-meta">
@@ -772,6 +786,22 @@
   });
   document.querySelectorAll("[data-nav-view]").forEach((button) => {
     button.addEventListener("click", () => navigateView(button.dataset.navView));
+  });
+  const shellActionLabels = {
+    gachaStone: "ガチャ石",
+    dismantleStone: "分解石",
+    mail: "メール",
+    notice: "お知らせ",
+    gift: "プレゼント",
+    settings: "設定",
+    shop: "ショップ",
+    profile: "プロフィール",
+  };
+  document.querySelectorAll("[data-shell-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const label = shellActionLabels[button.dataset.shellAction] || "この機能";
+      toast(`${label}はまだ準備中です。`);
+    });
   });
 
   setView("home");
