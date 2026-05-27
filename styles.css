@@ -562,7 +562,7 @@ button:disabled {
 .home-action-button.primary {
   border-color: rgba(255, 226, 148, 0.66);
   color: #fff9dc;
-  background: linear-gradient(90deg, rgba(81, 52, 12, 0.92), rgba(26, 80, 105, 0.62));
+  background: linear-gradient(90deg, rgba(109, 66, 10, 0.94), rgba(231, 164, 38, 0.72), rgba(78, 51, 10, 0.68));
 }
 
 .home-action-icon {
@@ -588,7 +588,7 @@ button:disabled {
 .home-bottom-nav {
   position: fixed;
   left: 50%;
-  bottom: 22px;
+  bottom: 10px;
   z-index: 32;
   width: min(1190px, calc(var(--stage-width) - 80px));
   display: grid;
@@ -601,7 +601,7 @@ button:disabled {
 .shared-bottom-nav {
   position: fixed;
   left: 50%;
-  bottom: 22px;
+  bottom: 10px;
   width: min(1190px, calc(var(--stage-width) - 80px));
   justify-self: auto;
   align-self: auto;
@@ -611,6 +611,7 @@ button:disabled {
 .home-shortcut-button {
   --shortcut-frame-y: 100%;
   --shortcut-frame-scale-y: 1;
+  --shortcut-frame-filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.34));
   min-height: 72px;
   height: 72px;
   justify-content: center;
@@ -637,9 +638,21 @@ button:disabled {
   background-repeat: no-repeat;
   background-size: 100% 400%;
   background-position: center var(--shortcut-frame-y);
-  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.34));
+  filter: var(--shortcut-frame-filter);
   transform: scaleY(var(--shortcut-frame-scale-y));
   transition: filter 150ms ease;
+}
+
+.home-shortcut-button::after {
+  content: "";
+  position: absolute;
+  inset: 9px 5px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(109, 66, 10, 0.88), rgba(231, 164, 38, 0.7), rgba(78, 51, 10, 0.74));
+  box-shadow: inset 0 0 18px rgba(255, 225, 126, 0.2);
+  opacity: 0;
 }
 
 .home-shortcut-button > * {
@@ -680,13 +693,16 @@ button:disabled {
   filter: drop-shadow(0 0 10px rgba(96, 190, 255, 0.38));
 }
 
-.home-action-button:hover,
-.home-shortcut-button:hover {
+.home-action-button:hover {
   transform: translateY(-2px);
 }
 
-.home-shortcut-button:hover::before {
-  filter: brightness(1.12) drop-shadow(0 12px 20px rgba(0, 0, 0, 0.34));
+.home-shortcut-button:hover {
+  --shortcut-frame-filter: brightness(1.12) drop-shadow(0 12px 20px rgba(0, 0, 0, 0.34));
+}
+
+.home-shortcut-button:active {
+  transform: none;
 }
 
 .home-action-button:hover {
@@ -702,15 +718,25 @@ button:disabled {
 
 .home-action-button.primary {
   color: #fff7d2;
-  background-position: center 0%;
+  background-image:
+    linear-gradient(90deg, rgba(109, 66, 10, 0.78), rgba(231, 164, 38, 0.54), rgba(78, 51, 10, 0.56)),
+    url("assets/ui/duel-menu/button-frames.png");
+  background-repeat: no-repeat;
+  background-size: 100% 100%, 100% 400%;
+  background-position: center, center 0%;
   text-shadow: 0 1px 8px rgba(61, 35, 0, 0.42);
 }
 
 .home-shortcut-button.active {
-  --shortcut-frame-y: 0%;
+  --shortcut-frame-y: 100%;
   --shortcut-frame-scale-y: 1;
+  --shortcut-frame-filter: brightness(1.08) drop-shadow(0 12px 20px rgba(0, 0, 0, 0.34));
   color: #fff7d2;
   text-shadow: 0 1px 8px rgba(61, 35, 0, 0.42);
+}
+
+.home-shortcut-button.active::after {
+  opacity: 1;
 }
 
 .deck-select-view {
@@ -2787,6 +2813,11 @@ select {
 .duel-menu-stage .home-shortcut-button.active {
   --shortcut-frame-y: 100%;
   --shortcut-frame-scale-y: 1;
+  --shortcut-frame-filter: brightness(1.08) drop-shadow(0 12px 20px rgba(0, 0, 0, 0.34));
+}
+
+.duel-menu-stage .home-shortcut-button.active::after {
+  opacity: 1;
 }
 
 .zoomable-card {
