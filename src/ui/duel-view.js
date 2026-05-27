@@ -549,7 +549,7 @@
       if (card?.art) {
         const img = document.createElement("img");
         img.className = "hand-drag-ghost-art";
-        img.src = card.art;
+        img.src = CardRenderer.artSource(card);
         img.alt = "";
         img.decoding = "async";
         img.draggable = false;

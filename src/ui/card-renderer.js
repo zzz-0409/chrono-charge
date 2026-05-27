@@ -4,6 +4,8 @@
   const { cards, typeIcons, attrClass, typeClass } = window.Chrono;
 
   const preloadedArtUrls = new Set();
+  const CARD_ART_ROOT = "assets/cards/art/";
+  const CARD_THUMB_ROOT = `${CARD_ART_ROOT}thumbs/`;
 
   function preloadCardArt(src) {
     if (!src || preloadedArtUrls.has(src) || typeof Image !== "function") return;
@@ -267,6 +269,12 @@
   };
 
   class CardRenderer {
+    static artSource(card, options = {}) {
+      if (!card?.art) return "";
+      if (options.large) return card.art;
+      return card.thumb || thumbPathForArt(card.art);
+    }
+
     static cardFace(content) {
       return `<div class="card-face">${content}</div>`;
     }
@@ -396,9 +404,10 @@
     static cardArt(card, large = false) {
       const artClass = large ? "card-art large" : "card-art";
       if (card.art) {
-        preloadCardArt(card.art);
+        const image = this.artSource(card, { large });
+        preloadCardArt(image);
         return `
-          <div class="${artClass} has-image" style="--card-art-url: url('${escapeCssUrl(card.art)}')" aria-label="${escapeHtml(card.name)}">
+          <div class="${artClass} has-image" style="--card-art-url: url('${escapeCssUrl(image)}')" aria-label="${escapeHtml(card.name)}">
           </div>
         `;
       }
@@ -586,6 +595,11 @@
       "\r": "\\D ",
       "\f": "\\C ",
     })[char]);
+  }
+
+  function thumbPathForArt(art) {
+    if (!art || !art.startsWith(CARD_ART_ROOT) || art.startsWith(CARD_THUMB_ROOT)) return art;
+    return `${CARD_THUMB_ROOT}${art.slice(CARD_ART_ROOT.length).replace(/\.[^/.]+$/, ".jpg")}`;
   }
 
   window.Chrono.CardRenderer = CardRenderer;

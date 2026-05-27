@@ -468,13 +468,18 @@
   function deckPreviewImage(deck) {
     const ids = deckIds(deck);
     if (deck.favoriteCardId && ids.includes(deck.favoriteCardId) && cards[deck.favoriteCardId]?.art) {
-      return cards[deck.favoriteCardId].art;
+      return cardPreviewArt(cards[deck.favoriteCardId]);
     }
     const ace = ids
       .map((id) => cards[id])
       .filter(Boolean)
       .sort((a, b) => (b.cost || 0) - (a.cost || 0))[0];
-    return ace?.art || "assets/cards/card-back.png";
+    return cardPreviewArt(ace);
+  }
+
+  function cardPreviewArt(card) {
+    if (!card?.art) return "assets/cards/card-back.png";
+    return window.Chrono.CardRenderer?.artSource(card) || card.art;
   }
 
   function deckTheme(deck) {
@@ -622,7 +627,7 @@
 
   function favoriteCardButtonHtml(id, selected) {
     const card = cards[id];
-    const image = card.art || "assets/cards/card-back.png";
+    const image = cardPreviewArt(card);
     return `
       <button class="favorite-card-option${selected ? " selected" : ""}" type="button" data-favorite-card-id="${escapeHtml(id)}">
         <span class="favorite-card-art"><img src="${escapeHtml(image)}" alt=""></span>

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260527-selection-flicker";
+const CACHE_VERSION = "chrono-drive-pwa-20260527-thumbs";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -20,14 +20,14 @@ const APP_SHELL_URLS = [
   "/src/core/cpu-controller.js?v=20260525safeattack",
   "/src/core/duel-game.js?v=20260526optionaleffects",
   "/src/ui/scale-manager.js?v=20260524a",
-  "/src/ui/card-renderer.js?v=20260527selectionFlicker",
+  "/src/ui/card-renderer.js?v=20260527thumbs",
   "/src/ui/sound-effects.js?v=20260522h",
   "/src/ui/card-zoom.js?v=20260522k",
   "/src/ui/deck-builder-view.js?v=20260526missingDeckCards",
   "/src/ui/pack-view.js?v=20260526packResultFlow",
   "/src/net/online-client.js?v=20260525openingattack",
-  "/src/ui/duel-view.js?v=20260527selectionFlicker",
-  "/src/main.js?v=20260526bottomHomeButton"
+  "/src/ui/duel-view.js?v=20260527thumbs",
+  "/src/main.js?v=20260527thumbs"
 ];
 
 self.addEventListener("install", (event) => {
