@@ -36,6 +36,7 @@
       this.units = Array(UNIT_ZONES).fill(null);
       this.cores = Array(CORE_ZONES).fill(null);
       this.reactions = Array(REACTION_ZONES).fill(null);
+      this.driveCoreActivations = {};
       this.chargedThisTurn = false;
       this.drewFromStarCore = false;
       this.shiftedThisTurn = false;
@@ -54,6 +55,7 @@
         }
         unit.exhausted = false;
       });
+      this.driveCoreActivations = {};
       this.chargedThisTurn = false;
       this.drewFromStarCore = false;
       this.shiftedThisTurn = false;
@@ -190,6 +192,85 @@
       }
     }
 
+    driveCoreActivationKey(coreIndex, card) {
+      return `${coreIndex}:${card?.id || ""}`;
+    }
+
+    driveCoreActivationCost(card) {
+      switch (card?.driveEffect) {
+        case "driveBlackCore":
+        case "driveBladeCore":
+        case "driveCyberCore":
+          return 1;
+        default:
+          return 0;
+      }
+    }
+
+    driveCoreAbilityAvailable(card, player, opponent) {
+      switch (card?.driveEffect) {
+        case "driveStarCore":
+        case "driveBlackCore":
+        case "driveSosaiCore":
+        case "driveGenericCore":
+          return true;
+        case "driveBladeCore":
+          return opponent.units.some((unit) => unit);
+        case "driveCyberCore":
+          return opponent.reactions.some((entry) => reactionId(entry));
+        default:
+          return false;
+      }
+    }
+
+    canActivateDriveCore(player, coreIndex) {
+      if (!player || this.finished) return false;
+      if (player === this.player && !this.canPlayerAct()) return false;
+      if (player === this.enemy && (this.active !== "enemy" || !this.busy)) return false;
+      const id = player.cores[coreIndex];
+      const card = cards[id];
+      if (!card || card.driveKind !== "core") return false;
+      const key = this.driveCoreActivationKey(coreIndex, card);
+      if (player.driveCoreActivations[key]) return false;
+      const cost = this.driveCoreActivationCost(card);
+      if (cost > 0 && !this.canPay(player, cost)) return false;
+      return this.driveCoreAbilityAvailable(card, player, this.opponentOf(player));
+    }
+
+    async activateDriveCore(coreIndex, player = this.player) {
+      if (!this.canActivateDriveCore(player, coreIndex)) return false;
+      const card = cards[player.cores[coreIndex]];
+      const opponent = this.opponentOf(player);
+      const cost = this.driveCoreActivationCost(card);
+      const wasBusy = this.busy;
+      if (player === this.player) {
+        const costText = cost > 0 ? `チャージ${cost}を支払って` : "";
+        const activates = await this.confirmEffectActivation(player, card, {
+          title: `${card.name}の起動効果`,
+          message: `${costText}${card.name}の起動効果を発動しますか？`,
+        });
+        if (!activates) return false;
+      }
+      if (player === this.player) this.busy = true;
+      try {
+        if (cost > 0 && !this.payCost(player, cost)) return false;
+        player.driveCoreActivations[this.driveCoreActivationKey(coreIndex, card)] = true;
+        this.notify();
+        await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
+        const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
+        if (negated) {
+          this.log(`${card.name}の起動効果は無効化された。`);
+        } else {
+          await this.applyDriveCoreAbility(card, player, opponent);
+        }
+        this.checkGameEnd();
+        return true;
+      } finally {
+        if (player === this.player) this.busy = wasBusy;
+        this.notify();
+      }
+    }
+
     async attackWithUnit(attackerIndex, targetIndex) {
       if (!this.canPlayerAct()) return;
       if (!this.canAttack(this.player)) return;
@@ -254,6 +335,13 @@
         const driveId = this.usableDriveCards(this.enemy)[0];
         if (!driveId) break;
         await this.cpuPlayDriveCard(driveId);
+        if (this.finished) return;
+        await pause(this.options.delayMs);
+      }
+
+      for (let i = 0; i < this.enemy.cores.length; i += 1) {
+        if (!this.canActivateDriveCore(this.enemy, i)) continue;
+        await this.activateDriveCore(i, this.enemy);
         if (this.finished) return;
         await pause(this.options.delayMs);
       }
@@ -636,92 +724,84 @@
             title: "星導カードを手札に加える",
             message: "デッキから星導カードを1枚選んでください。",
           });
-          this.drawCards(player, 3);
-          this.untapOneCharge(player);
+          await this.returnBestUnitToHand(opponent);
+          this.drawCards(player, 2);
           this.untapOneCharge(player);
           return;
         case "driveStarCore":
-          this.drawCards(player, 2);
-          this.untapOneCharge(player);
+          this.drawCards(player, 1);
           return;
         case "driveStarSpell":
           await this.addFromDeck(player, (candidate) => candidate.theme === "星導", {
             title: "星導カードを手札に加える",
             message: "デッキから星導カードを1枚選んでください。",
           });
-          this.drawCards(player, 2);
+          this.drawCards(player, 1);
           this.untapOneCharge(player);
           this.untapOneCharge(player);
           return;
         case "driveStarReactAttack":
-        case "driveCyberReactAttack":
-          if (card.driveEffect === "driveCyberReactAttack") await this.revealReactions(opponent, 1);
-          this.drawCards(player, 2);
-          this.untapOneCharge(player);
+          this.returnSourceUnitToHand(opponent, event);
+          this.drawCards(player, 1);
           return;
         case "driveStarReactEffect":
-          this.drawCards(player, 3);
-          this.untapOneCharge(player);
+          this.returnSourceFieldCardToHand(opponent, event);
+          this.drawCards(player, 1);
           return;
         case "driveBlackUnit":
           this.damage(opponent, 2000);
-          await this.destroyBestUnit(opponent);
-          this.drawCards(player, 1);
+          if (await this.destroyBestUnit(opponent)) this.damage(opponent, 500);
           return;
         case "driveBlackCore":
           this.damage(opponent, 1000);
-          this.drawCards(player, 1);
           return;
         case "driveBlackSpell":
           await this.destroyBestUnit(opponent);
+          await this.destroyBestCore(opponent);
           this.damage(opponent, 1500);
-          this.drawCards(player, 1);
           return;
         case "driveBlackReactAttack":
+          this.destroySourceUnit(opponent, event);
           this.damage(opponent, 1500);
-          this.drawCards(player, 1);
           return;
         case "driveBlackReactEffect":
+          this.destroySourceFieldCard(opponent, event);
           this.damage(opponent, 1200);
-          this.drawCards(player, 1);
           return;
         case "driveBladeUnit":
-          await this.exhaustBestUnit(opponent);
+          this.exhaustAllUnitsUntilOwnerTurnEnd(opponent);
           await this.destroyBestExhaustedUnit(opponent);
-          this.drawCards(player, 1);
           return;
         case "driveBladeCore":
           await this.exhaustBestUnit(opponent);
-          this.drawCards(player, 1);
           return;
         case "driveBladeSpell":
           await this.exhaustBestUnit(opponent);
           await this.destroyBestExhaustedUnit(opponent);
-          this.drawCards(player, 1);
           return;
         case "driveBladeReactAttack": {
           const sourceIndex = Number(event.sourceIndex);
           if (Number.isInteger(sourceIndex) && opponent.units[sourceIndex]) {
             this.exhaustUnitUntilOwnerTurnEnd(opponent, sourceIndex);
           }
-          await this.destroyBestExhaustedUnit(opponent);
-          this.drawCards(player, 1);
+          if (!this.destroySourceUnit(opponent, event)) await this.destroyBestExhaustedUnit(opponent);
           return;
         }
         case "driveBladeReactEffect":
-          if (!await this.destroyBestExhaustedUnit(opponent)) await this.exhaustBestUnit(opponent);
-          this.drawCards(player, 1);
+          if (!this.destroySourceFieldCard(opponent, event)) {
+            if (!await this.destroyBestExhaustedUnit(opponent)) await this.exhaustBestUnit(opponent);
+          }
           return;
         case "driveCyberUnit":
           await this.revealReactions(opponent, 2);
+          await this.removeRevealedReaction(opponent);
           await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "電脳", {
             title: "電脳ユニットを追加召喚",
             message: "手札から追加召喚する電脳ユニットを選んでください。",
           }, opponent);
-          this.drawCards(player, 1);
           return;
         case "driveCyberCore":
-          this.drawCards(player, 1);
+          await this.revealReactions(opponent, 1);
           await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "電脳" && candidate.cost <= 3, {
             title: "電脳ユニットを追加召喚",
             message: "手札からコスト3以下の電脳ユニットを選んでください。",
@@ -730,79 +810,211 @@
         case "driveCyberSpell":
           await this.revealReactions(opponent, 2);
           await this.removeRevealedReaction(opponent);
-          this.drawCards(player, 2);
+          await this.addFromDeck(player, (candidate) => candidate.theme === "電脳", {
+            title: "電脳カードを手札に加える",
+            message: "デッキから電脳カードを1枚選んでください。",
+          });
+          this.drawCards(player, 1);
+          return;
+        case "driveCyberReactAttack":
+          await this.revealReactions(opponent, 1);
+          await this.removeRevealedReaction(opponent);
           return;
         case "driveCyberReactEffect":
           await this.revealReactions(opponent, 2);
           await this.removeRevealedReaction(opponent);
-          this.drawCards(player, 1);
           return;
         case "driveSosaiUnit":
           await this.addFromDeck(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩", {
             title: "双彩ユニットを手札に加える",
             message: "デッキから双彩ユニットを1枚選んでください。",
           });
-          this.drawCards(player, 3);
-          this.untapOneCharge(player);
+          await this.returnBestUnitToHand(opponent);
+          this.drawCards(player, 1);
           return;
         case "driveSosaiNeneRuriUnit":
           await this.returnBestUnitToHand(opponent);
           this.damage(opponent, 1000);
-          this.drawCards(player, 2);
+          this.drawCards(player, 1);
+          this.untapOneCharge(player);
           return;
         case "driveSosaiCocoLunaUnit":
           this.untapOneCharge(player);
           this.untapOneCharge(player);
-          this.drawCards(player, 2);
+          this.drawCards(player, 1);
           await this.destroyBestUnit(opponent);
           return;
         case "driveSosaiCore":
-          this.drawCards(player, 2);
+          this.drawCards(player, 1);
           return;
         case "driveSosaiSpell":
           await this.addFromGrave(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩", {
             title: "双彩ユニットを回収",
             message: "墓地から双彩ユニットを1枚選んでください。",
           });
-          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩" && candidate.cost <= 3, {
+          if (await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩" && candidate.cost <= 3, {
             title: "双彩ユニットを追加召喚",
             message: "手札からコスト3以下の双彩ユニットを選んでください。",
-          }, opponent);
+          }, opponent)) this.untapOneCharge(player);
           this.drawCards(player, 1);
           return;
         case "driveSosaiReactAttack":
           this.drawCards(player, 1);
-          if (this.hasSosaiPair(player)) this.drawCards(player, 1);
+          if (this.hasSosaiPair(player)) this.returnSourceUnitToHand(opponent, event);
           return;
         case "driveSosaiReactEffect":
           this.drawCards(player, 1);
-          if (this.hasSosaiPair(player)) this.drawCards(player, 2);
+          if (this.hasSosaiPair(player)) this.returnSourceFieldCardToHand(opponent, event);
           return;
         case "driveGenericUnit":
-          this.drawCards(player, 2);
-          this.untapOneCharge(player);
+          await this.exhaustBestUnit(opponent);
+          this.drawCards(player, 1);
           return;
         case "driveGenericCore":
-          this.drawCards(player, 3);
+          this.drawCards(player, 2);
           await this.discardFromHand(player, {
             title: "手札を1枚捨てる",
             message: "クロノ炉で墓地に送るカードを選んでください。",
           });
-          this.untapOneCharge(player);
           return;
         case "driveGenericSpell":
           await this.exhaustBestUnit(opponent);
           await this.destroyBestExhaustedUnit(opponent);
-          this.drawCards(player, 1);
           return;
         case "driveGenericReactAttack":
-        case "driveGenericReactEffect":
-          this.drawCards(player, 1);
+          this.exhaustSourceUnit(opponent, event);
           this.untapOneCharge(player);
+          return;
+        case "driveGenericReactEffect":
+          if (!this.destroySourceFieldCard(opponent, event)) this.drawCards(player, 1);
           return;
         default:
           return;
       }
+    }
+
+    async applyDriveCoreAbility(card, player, opponent) {
+      switch (card.driveEffect) {
+        case "driveStarCore":
+          this.drawCards(player, 1);
+          this.log(`${card.name}で1枚ドロー。`);
+          return;
+        case "driveBlackCore":
+          this.damage(opponent, 800);
+          return;
+        case "driveBladeCore":
+          if (!await this.destroyBestExhaustedUnit(opponent)) await this.exhaustBestUnit(opponent);
+          return;
+        case "driveCyberCore":
+          await this.revealReactions(opponent, 1);
+          await this.removeRevealedReaction(opponent);
+          return;
+        case "driveSosaiCore":
+          this.drawCards(player, 1);
+          if (this.hasSosaiPair(player)) this.untapOneCharge(player);
+          this.log(`${card.name}が起動。`);
+          return;
+        case "driveGenericCore":
+          this.drawCards(player, 1);
+          await this.discardFromHand(player, {
+            title: "手札を1枚捨てる",
+            message: "クロノ炉の起動効果で墓地に送るカードを選んでください。",
+          });
+          this.log(`${card.name}が起動。`);
+          return;
+        default:
+          return;
+      }
+    }
+
+    sourceUnitIndex(player, event = {}) {
+      const sourceId = event.source?.id;
+      const sourceIndex = Number(event.sourceIndex);
+      if (
+        Number.isInteger(sourceIndex) &&
+        sourceIndex >= 0 &&
+        sourceIndex < player.units.length &&
+        player.units[sourceIndex] &&
+        (!sourceId || player.units[sourceIndex].id === sourceId)
+      ) return sourceIndex;
+      if (!sourceId) return -1;
+      return player.units.findIndex((unit) => unit?.id === sourceId);
+    }
+
+    returnSourceUnitToHand(player, event = {}) {
+      const index = this.sourceUnitIndex(player, event);
+      if (index < 0) return false;
+      const unit = player.units[index];
+      this.returnCardToHandOrDriveDeck(player, unit.id);
+      player.units[index] = null;
+      return true;
+    }
+
+    exhaustSourceUnit(player, event = {}) {
+      const index = this.sourceUnitIndex(player, event);
+      if (index < 0) return false;
+      this.exhaustUnitUntilOwnerTurnEnd(player, index);
+      this.log(`${cards[player.units[index].id].name}を次の相手ターン終了まで行動済みにした。`);
+      return true;
+    }
+
+    destroySourceUnit(player, event = {}) {
+      const index = this.sourceUnitIndex(player, event);
+      if (index < 0) return false;
+      const targetName = cards[player.units[index].id].name;
+      this.destroyUnit(player, index);
+      this.log(`${targetName}を破壊した。`);
+      return true;
+    }
+
+    returnSourceFieldCardToHand(player, event = {}) {
+      const sourceId = event.source?.id;
+      if (!sourceId) return false;
+      if (this.returnSourceUnitToHand(player, event)) return true;
+      const coreIndex = player.cores.findIndex((id) => id === sourceId);
+      if (coreIndex !== -1) {
+        player.cores[coreIndex] = null;
+        this.returnCardToHandOrDriveDeck(player, sourceId);
+        return true;
+      }
+      const reactionIndex = player.reactions.findIndex((entry) => reactionId(entry) === sourceId);
+      if (reactionIndex !== -1) {
+        player.reactions[reactionIndex] = null;
+        this.returnCardToHandOrDriveDeck(player, sourceId);
+        return true;
+      }
+      return false;
+    }
+
+    destroySourceFieldCard(player, event = {}) {
+      const sourceId = event.source?.id;
+      if (!sourceId) return false;
+      if (this.destroySourceUnit(player, event)) return true;
+      const coreIndex = player.cores.findIndex((id) => id === sourceId);
+      if (coreIndex !== -1) {
+        player.cores[coreIndex] = null;
+        player.grave.push(sourceId);
+        this.log(`${cards[sourceId].name}を破壊した。`);
+        return true;
+      }
+      const reactionIndex = player.reactions.findIndex((entry) => reactionId(entry) === sourceId);
+      if (reactionIndex !== -1) {
+        player.reactions[reactionIndex] = null;
+        player.grave.push(sourceId);
+        this.log(`${cards[sourceId].name}を破壊した。`);
+        return true;
+      }
+      return false;
+    }
+
+    exhaustAllUnitsUntilOwnerTurnEnd(player) {
+      let exhausted = 0;
+      player.units.forEach((unit, index) => {
+        if (!unit) return;
+        if (this.exhaustUnitUntilOwnerTurnEnd(player, index)) exhausted += 1;
+      });
+      if (exhausted > 0) this.log(`${player.name}のユニット${exhausted}体を行動済みにした。`);
+      return exhausted;
     }
 
     afterSummon(player, id) {
@@ -1614,6 +1826,23 @@
       return target ? target.index : -1;
     }
 
+    async chooseCoreTargetIndex(player, predicate = () => true, choice = {}) {
+      const candidates = player.cores
+        .map((id, index) => ({ id, index }))
+        .filter((entry) => entry.id && predicate(entry.id, entry.index));
+      if (candidates.length === 0) return -1;
+      if (player !== this.enemy) return candidates[0].index;
+      const selected = await this.options.requestCardChoice({
+        zone: "coreTarget",
+        title: choice.title || "対象コアを選択",
+        message: choice.message || "効果の対象にする相手コアを選んでください。",
+        candidates,
+        confirmLabel: choice.confirmLabel || "決定",
+      }, this);
+      const target = candidates.find((entry) => entry.index === selected);
+      return target ? target.index : -1;
+    }
+
     async destroyBestUnit(player) {
       const index = await this.chooseUnitTargetIndex(player, () => true, {
         title: "破壊するユニットを選択",
@@ -1621,6 +1850,19 @@
       });
       if (index < 0) return false;
       this.destroyUnit(player, index);
+      return true;
+    }
+
+    async destroyBestCore(player) {
+      const index = await this.chooseCoreTargetIndex(player, () => true, {
+        title: "破壊するコアを選択",
+        message: "破壊する相手コアを選んでください。",
+      });
+      if (index < 0) return false;
+      const id = player.cores[index];
+      player.cores[index] = null;
+      player.grave.push(id);
+      this.log(`${cards[id].name}を破壊した。`);
       return true;
     }
 

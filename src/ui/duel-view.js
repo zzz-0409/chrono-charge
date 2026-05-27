@@ -365,7 +365,18 @@
             finish: this.finishFor(cardId),
           });
           this.tagSelectableCard(cardButton, contextZone, i, owner);
-          cardButton.addEventListener("click", () => this.selectCard(cardId, { zone: contextZone, index: i, owner }));
+          const isReadyDriveCore =
+            owner === "player" &&
+            contextZone === "playerCore" &&
+            typeof this.game.canActivateDriveCore === "function" &&
+            this.game.canActivateDriveCore(this.game.player, i);
+          if (isReadyDriveCore) {
+            cardButton.classList.add("core-ready-card");
+          }
+          cardButton.addEventListener("click", async () => {
+            this.selectCard(cardId, { zone: contextZone, index: i, owner });
+            if (isReadyDriveCore && await this.game.activateDriveCore(i) !== false) this.playPlaceSound();
+          });
           slot.append(cardButton);
           if (contextZone.includes("Unit") && CardRenderer.hasAtk(card)) {
             const atkBadge = document.createElement("div");
@@ -1005,6 +1016,16 @@
             this.addAction(`敵${entry.index + 1}へ攻撃`, () => this.game.attackWithUnit(this.selectedContext.index, entry.index), canAttack);
           });
         }
+      }
+
+      if (this.selectedContext.zone === "playerCore") {
+        const coreIndex = this.selectedContext.index;
+        const canActivate = typeof this.game.canActivateDriveCore === "function" &&
+          this.game.canActivateDriveCore(this.game.player, coreIndex);
+        this.addAction("効果発動", async () => {
+          this.selectedContext = null;
+          if (await this.game.activateDriveCore(coreIndex) !== false) this.playPlaceSound();
+        }, canActivate);
       }
     }
 

@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260527-nav-color";
+const CACHE_VERSION = "chrono-drive-pwa-20260527-drive-identity";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260527navcolor",
+  "/styles.css?v=20260527driveidentity",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -19,11 +19,11 @@ const APP_SHELL_URLS = [
   "/assets/ui/duel-menu/shell-icons.png",
   "/assets/home/home-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
-  "/src/data/cards.js?v=20260527cybersupport",
+  "/src/data/cards.js?v=20260527driveidentity",
   "/src/core/deck-store.js?v=20260527deckbuilderdnd",
   "/src/core/effect-resolver.js?v=20260527cybersupport",
   "/src/core/cpu-controller.js?v=20260525safeattack",
-  "/src/core/duel-game.js?v=20260527reactionfix",
+  "/src/core/duel-game.js?v=20260527driveidentity",
   "/src/ui/scale-manager.js?v=20260524a",
   "/src/ui/card-renderer.js?v=20260527rubyfix",
   "/src/ui/sound-effects.js?v=20260522h",
@@ -31,7 +31,7 @@ const APP_SHELL_URLS = [
   "/src/ui/deck-builder-view.js?v=20260527pointerdnd",
   "/src/ui/pack-view.js?v=20260526packResultFlow",
   "/src/net/online-client.js?v=20260525openingattack",
-  "/src/ui/duel-view.js?v=20260527thumbs",
+  "/src/ui/duel-view.js?v=20260527driveidentity",
   "/src/main.js?v=20260527duelmenu"
 ];
 

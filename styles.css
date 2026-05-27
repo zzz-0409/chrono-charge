@@ -4263,6 +4263,14 @@ select {
     0 8px 16px rgba(0, 0, 0, 0.28);
 }
 
+.tcg-card.core-ready-card {
+  border-color: rgba(92, 226, 184, 0.95);
+  box-shadow:
+    0 0 0 1px rgba(92, 226, 184, 0.46),
+    0 0 18px rgba(92, 226, 184, 0.5),
+    0 8px 16px rgba(0, 0, 0, 0.28);
+}
+
 .tcg-card.facedown {
   width: var(--card-width);
   height: var(--card-height);
