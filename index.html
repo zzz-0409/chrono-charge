@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=20260527pointerdnd">
+    <link rel="stylesheet" href="styles.css?v=20260527duelmenu">
     <script defer src="src/data/cards.js?v=20260527cybersupport"></script>
     <script defer src="src/core/deck-store.js?v=20260527deckbuilderdnd"></script>
     <script defer src="src/core/effect-resolver.js?v=20260527cybersupport"></script>
@@ -26,7 +26,7 @@
     <script defer src="src/ui/pack-view.js?v=20260526packResultFlow"></script>
     <script defer src="src/net/online-client.js?v=20260525openingattack"></script>
     <script defer src="src/ui/duel-view.js?v=20260527thumbs"></script>
-    <script defer src="src/main.js?v=20260527deckbuilderdnd"></script>
+    <script defer src="src/main.js?v=20260527duelmenu"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -167,9 +167,13 @@
             </div>
           </div>
         </div>
-        <div class="header-actions resource-strip" aria-label="所持アイテム">
-          <span class="resource-pill" title="ガチャ石"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> <strong id="headerGachaStoneCount">0</strong></span>
-          <span class="resource-pill" title="分解石"><img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> <strong id="headerDustCount">0</strong></span>
+        <div class="header-actions resource-strip top-hud-strip" aria-label="共通メニュー">
+          <button class="resource-pill" type="button" data-shell-action="gachaStone" title="ガチャ石"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> <strong id="headerGachaStoneCount">0</strong><span class="resource-plus" aria-hidden="true">+</span></button>
+          <button class="resource-pill" type="button" data-shell-action="dismantleStone" title="分解石"><img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> <strong id="headerDustCount">0</strong><span class="resource-plus" aria-hidden="true">+</span></button>
+          <button class="top-icon-button" type="button" data-shell-action="mail" aria-label="メール"><span class="shell-icon shell-icon-mail"></span></button>
+          <button class="top-icon-button" type="button" data-shell-action="notice" aria-label="お知らせ"><span class="shell-icon shell-icon-bell"></span></button>
+          <button class="top-icon-button" type="button" data-shell-action="gift" aria-label="プレゼント"><span class="shell-icon shell-icon-gift"></span></button>
+          <button class="top-icon-button" type="button" data-shell-action="settings" aria-label="設定"><span class="shell-icon shell-icon-settings"></span></button>
         </div>
       </header>
 
@@ -182,34 +186,42 @@
             </div>
             <div class="home-action-stack" aria-label="メインメニュー">
               <button class="home-action-button primary" type="button" data-nav-view="duelMenu">
-                <span class="home-action-icon"><svg><use href="#icon-core"></use></svg></span>
+                <span class="home-action-icon"><span class="shell-icon shell-icon-duel"></span></span>
                 <span>対戦</span>
               </button>
               <button class="home-action-button" type="button" data-nav-view="deckSelect">
-                <span class="home-action-icon"><svg><use href="#icon-circuit"></use></svg></span>
+                <span class="home-action-icon"><span class="shell-icon shell-icon-deck"></span></span>
                 <span>デッキ編集</span>
               </button>
               <button class="home-action-button" type="button" data-nav-view="pack">
-                <span class="home-action-icon"><svg><use href="#icon-star"></use></svg></span>
+                <span class="home-action-icon"><span class="shell-icon shell-icon-pack"></span></span>
                 <span>パック開封</span>
               </button>
             </div>
             <div class="home-bottom-nav" aria-label="ショートカット">
               <button class="home-shortcut-button" type="button" data-nav-view="home">
-                <svg><use href="#icon-home"></use></svg>
-                <span>ホーム</span>
+                <span class="shell-icon shell-icon-home"></span>
+                <span><strong>ホーム</strong><small>HOME</small></span>
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
-                <svg><use href="#icon-circuit"></use></svg>
-                <span>デッキ</span>
+                <span class="shell-icon shell-icon-deck"></span>
+                <span><strong>デッキ</strong><small>DECK</small></span>
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="pack">
-                <svg><use href="#icon-star"></use></svg>
-                <span>パック</span>
+                <span class="shell-icon shell-icon-pack"></span>
+                <span><strong>パック</strong><small>PACK</small></span>
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
-                <svg><use href="#icon-core"></use></svg>
-                <span>対戦</span>
+                <span class="shell-icon shell-icon-duel"></span>
+                <span><strong>対戦</strong><small>DUEL</small></span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-shell-action="shop">
+                <span class="shell-icon shell-icon-shop"></span>
+                <span><strong>ショップ</strong><small>SHOP</small></span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-shell-action="profile">
+                <span class="shell-icon shell-icon-profile"></span>
+                <span><strong>プロフィール</strong><small>PROFILE</small></span>
               </button>
             </div>
           </div>
@@ -226,20 +238,28 @@
             <div id="deckPresetGrid" class="deck-preset-grid" aria-label="プリセットデッキ一覧"></div>
             <div class="home-bottom-nav shared-bottom-nav" aria-label="ショートカット">
               <button class="home-shortcut-button" type="button" data-nav-view="home">
-                <svg><use href="#icon-home"></use></svg>
-                <span>ホーム</span>
+                <span class="shell-icon shell-icon-home"></span>
+                <span><strong>ホーム</strong><small>HOME</small></span>
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
-                <svg><use href="#icon-circuit"></use></svg>
-                <span>デッキ</span>
+                <span class="shell-icon shell-icon-deck"></span>
+                <span><strong>デッキ</strong><small>DECK</small></span>
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="pack">
-                <svg><use href="#icon-star"></use></svg>
-                <span>パック</span>
+                <span class="shell-icon shell-icon-pack"></span>
+                <span><strong>パック</strong><small>PACK</small></span>
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
-                <svg><use href="#icon-core"></use></svg>
-                <span>対戦</span>
+                <span class="shell-icon shell-icon-duel"></span>
+                <span><strong>対戦</strong><small>DUEL</small></span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-shell-action="shop">
+                <span class="shell-icon shell-icon-shop"></span>
+                <span><strong>ショップ</strong><small>SHOP</small></span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-shell-action="profile">
+                <span class="shell-icon shell-icon-profile"></span>
+                <span><strong>プロフィール</strong><small>PROFILE</small></span>
               </button>
             </div>
           </div>
@@ -371,20 +391,28 @@
           </section>
           <div class="home-bottom-nav shared-bottom-nav" aria-label="ショートカット">
             <button class="home-shortcut-button" type="button" data-nav-view="home">
-              <svg><use href="#icon-home"></use></svg>
-              <span>ホーム</span>
+              <span class="shell-icon shell-icon-home"></span>
+              <span><strong>ホーム</strong><small>HOME</small></span>
             </button>
             <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
-              <svg><use href="#icon-circuit"></use></svg>
-              <span>デッキ</span>
+              <span class="shell-icon shell-icon-deck"></span>
+              <span><strong>デッキ</strong><small>DECK</small></span>
             </button>
             <button class="home-shortcut-button" type="button" data-nav-view="pack">
-              <svg><use href="#icon-star"></use></svg>
-              <span>パック</span>
+              <span class="shell-icon shell-icon-pack"></span>
+              <span><strong>パック</strong><small>PACK</small></span>
             </button>
             <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
-              <svg><use href="#icon-core"></use></svg>
-              <span>対戦</span>
+              <span class="shell-icon shell-icon-duel"></span>
+              <span><strong>対戦</strong><small>DUEL</small></span>
+            </button>
+            <button class="home-shortcut-button" type="button" data-shell-action="shop">
+              <span class="shell-icon shell-icon-shop"></span>
+              <span><strong>ショップ</strong><small>SHOP</small></span>
+            </button>
+            <button class="home-shortcut-button" type="button" data-shell-action="profile">
+              <span class="shell-icon shell-icon-profile"></span>
+              <span><strong>プロフィール</strong><small>PROFILE</small></span>
             </button>
           </div>
         </section>
@@ -408,56 +436,83 @@
         <section id="duelMenuView" class="view duel-menu-view" hidden>
           <div class="duel-menu-stage">
             <div class="duel-menu-head">
-              <div>
+              <button class="duel-back-button" type="button" data-nav-view="home" aria-label="ホームへ戻る">
+                <span class="shell-icon shell-icon-back"></span>
+              </button>
+              <div class="duel-menu-title">
                 <p class="eyebrow">Duel Mode</p>
                 <h2>デュエル</h2>
+                <p class="duel-menu-subtitle">遊びたいモードを選択してください</p>
               </div>
             </div>
             <div class="duel-mode-grid" aria-label="デュエルモード選択">
               <button id="duelSelectedDeckButton" class="duel-mode-card duel-selected-deck-card" type="button">
                 <span class="duel-selected-deck-empty">デッキを選択</span>
               </button>
-              <section class="duel-mode-card disabled">
-                <div>
-                  <p class="eyebrow">Ranked</p>
-                  <h3>ランク戦</h3>
+              <section class="duel-mode-card mode-ranked disabled">
+                <div class="duel-mode-card-head">
+                  <span class="duel-mode-emblem duel-mode-emblem-ranked" aria-hidden="true"></span>
+                  <div>
+                    <p class="eyebrow">Ranked</p>
+                    <h3>ランク戦</h3>
+                  </div>
                 </div>
-                <span class="soft-badge">未実装</span>
+                <span class="duel-mode-visual duel-mode-visual-ranked" aria-hidden="true"></span>
+                <p class="duel-mode-description">ランクを競い、上位を目指そう</p>
+                <button class="ghost-button" type="button" disabled>未実装</button>
               </section>
-              <section class="duel-mode-card">
-                <div>
-                  <p class="eyebrow">Room</p>
-                  <h3>ルーム戦</h3>
+              <section class="duel-mode-card mode-room">
+                <div class="duel-mode-card-head">
+                  <span class="duel-mode-emblem duel-mode-emblem-room" aria-hidden="true"></span>
+                  <div>
+                    <p class="eyebrow">Room</p>
+                    <h3>ルーム戦</h3>
+                  </div>
                 </div>
+                <span class="duel-mode-visual duel-mode-visual-room" aria-hidden="true"></span>
+                <p class="duel-mode-description">ルームを作成・参加して友達と対戦しよう</p>
                 <div class="duel-mode-actions">
                   <button id="modeCreateRoomButton" class="primary-button" type="button">ルーム作成</button>
                   <button id="modeJoinRoomButton" class="ghost-button" type="button">ルーム参加</button>
                 </div>
               </section>
-              <section class="duel-mode-card">
-                <div>
-                  <p class="eyebrow">CPU</p>
-                  <h3>CPU戦</h3>
+              <section class="duel-mode-card mode-cpu">
+                <div class="duel-mode-card-head">
+                  <span class="duel-mode-emblem duel-mode-emblem-cpu" aria-hidden="true"></span>
+                  <div>
+                    <p class="eyebrow">CPU</p>
+                    <h3>CPU戦</h3>
+                  </div>
                 </div>
+                <span class="duel-mode-visual duel-mode-visual-cpu" aria-hidden="true"></span>
+                <p class="duel-mode-description">CPUを相手に練習しよう<br>難易度を選んで挑戦可能</p>
                 <button id="modeCpuDuelButton" class="primary-button" type="button">対戦開始</button>
               </section>
             </div>
             <div class="home-bottom-nav shared-bottom-nav" aria-label="ショートカット">
               <button class="home-shortcut-button" type="button" data-nav-view="home">
-                <svg><use href="#icon-home"></use></svg>
-                <span>ホーム</span>
+                <span class="shell-icon shell-icon-home"></span>
+                <span><strong>ホーム</strong><small>HOME</small></span>
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="deckSelect">
-                <svg><use href="#icon-circuit"></use></svg>
-                <span>デッキ</span>
+                <span class="shell-icon shell-icon-deck"></span>
+                <span><strong>デッキ</strong><small>DECK</small></span>
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="pack">
-                <svg><use href="#icon-star"></use></svg>
-                <span>パック</span>
+                <span class="shell-icon shell-icon-pack"></span>
+                <span><strong>パック</strong><small>PACK</small></span>
               </button>
               <button class="home-shortcut-button" type="button" data-nav-view="duelMenu">
-                <svg><use href="#icon-core"></use></svg>
-                <span>対戦</span>
+                <span class="shell-icon shell-icon-duel"></span>
+                <span><strong>対戦</strong><small>DUEL</small></span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-shell-action="shop">
+                <span class="shell-icon shell-icon-shop"></span>
+                <span><strong>ショップ</strong><small>SHOP</small></span>
+              </button>
+              <button class="home-shortcut-button" type="button" data-shell-action="profile">
+                <span class="shell-icon shell-icon-profile"></span>
+                <span><strong>プロフィール</strong><small>PROFILE</small></span>
               </button>
             </div>
           </div>

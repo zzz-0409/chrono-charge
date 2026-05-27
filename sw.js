@@ -1,24 +1,29 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260527-pointer-dnd";
+const CACHE_VERSION = "chrono-drive-pwa-20260527-duel-menu";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260527pointerdnd",
+  "/styles.css?v=20260527duelmenu",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
   "/assets/cards/card-back.png",
   "/assets/ui/gacha-stone.png",
   "/assets/ui/dismantle-stone.png",
+  "/assets/ui/duel-menu/button-frames.png",
+  "/assets/ui/duel-menu/duel-lobby-bg.png",
+  "/assets/ui/duel-menu/duel-mode-panels.png",
+  "/assets/ui/duel-menu/mode-emblems.png",
+  "/assets/ui/duel-menu/shell-icons.png",
   "/assets/home/home-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
-  "/src/data/cards.js?v=20260526optionaleffects",
+  "/src/data/cards.js?v=20260527cybersupport",
   "/src/core/deck-store.js?v=20260527deckbuilderdnd",
-  "/src/core/effect-resolver.js?v=20260526optionaleffects",
+  "/src/core/effect-resolver.js?v=20260527cybersupport",
   "/src/core/cpu-controller.js?v=20260525safeattack",
-  "/src/core/duel-game.js?v=20260526optionaleffects",
+  "/src/core/duel-game.js?v=20260527reactionfix",
   "/src/ui/scale-manager.js?v=20260524a",
   "/src/ui/card-renderer.js?v=20260527rubyfix",
   "/src/ui/sound-effects.js?v=20260522h",
@@ -27,7 +32,7 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260526packResultFlow",
   "/src/net/online-client.js?v=20260525openingattack",
   "/src/ui/duel-view.js?v=20260527thumbs",
-  "/src/main.js?v=20260527deckbuilderdnd"
+  "/src/main.js?v=20260527duelmenu"
 ];
 
 self.addEventListener("install", (event) => {
