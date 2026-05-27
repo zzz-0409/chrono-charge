@@ -3259,6 +3259,12 @@ select {
   align-items: center;
 }
 
+.player-piles {
+  grid-template-columns: repeat(2, var(--card-field-width));
+  grid-template-rows: auto var(--card-field-height);
+  align-content: center;
+}
+
 .turn-command-field {
   position: absolute;
   right: 126px;
@@ -3271,6 +3277,24 @@ select {
   gap: 6px;
   transform: translateY(-50%);
   pointer-events: auto;
+}
+
+.player-piles .turn-command-field {
+  position: static;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: center;
+  transform: none;
+}
+
+.player-piles #playerDeckPile {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.player-piles #playerGravePile {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .turn-status {
