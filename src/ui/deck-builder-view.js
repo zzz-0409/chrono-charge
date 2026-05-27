@@ -310,6 +310,33 @@
       return false;
     }
 
+    confirmAppAction(options = {}) {
+      return new Promise((resolve) => {
+        const modal = document.createElement("div");
+        const lines = Array.isArray(options.lines) ? options.lines : [options.message || ""];
+        modal.className = "modal-dialog app-confirm-dialog";
+        modal.innerHTML = `
+          <h2>${escapeHtml(options.title || "確認")}</h2>
+          <div class="app-confirm-copy">
+            ${lines.filter(Boolean).map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
+          </div>
+          <div class="modal-actions modal-actions-row">
+            <button class="ghost-button" type="button" data-choice="cancel">${escapeHtml(options.cancelLabel || "キャンセル")}</button>
+            <button class="${options.danger ? "ghost-button danger" : "primary-button"}" type="button" data-choice="ok">${escapeHtml(options.confirmLabel || "OK")}</button>
+          </div>
+        `;
+        modal.querySelectorAll("[data-choice]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const ok = button.dataset.choice === "ok";
+            this.closeAppModal();
+            resolve(ok);
+          });
+        });
+        this.openAppModal(modal);
+        window.setTimeout(() => modal.querySelector('[data-choice="cancel"]')?.focus(), 0);
+      });
+    }
+
     hasUnsavedChanges() {
       const deck = this.store.activeDeck;
       if (!deck) return false;
@@ -499,12 +526,19 @@
       craftButton.addEventListener("click", () => this.craftSelectedCard());
     }
 
-    dismantleSelectedCard() {
-      const card = cards[this.selectedCardId];
-      const gain = this.selectedFinish === "royal" ? this.store.royalDustPerDismantle : this.store.dustPerDismantle;
-      const finishLabel = this.selectedFinish === "royal" ? "Rカード " : "";
-      if (card && !window.confirm(`${finishLabel}${card.name}を1枚分解しますか？\n分解石 +${gain}`)) return;
-      const result = this.store.dismantleCard(this.selectedCardId, this.selectedFinish);
+    async dismantleSelectedCard() {
+      const selectedId = this.selectedCardId;
+      const selectedFinish = this.selectedFinish;
+      const card = cards[selectedId];
+      const gain = selectedFinish === "royal" ? this.store.royalDustPerDismantle : this.store.dustPerDismantle;
+      const finishLabel = selectedFinish === "royal" ? "Rカード " : "";
+      if (card && !(await this.confirmAppAction({
+        title: "カードを分解しますか？",
+        lines: [`${finishLabel}${card.name}を1枚分解します。`, `分解石 +${gain}`],
+        confirmLabel: "分解",
+        danger: true,
+      }))) return;
+      const result = this.store.dismantleCard(selectedId, selectedFinish);
       if (!result.ok) {
         if (result.reason === "minimum") this.toast("初期配布分より少なくなるため分解できません。");
         else if (result.reason === "owned") this.toast("所持しているカードだけ分解できます。");
@@ -513,19 +547,24 @@
         this.render({ preserveLibraryScroll: true });
         return;
       }
-      this.toast(`${this.selectedFinish === "royal" ? "ロイヤル " : ""}${cards[this.selectedCardId].name}を分解しました。分解アイテム +${result.gained}`);
+      this.toast(`${selectedFinish === "royal" ? "ロイヤル " : ""}${card.name}を分解しました。分解アイテム +${result.gained}`);
       this.render({ preserveLibraryScroll: true });
     }
 
-    craftSelectedCard() {
+    async craftSelectedCard() {
       if (this.selectedFinish === "royal") {
         this.toast("Rカードは生成できません。パックから入手してください。");
         this.render({ preserveLibraryScroll: true });
         return;
       }
-      const card = cards[this.selectedCardId];
-      if (card && !window.confirm(`${card.name}を生成しますか？\n分解石 -${this.store.craftCost}`)) return;
-      const result = this.store.craftCard(this.selectedCardId);
+      const selectedId = this.selectedCardId;
+      const card = cards[selectedId];
+      if (card && !(await this.confirmAppAction({
+        title: "カードを生成しますか？",
+        lines: [`${card.name}を生成します。`, `分解石 -${this.store.craftCost}`],
+        confirmLabel: "生成",
+      }))) return;
+      const result = this.store.craftCard(selectedId);
       if (!result.ok) {
         if (result.reason === "dust") this.toast("分解アイテムが足りません。");
         else if (result.reason === "author") this.toast("作者アカウントは全カードを持っています。");
@@ -533,7 +572,7 @@
         this.render({ preserveLibraryScroll: true });
         return;
       }
-      this.toast(`${cards[this.selectedCardId].name}を購入しました。`);
+      this.toast(`${card.name}を購入しました。`);
       this.render({ preserveLibraryScroll: true });
     }
 
@@ -839,9 +878,14 @@
       this.render({ preserveLibraryScroll: true, preserveDeckScroll: true });
     }
 
-    bulkDismantleExtras() {
+    async bulkDismantleExtras() {
       const preview = this.bulkDismantlePreview();
-      if (preview.dismantled > 0 && !window.confirm(`余剰カードを一括分解しますか？\n分解 ${preview.dismantled}枚 / 分解石 +${preview.gained}`)) return;
+      if (preview.dismantled > 0 && !(await this.confirmAppAction({
+        title: "余剰カードを分解しますか？",
+        lines: [`分解 ${preview.dismantled}枚`, `分解石 +${preview.gained}`],
+        confirmLabel: "一括分解",
+        danger: true,
+      }))) return;
       const result = this.store.bulkDismantleExtras();
       if (!result.ok) {
         this.toast(result.reason === "author" ? "作者アカウントは分解不要です。" : "分解できる余剰カードがありません。");
@@ -1041,6 +1085,16 @@
 
   function normalizeCompareName(name) {
     return String(name || "").trim().replace(/\s+/g, " ");
+  }
+
+  function escapeHtml(value) {
+    return String(value || "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[char]));
   }
 
   function isDriveCard(card) {

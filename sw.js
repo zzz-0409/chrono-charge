@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260527-deck-builder-dnd";
+const CACHE_VERSION = "chrono-drive-pwa-20260527-app-confirm";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -23,7 +23,7 @@ const APP_SHELL_URLS = [
   "/src/ui/card-renderer.js?v=20260527rubyfix",
   "/src/ui/sound-effects.js?v=20260522h",
   "/src/ui/card-zoom.js?v=20260522k",
-  "/src/ui/deck-builder-view.js?v=20260527deckbuilderdnd",
+  "/src/ui/deck-builder-view.js?v=20260527appconfirm",
   "/src/ui/pack-view.js?v=20260526packResultFlow",
   "/src/net/online-client.js?v=20260525openingattack",
   "/src/ui/duel-view.js?v=20260527thumbs",
