@@ -956,8 +956,14 @@
       const cost = Math.max(0, Number(card?.cost || 0));
       if (cost === 0) return true;
       if (!this.canPay(player, cost)) return false;
-      if (!card.theme) return true;
+      if (!card.theme) return this.countDriveChargeType(player, card) >= cost;
       return this.countThemeInCharge(player, card.theme) >= cost;
+    }
+
+    countDriveChargeType(player, card) {
+      const type = baseDriveType(card?.type);
+      if (!type) return 0;
+      return player.charge.filter((entry) => baseDriveType(cards[entry.id]?.type) === type).length;
     }
 
     async payDriveCost(player, card) {
@@ -980,7 +986,7 @@
         title: `${card.name}のドライブ支払い`,
         message: card.theme
           ? `素材を墓地に送るか、チャージゾーンに「${card.theme}」が${card.cost}枚以上あるならチャージ${card.cost}を支払えます。`
-          : `素材を墓地に送るか、チャージ${card.cost}を支払えます。`,
+          : `素材を墓地に送るか、チャージゾーンに${baseDriveType(card.type)}が${card.cost}枚以上あるならチャージ${card.cost}を支払えます。`,
         candidates: [{ id: card.id, index: "charge" }],
         allowPass: true,
         confirmLabel: "チャージで支払う",
