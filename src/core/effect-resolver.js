@@ -283,6 +283,20 @@
           await this.game.afterEffectStep();
           await this.game.removeRevealedReaction(opponent);
           break;
+        case "cyberPacketMana":
+          if (await this.game.addFromDeck(player, (card) => card.type === "スペル" && card.theme === "電脳", {
+            title: "電脳スペルをサーチ",
+            message: "デッキから手札に加える「電脳」スペルを選んでください。",
+          })) {
+            if (
+              opponent.reactions.some((entry) => entry && this.game.reactionRevealed(entry)) &&
+              await this.optionalAdditional(player, sourceCard, "相手の公開状態リアクションがあります。追加で1枚ドローしますか？")
+            ) {
+              await this.game.afterEffectStep();
+              this.game.drawCards(player, 1);
+            }
+          }
+          break;
         case "cyberPreview":
           if (await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
             title: "電脳ユニットを追加召喚",
@@ -330,6 +344,20 @@
             }, opponent);
           }
           break;
+        case "cyberTraceRoute": {
+          const revealed = await this.game.revealReactions(opponent, 1);
+          if (
+            revealed > 0 &&
+            await this.optionalAdditional(player, sourceCard, "リアクションを公開しました。追加でコスト1以下の「電脳」ユニットをサーチしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            await this.game.addFromDeck(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 1, {
+              title: "電脳ユニットをサーチ",
+              message: "デッキから手札に加えるコスト1以下の「電脳」ユニットを選んでください。",
+            });
+          }
+          break;
+        }
         case "probeDrone":
           if (
             await this.game.revealReactions(opponent, 1) > 0 &&
@@ -470,6 +498,9 @@
               message: "前線測量班でチャージに置くカードを選んでください。",
             });
           }
+          break;
+        case "genericFieldMedic":
+          if (player.lp < opponent.lp) this.game.drawCards(player, 1);
           break;
         case "bindUnit":
           await this.game.exhaustBestUnit(opponent);

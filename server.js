@@ -1417,6 +1417,17 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       }, () => {
         chooseRemoveRevealedReaction(game, player, opponent);
       });
+    case "cyberPacketMana":
+      return chooseFromDeck(game, player, (card) => card.type === "スペル" && card.theme === "電脳", {
+        title: "電脳スペルをサーチ",
+        message: "デッキから手札に加える「電脳」スペルを選んでください。",
+      }, (searched) => {
+        if (searched && opponent.reactions.some((entry) => reactionId(entry) && reactionRevealed(entry))) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "相手の公開状態リアクションがあります。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
+      });
     case "cyberPreview":
       return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
         title: "電脳ユニットを追加召喚",
@@ -1462,6 +1473,17 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
             });
           }
         });
+      });
+    case "cyberTraceRoute":
+      return chooseRevealReaction(game, player, opponent, (revealed) => {
+        if (revealed) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "リアクションを公開しました。追加でコスト1以下の「電脳」ユニットをサーチしますか？", () => {
+            chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 1, {
+              title: "電脳ユニットをサーチ",
+              message: "デッキから手札に加えるコスト1以下の「電脳」ユニットを選んでください。",
+            });
+          });
+        }
       });
     case "probeDrone":
       return chooseRevealReaction(game, player, opponent, (revealed) => {
@@ -1587,6 +1609,9 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
           message: "前線測量班でチャージに置くカードを選んでください。",
         });
       }
+      break;
+    case "genericFieldMedic":
+      if (player.lp < opponent.lp) drawCards(player, 1, game);
       break;
     case "bindUnit":
       return chooseExhaustUnit(game, player, opponent, () => {
