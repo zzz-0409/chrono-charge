@@ -4590,7 +4590,7 @@ select {
 .modal-root {
   position: absolute;
   inset: 0;
-  z-index: 10;
+  z-index: 120;
   display: grid;
   place-items: center;
   padding: 18px;
@@ -4604,7 +4604,7 @@ select {
 .card-zoom-overlay {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 140;
   display: grid;
   place-items: center;
   padding: 24px;
