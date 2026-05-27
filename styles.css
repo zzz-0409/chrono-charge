@@ -2507,7 +2507,8 @@ select {
 
 .duel-topline .duelist-summary:not(.player) {
   top: 10px;
-  left: 174px;
+  left: 14px;
+  width: min(310px, calc(100% - 298px));
 }
 
 .duel-topline .duelist-summary.player {
@@ -2753,7 +2754,7 @@ select {
   position: relative;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(230px, 1fr) 0 minmax(230px, 1fr) 122px;
+  grid-template-rows: minmax(290px, 1.06fr) 0 minmax(230px, 0.94fr) 122px;
   gap: 4px;
   align-content: center;
   border: 1px solid rgba(85, 199, 187, 0.38);
@@ -2791,6 +2792,9 @@ select {
 
 .side-board.opponent-side {
   grid-row: 1;
+  grid-template-columns: 140px minmax(0, 1fr) 176px;
+  grid-template-rows: 66px 58px 90px 58px;
+  row-gap: 6px;
   background: transparent;
 }
 
@@ -2829,6 +2833,43 @@ select {
 .opponent-drive-pile,
 .opponent-piles .pile-slot {
   transform: rotate(180deg);
+}
+
+.opponent-side .pile-zones {
+  grid-column: 1;
+  grid-row: 2 / 5;
+}
+
+.opponent-side .drive-pile-field {
+  grid-column: 3;
+  grid-row: 3;
+  justify-self: end;
+}
+
+.opponent-side .charge-row {
+  grid-column: 3;
+  grid-row: 4;
+  justify-self: end;
+}
+
+.opponent-side .charge-count-badge {
+  left: -48px;
+  right: auto;
+}
+
+.opponent-side .reaction-row {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.opponent-side .unit-row {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.opponent-side .core-row {
+  grid-column: 2;
+  grid-row: 4;
 }
 
 .side-board.player-side {
@@ -3173,21 +3214,29 @@ select {
 }
 
 .enemy-hand-zone {
-  grid-column: 1;
+  grid-column: 2;
   grid-row: 1;
-  position: relative;
-  width: 154px;
-  min-height: 68px;
-  align-self: center;
-  justify-self: start;
+  min-width: 0;
+  width: min(700px, 100%);
+  min-height: 66px;
+  align-self: start;
+  justify-self: center;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 46px;
+  grid-template-columns: none;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 8px 5px 176px;
+  scrollbar-width: thin;
 }
 
 .enemy-hand-card {
-  position: absolute;
-  left: calc(8px + (var(--hand-offset, 0) * 14px));
-  top: 50%;
-  width: var(--card-field-width);
-  height: var(--card-field-height);
+  width: 46px;
+  height: 69px;
   border: 2px solid rgba(112, 223, 230, 0.42);
   border-radius: 8px;
   background:
@@ -3196,7 +3245,7 @@ select {
   background-size: cover;
   background-position: center;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.28);
-  transform: translateY(-50%) rotate(270deg);
+  transform: rotate(180deg);
   transform-origin: center;
 }
 
