@@ -632,84 +632,109 @@
     async applyDriveEffect(card, player, opponent, event = {}) {
       switch (card.driveEffect) {
         case "driveStarUnit":
+          await this.addFromDeck(player, (candidate) => candidate.theme === "星導", {
+            title: "星導カードを手札に加える",
+            message: "デッキから星導カードを1枚選んでください。",
+          });
           this.drawCards(player, 3);
           this.untapOneCharge(player);
           this.untapOneCharge(player);
           return;
         case "driveStarCore":
-          this.drawCards(player, 1);
+          this.drawCards(player, 2);
+          this.untapOneCharge(player);
           return;
         case "driveStarSpell":
           await this.addFromDeck(player, (candidate) => candidate.theme === "星導", {
             title: "星導カードを手札に加える",
             message: "デッキから星導カードを1枚選んでください。",
           });
-          this.drawCards(player, 1);
+          this.drawCards(player, 2);
+          this.untapOneCharge(player);
+          this.untapOneCharge(player);
           return;
         case "driveStarReactAttack":
         case "driveCyberReactAttack":
-          this.drawCards(player, 1);
+          if (card.driveEffect === "driveCyberReactAttack") await this.revealReactions(opponent, 1);
+          this.drawCards(player, 2);
+          this.untapOneCharge(player);
           return;
         case "driveStarReactEffect":
-          this.drawCards(player, 2);
+          this.drawCards(player, 3);
+          this.untapOneCharge(player);
           return;
         case "driveBlackUnit":
-          this.damage(opponent, 1500);
+          this.damage(opponent, 2000);
           await this.destroyBestUnit(opponent);
+          this.drawCards(player, 1);
           return;
         case "driveBlackCore":
-          this.damage(opponent, 500);
+          this.damage(opponent, 1000);
+          this.drawCards(player, 1);
           return;
         case "driveBlackSpell":
           await this.destroyBestUnit(opponent);
-          this.damage(opponent, 1000);
+          this.damage(opponent, 1500);
+          this.drawCards(player, 1);
           return;
         case "driveBlackReactAttack":
-          this.damage(opponent, 1000);
+          this.damage(opponent, 1500);
+          this.drawCards(player, 1);
           return;
         case "driveBlackReactEffect":
-          this.damage(opponent, 800);
+          this.damage(opponent, 1200);
+          this.drawCards(player, 1);
           return;
         case "driveBladeUnit":
           await this.exhaustBestUnit(opponent);
           await this.destroyBestExhaustedUnit(opponent);
+          this.drawCards(player, 1);
           return;
         case "driveBladeCore":
           await this.exhaustBestUnit(opponent);
+          this.drawCards(player, 1);
           return;
         case "driveBladeSpell":
           await this.exhaustBestUnit(opponent);
           await this.destroyBestExhaustedUnit(opponent);
+          this.drawCards(player, 1);
           return;
         case "driveBladeReactAttack": {
           const sourceIndex = Number(event.sourceIndex);
           if (Number.isInteger(sourceIndex) && opponent.units[sourceIndex]) {
             this.exhaustUnitUntilOwnerTurnEnd(opponent, sourceIndex);
           }
+          await this.destroyBestExhaustedUnit(opponent);
+          this.drawCards(player, 1);
           return;
         }
         case "driveBladeReactEffect":
           if (!await this.destroyBestExhaustedUnit(opponent)) await this.exhaustBestUnit(opponent);
+          this.drawCards(player, 1);
           return;
         case "driveCyberUnit":
-          await this.revealReactions(opponent, 1);
+          await this.revealReactions(opponent, 2);
           await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "電脳", {
             title: "電脳ユニットを追加召喚",
             message: "手札から追加召喚する電脳ユニットを選んでください。",
           }, opponent);
+          this.drawCards(player, 1);
           return;
         case "driveCyberCore":
-          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "電脳" && candidate.cost <= 2, {
+          this.drawCards(player, 1);
+          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "電脳" && candidate.cost <= 3, {
             title: "電脳ユニットを追加召喚",
-            message: "手札からコスト2以下の電脳ユニットを選んでください。",
+            message: "手札からコスト3以下の電脳ユニットを選んでください。",
           }, opponent);
           return;
         case "driveCyberSpell":
           await this.revealReactions(opponent, 2);
-          this.drawCards(player, 1);
+          await this.removeRevealedReaction(opponent);
+          this.drawCards(player, 2);
           return;
         case "driveCyberReactEffect":
-          await this.revealReactions(opponent, 1);
+          await this.revealReactions(opponent, 2);
+          await this.removeRevealedReaction(opponent);
           this.drawCards(player, 1);
           return;
         case "driveSosaiUnit":
@@ -717,64 +742,63 @@
             title: "双彩ユニットを手札に加える",
             message: "デッキから双彩ユニットを1枚選んでください。",
           });
-          this.drawCards(player, 2);
+          this.drawCards(player, 3);
+          this.untapOneCharge(player);
           return;
         case "driveSosaiNeneRuriUnit":
           await this.returnBestUnitToHand(opponent);
-          this.damage(opponent, 700);
-          this.drawCards(player, 1);
+          this.damage(opponent, 1000);
+          this.drawCards(player, 2);
           return;
         case "driveSosaiCocoLunaUnit":
           this.untapOneCharge(player);
-          this.drawCards(player, 1);
+          this.untapOneCharge(player);
+          this.drawCards(player, 2);
           await this.destroyBestUnit(opponent);
           return;
         case "driveSosaiCore":
-          this.drawCards(player, 1);
+          this.drawCards(player, 2);
           return;
         case "driveSosaiSpell":
           await this.addFromGrave(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩", {
             title: "双彩ユニットを回収",
             message: "墓地から双彩ユニットを1枚選んでください。",
           });
-          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩" && candidate.cost <= 2, {
+          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩" && candidate.cost <= 3, {
             title: "双彩ユニットを追加召喚",
-            message: "手札からコスト2以下の双彩ユニットを選んでください。",
+            message: "手札からコスト3以下の双彩ユニットを選んでください。",
           }, opponent);
-          return;
-        case "driveSosaiReactAttack":
-          if (
-            this.hasSosaiPair(player) &&
-            await this.confirmEffectActivation(player, card, {
-              title: `${card.name}の追加効果`,
-              message: "自分フィールドに「双彩」のペアがいます。追加で1枚ドローしますか？",
-              confirmLabel: "追加で発動する",
-            })
-          ) this.drawCards(player, 1);
-          return;
-        case "driveSosaiReactEffect":
-          if (
-            this.hasSosaiPair(player) &&
-            await this.confirmEffectActivation(player, card, {
-              title: `${card.name}の追加効果`,
-              message: "自分フィールドに「双彩」のペアがいます。追加で2枚ドローしますか？",
-              confirmLabel: "追加で発動する",
-            })
-          ) this.drawCards(player, 2);
-          return;
-        case "driveGenericUnit":
           this.drawCards(player, 1);
           return;
-        case "driveGenericCore":
+        case "driveSosaiReactAttack":
+          this.drawCards(player, 1);
+          if (this.hasSosaiPair(player)) this.drawCards(player, 1);
+          return;
+        case "driveSosaiReactEffect":
+          this.drawCards(player, 1);
+          if (this.hasSosaiPair(player)) this.drawCards(player, 2);
+          return;
+        case "driveGenericUnit":
           this.drawCards(player, 2);
+          this.untapOneCharge(player);
+          return;
+        case "driveGenericCore":
+          this.drawCards(player, 3);
           await this.discardFromHand(player, {
             title: "手札を1枚捨てる",
             message: "クロノ炉で墓地に送るカードを選んでください。",
           });
+          this.untapOneCharge(player);
           return;
         case "driveGenericSpell":
           await this.exhaustBestUnit(opponent);
+          await this.destroyBestExhaustedUnit(opponent);
           this.drawCards(player, 1);
+          return;
+        case "driveGenericReactAttack":
+        case "driveGenericReactEffect":
+          this.drawCards(player, 1);
+          this.untapOneCharge(player);
           return;
         default:
           return;
@@ -875,14 +899,7 @@
       if (!card?.driveKind || !player.driveDeck.includes(card.id)) return false;
       if (card.driveKind === "reaction" && card.trigger !== trigger) return false;
       if (card.driveKind !== "reaction" && trigger) return false;
-      if (!this.canPayDriveCost(player, card)) return false;
-      if (card.driveKind === "unit") {
-        return this.availableSlotsAfterDriveCost(player.units, player, card.driveCost, "ユニット") > 0;
-      }
-      if (card.driveKind === "core") {
-        return this.availableSlotsAfterDriveCost(player.cores, player, card.driveCost, "コア") > 0;
-      }
-      return true;
+      return this.drivePaymentOptions(player, card).length > 0;
     }
 
     availableSlotsAfterDriveCost(zone, player, driveCost, type) {
@@ -908,35 +925,82 @@
       return true;
     }
 
+    drivePaymentOptions(player, card) {
+      const requiredFreedType = this.requiredFreedTypeForDrive(player, card);
+      const options = [];
+      if (this.canPayDriveMaterialCost(player, card, requiredFreedType)) options.push("materials");
+      if (!requiredFreedType && this.canPayDriveChargeCost(player, card)) options.push("charge");
+      return options;
+    }
+
     canPayDriveCost(player, card) {
+      return this.drivePaymentOptions(player, card).length > 0;
+    }
+
+    canPayDriveMaterialCost(player, card, requiredFreedType = this.requiredFreedTypeForDrive(player, card)) {
       const driveCost = card?.driveCost || {};
       if (Array.isArray(driveCost.materials)) {
-        const selection = this.selectDriveMaterials(player, driveCost, card.cost || 0, this.requiredFreedTypeForDrive(player, card));
+        const selection = this.selectDriveMaterials(player, driveCost, 0, requiredFreedType);
         return Boolean(selection);
       }
       const field = driveCost.field || 0;
       const charge = driveCost.charge || 0;
-      const cost = card?.cost || 0;
+      if (requiredFreedType && (baseDriveType(driveCost.type) !== requiredFreedType || field <= 0)) return false;
       return (
         this.countFieldMaterials(player, driveCost) >= field &&
-        this.countChargeMaterials(player, driveCost) >= charge &&
-        this.remainingUntappedAfterDriveMaterials(player, driveCost) >= cost
+        this.countChargeMaterials(player, driveCost) >= charge
       );
+    }
+
+    canPayDriveChargeCost(player, card) {
+      const cost = Math.max(0, Number(card?.cost || 0));
+      if (cost === 0) return true;
+      if (!this.canPay(player, cost)) return false;
+      if (!card.theme) return true;
+      return this.countThemeInCharge(player, card.theme) >= cost;
     }
 
     async payDriveCost(player, card) {
       if (!this.canPayDriveCost(player, card)) return false;
+      const options = this.drivePaymentOptions(player, card);
+      if (options.length === 0) return false;
+      if (player === this.player && options.length > 1) {
+        const useCharge = await this.chooseDrivePaymentMode(player, card);
+        return useCharge ? this.payDriveChargeCost(player, card) : await this.payDriveMaterialCostWithChoices(player, card);
+      }
+      if (options.includes("charge")) return this.payDriveChargeCost(player, card);
       if (player === this.player) return await this.payDriveCostWithChoices(player, card);
       return this.payDriveCostAutomatically(player, card);
+    }
+
+    async chooseDrivePaymentMode(player, card) {
+      if (player !== this.player) return true;
+      const selected = await this.options.requestCardChoice({
+        zone: "drivePayment",
+        title: `${card.name}のドライブ支払い`,
+        message: card.theme
+          ? `素材を墓地に送るか、チャージゾーンに「${card.theme}」が${card.cost}枚以上あるならチャージ${card.cost}を支払えます。`
+          : `素材を墓地に送るか、チャージ${card.cost}を支払えます。`,
+        candidates: [{ id: card.id, index: "charge" }],
+        allowPass: true,
+        confirmLabel: "チャージで支払う",
+        passLabel: "素材で支払う",
+      }, this);
+      return selected === "charge";
+    }
+
+    payDriveChargeCost(player, card) {
+      if (!this.canPayDriveChargeCost(player, card)) return false;
+      return this.payCost(player, Math.max(0, Number(card?.cost || 0)));
     }
 
     payDriveCostAutomatically(player, card) {
       const driveCost = card?.driveCost || {};
       if (Array.isArray(driveCost.materials)) {
-        const selection = this.selectDriveMaterials(player, driveCost, card.cost || 0, this.requiredFreedTypeForDrive(player, card));
+        const selection = this.selectDriveMaterials(player, driveCost, 0, this.requiredFreedTypeForDrive(player, card));
         if (!selection) return false;
         this.removeDriveMaterialSelection(player, selection);
-        return this.payCost(player, card.cost || 0);
+        return true;
       }
       let fieldRemaining = driveCost.field || 0;
       let chargeRemaining = driveCost.charge || 0;
@@ -962,7 +1026,7 @@
       }
 
       if (fieldRemaining !== 0 || chargeRemaining !== 0) return false;
-      return this.payCost(player, card.cost || 0);
+      return true;
     }
 
     async payDriveCostWithChoices(player, card) {
@@ -1002,7 +1066,7 @@
           if (removed) player.grave.push(removed.id);
         });
 
-      return this.payCost(player, card.cost || 0);
+      return true;
     }
 
     async payDriveMaterialCostWithChoices(player, card) {
@@ -1016,20 +1080,16 @@
       }
 
       if (!this.driveSelectionFreesRequiredSlot(player, card, selectedMaterials)) return false;
-      if (this.remainingUntappedAfterSelectedDriveMaterials(player, selectedMaterials) < (card.cost || 0)) return false;
 
       this.removeDriveMaterialSelection(player, selectedMaterials);
-      return this.payCost(player, card.cost || 0);
+      return true;
     }
 
     async chooseDriveMaterial(player, card, requirement, selectedMaterials, step, total) {
       const selectedKeys = new Set(selectedMaterials.map((entry) => entry.key));
-      const maxUntappedMaterials = Math.max(0, player.charge.filter((entry) => !entry.tapped).length - (card.cost || 0));
-      const selectedUntapped = selectedMaterials.filter((entry) => entry.source === "charge" && !entry.tapped).length;
       const candidates = this.driveMaterialEntries(player)
         .filter((entry) => !selectedKeys.has(entry.key))
         .filter((entry) => this.matchesDriveRequirement(cards[entry.id], requirement, entry))
-        .filter((entry) => entry.source !== "charge" || entry.tapped || selectedUntapped < maxUntappedMaterials)
         .map((entry) => ({ ...entry, index: entry.key }));
       if (candidates.length === 0) return null;
       const selected = await this.options.requestCardChoice({
@@ -1063,16 +1123,13 @@
 
     async chooseDriveChargeMaterial(player, card, selectedMaterials, step, total) {
       const selectedKeys = new Set(selectedMaterials.map((entry) => entry.index));
-      const maxUntappedMaterials = Math.max(0, player.charge.filter((entry) => !entry.tapped).length - (card.cost || 0));
-      const selectedUntapped = selectedMaterials.filter((entry) => !entry.tapped).length;
       const candidates = this.driveChargeMaterialIndexes(player, card.driveCost)
         .map((entry) => ({
           ...entry,
           originalIndex: entry.index,
           index: `charge:${entry.index}`,
         }))
-        .filter((entry) => !selectedKeys.has(entry.index))
-        .filter((entry) => entry.tapped || selectedUntapped < maxUntappedMaterials);
+        .filter((entry) => !selectedKeys.has(entry.index));
       if (candidates.length === 0) return null;
       const selected = await this.options.requestCardChoice({
         zone: "driveMaterial",
