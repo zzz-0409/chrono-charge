@@ -1076,9 +1076,16 @@ select {
   background: rgba(96, 214, 210, 0.08);
 }
 
-.library-card[draggable="true"],
-.deck-list-card[draggable="true"] {
+.builder-draggable-card {
   cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+.builder-draggable-card * {
+  -webkit-user-drag: none;
 }
 
 .library-card.builder-dragging,
@@ -1086,6 +1093,16 @@ select {
   opacity: 0.62;
   transform: scale(0.98);
   cursor: grabbing;
+}
+
+.builder-drag-ghost {
+  position: fixed !important;
+  z-index: 80;
+  pointer-events: none;
+  opacity: 0.86;
+  transform: translate(-50%, -50%) scale(0.96);
+  filter: drop-shadow(0 20px 28px rgba(0, 0, 0, 0.52));
+  touch-action: none;
 }
 
 .game-card {

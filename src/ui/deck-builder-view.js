@@ -13,6 +13,10 @@
     CardZoom,
   } = window.Chrono;
 
+  const BUILDER_TOUCH_DRAG_DELAY_MS = 320;
+  const BUILDER_TOUCH_SCROLL_CANCEL_DISTANCE = 8;
+  const BUILDER_MOUSE_DRAG_DISTANCE = 4;
+
   class DeckBuilderView {
     constructor(options) {
       this.store = options.store;
@@ -27,6 +31,12 @@
       this.selectedCardId = "star_scout";
       this.selectedFinish = "normal";
       this.ownedOnly = false;
+      this.builderPointerDrag = null;
+      this.builderDragPayload = null;
+      this.suppressBuilderClick = false;
+      this.handleBuilderPointerMove = (event) => this.moveBuilderPointerDrag(event);
+      this.handleBuilderPointerUp = (event) => this.finishBuilderPointerDrag(event);
+      this.handleBuilderPointerCancel = (event) => this.cancelBuilderPointerDrag(event);
       this.bindEvents();
       this.render();
     }
@@ -91,7 +101,6 @@
       this.els.cardPreview.addEventListener("click", (event) => CardZoom.openFromEvent(event));
       this.els.mainDeckModeButton?.addEventListener("click", () => this.setDeckMode("main"));
       this.els.driveDeckModeButton?.addEventListener("click", () => this.setDeckMode("drive"));
-      this.bindDeckBuilderDropEvents();
     }
 
     openAuthDialog() {
@@ -195,41 +204,168 @@
       if (options.preserveDeckScroll && this.els.deckList) this.els.deckList.scrollTop = deckScrollTop;
     }
 
-    bindDeckBuilderDropEvents() {
-      this.els.collectionGrid?.addEventListener("dragover", (event) => this.handleBuilderDragOver(event, "library"));
-      this.els.collectionGrid?.addEventListener("dragleave", (event) => this.handleBuilderDragLeave(event));
-      this.els.collectionGrid?.addEventListener("drop", (event) => this.handleBuilderDrop(event, "library"));
-      this.els.deckList?.addEventListener("dragover", (event) => this.handleBuilderDragOver(event, "deck"));
-      this.els.deckList?.addEventListener("dragleave", (event) => this.handleBuilderDragLeave(event));
-      this.els.deckList?.addEventListener("drop", (event) => this.handleBuilderDrop(event, "deck"));
-    }
-
     makeBuilderCardDraggable(element, payload) {
       if (!element || !cards[payload?.id]) return;
-      element.draggable = true;
-      element.addEventListener("dragstart", (event) => {
-        this.builderDragPayload = payload;
-        element.classList.add("builder-dragging");
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("application/x-chrono-builder-card", JSON.stringify(payload));
-        event.dataTransfer.setData("text/plain", cards[payload.id].name);
+      element.draggable = false;
+      element.classList.add("builder-draggable-card");
+      element.addEventListener("dragstart", (event) => event.preventDefault());
+      element.addEventListener("contextmenu", (event) => {
+        if (this.builderPointerDrag?.started) event.preventDefault();
       });
-      element.addEventListener("dragend", () => {
-        this.builderDragPayload = null;
-        element.classList.remove("builder-dragging");
-        this.clearBuilderDropTargets();
-      });
+      element.addEventListener("pointerdown", (event) => this.startBuilderPointerDrag(event, element, payload));
     }
 
-    currentBuilderDragPayload(event) {
-      if (this.builderDragPayload) return this.builderDragPayload;
-      const text = event.dataTransfer?.getData("application/x-chrono-builder-card");
-      if (!text) return null;
-      try {
-        return JSON.parse(text);
-      } catch {
-        return null;
+    startBuilderPointerDrag(event, element, payload) {
+      if (!event.isPrimary) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      this.cancelBuilderPointerDrag();
+      this.builderPointerDrag = {
+        payload,
+        source: element,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        currentX: event.clientX,
+        currentY: event.clientY,
+        pointerType: event.pointerType,
+        started: false,
+        ghost: null,
+        dropTarget: null,
+        pressTimer: 0,
+      };
+      if (event.pointerType !== "mouse") {
+        this.builderPointerDrag.pressTimer = window.setTimeout(() => {
+          const drag = this.builderPointerDrag;
+          if (!drag || drag.pointerId !== event.pointerId || drag.started) return;
+          this.beginBuilderPointerDrag(drag, drag.currentX, drag.currentY);
+        }, BUILDER_TOUCH_DRAG_DELAY_MS);
       }
+      if (event.pointerType === "mouse") element.setPointerCapture?.(event.pointerId);
+      document.addEventListener("pointermove", this.handleBuilderPointerMove, { passive: false });
+      document.addEventListener("pointerup", this.handleBuilderPointerUp);
+      document.addEventListener("pointercancel", this.handleBuilderPointerCancel);
+    }
+
+    moveBuilderPointerDrag(event) {
+      const drag = this.builderPointerDrag;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      drag.currentX = event.clientX;
+      drag.currentY = event.clientY;
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      const distance = Math.hypot(dx, dy);
+
+      if (!drag.started) {
+        if (drag.pointerType !== "mouse" && distance > BUILDER_TOUCH_SCROLL_CANCEL_DISTANCE) {
+          this.cleanupBuilderPointerDrag(false);
+          return;
+        }
+        if (drag.pointerType !== "mouse") return;
+        if (distance <= BUILDER_MOUSE_DRAG_DISTANCE) return;
+        this.beginBuilderPointerDrag(drag, event.clientX, event.clientY);
+      }
+
+      event.preventDefault();
+      this.positionBuilderDragGhost(event.clientX, event.clientY);
+      this.updateBuilderPointerDropTarget(event.clientX, event.clientY);
+    }
+
+    beginBuilderPointerDrag(drag, clientX, clientY) {
+      if (!drag || drag.started) return;
+      window.clearTimeout(drag.pressTimer);
+      drag.started = true;
+      this.builderDragPayload = drag.payload;
+      drag.source.classList.add("builder-dragging");
+      drag.source.setAttribute("aria-grabbed", "true");
+      drag.source.setPointerCapture?.(drag.pointerId);
+      drag.ghost = drag.source.cloneNode(true);
+      const rect = drag.source.getBoundingClientRect();
+      drag.ghost.classList.add("builder-drag-ghost");
+      drag.ghost.removeAttribute("id");
+      drag.ghost.removeAttribute("aria-label");
+      drag.ghost.style.width = `${rect.width}px`;
+      drag.ghost.style.height = `${rect.height}px`;
+      document.body.append(drag.ghost);
+      this.positionBuilderDragGhost(clientX, clientY);
+      this.updateBuilderPointerDropTarget(clientX, clientY);
+    }
+
+    positionBuilderDragGhost(clientX, clientY) {
+      const ghost = this.builderPointerDrag?.ghost;
+      if (!ghost) return;
+      ghost.style.left = `${clientX}px`;
+      ghost.style.top = `${clientY}px`;
+    }
+
+    updateBuilderPointerDropTarget(clientX, clientY) {
+      const drag = this.builderPointerDrag;
+      if (!drag) return;
+      this.clearBuilderDropTargets();
+      const target = this.findBuilderDropTarget(clientX, clientY);
+      drag.dropTarget = this.acceptsBuilderDrop(drag.payload, target) ? target : null;
+      if (drag.dropTarget === "deck") this.els.deckList?.classList.add("builder-drop-target");
+      if (drag.dropTarget === "library") this.els.collectionGrid?.classList.add("builder-drop-target");
+    }
+
+    findBuilderDropTarget(clientX, clientY) {
+      if (this.pointInsideElement(clientX, clientY, this.els.deckList)) return "deck";
+      if (this.pointInsideElement(clientX, clientY, this.els.collectionGrid)) return "library";
+      return "";
+    }
+
+    pointInsideElement(clientX, clientY, element) {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    }
+
+    finishBuilderPointerDrag(event) {
+      const drag = this.builderPointerDrag;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const target = drag.dropTarget;
+      const payload = drag.payload;
+      const started = drag.started;
+      if (started) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      this.cleanupBuilderPointerDrag(started);
+      if (started && target) this.applyBuilderDrop(payload, target);
+    }
+
+    cancelBuilderPointerDrag(event) {
+      const drag = this.builderPointerDrag;
+      if (event && drag && event.pointerId !== drag.pointerId) return;
+      this.cleanupBuilderPointerDrag(false);
+    }
+
+    cleanupBuilderPointerDrag(suppressClick) {
+      const drag = this.builderPointerDrag;
+      if (!drag) return;
+      window.clearTimeout(drag.pressTimer);
+      document.removeEventListener("pointermove", this.handleBuilderPointerMove);
+      document.removeEventListener("pointerup", this.handleBuilderPointerUp);
+      document.removeEventListener("pointercancel", this.handleBuilderPointerCancel);
+      drag.ghost?.remove();
+      drag.source?.classList.remove("builder-dragging");
+      drag.source?.removeAttribute("aria-grabbed");
+      if (drag.source?.hasPointerCapture?.(drag.pointerId)) drag.source.releasePointerCapture(drag.pointerId);
+      this.builderPointerDrag = null;
+      this.builderDragPayload = null;
+      this.clearBuilderDropTargets();
+      if (suppressClick) {
+        this.suppressBuilderClick = true;
+        window.setTimeout(() => {
+          this.suppressBuilderClick = false;
+        }, 220);
+      }
+    }
+
+    consumeSuppressedBuilderClick(event) {
+      if (!this.suppressBuilderClick) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
     }
 
     acceptsBuilderDrop(payload, target) {
@@ -239,26 +375,7 @@
       return false;
     }
 
-    handleBuilderDragOver(event, target) {
-      const payload = this.currentBuilderDragPayload(event);
-      if (!this.acceptsBuilderDrop(payload, target)) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-      event.currentTarget.classList.add("builder-drop-target");
-    }
-
-    handleBuilderDragLeave(event) {
-      if (event.currentTarget.contains(event.relatedTarget)) return;
-      event.currentTarget.classList.remove("builder-drop-target");
-    }
-
-    handleBuilderDrop(event, target) {
-      const payload = this.currentBuilderDragPayload(event);
-      if (!this.acceptsBuilderDrop(payload, target)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      this.clearBuilderDropTargets();
-
+    applyBuilderDrop(payload, target) {
       const driveMode = Boolean(payload.drive);
       if (target === "deck") {
         const result = driveMode ? this.store.addDrive(payload.id, payload.finish) : this.store.add(payload.id, payload.finish);
@@ -415,7 +532,10 @@
           finish: "normal",
           drive: this.deckMode === "drive",
         });
-        normalButton.addEventListener("click", () => this.handleCardClick(card.id, "normal"));
+        normalButton.addEventListener("click", (event) => {
+          if (this.consumeSuppressedBuilderClick(event)) return;
+          this.handleCardClick(card.id, "normal");
+        });
         this.els.collectionGrid.append(normalButton);
         if (royalOwned > 0) {
           const royalCount = this.deckMode === "drive" ? this.store.driveRoyalCounts[card.id] || 0 : this.store.royalCounts[card.id] || 0;
@@ -432,7 +552,10 @@
             finish: "royal",
             drive: this.deckMode === "drive",
           });
-          royalButton.addEventListener("click", () => this.handleCardClick(card.id, "royal"));
+          royalButton.addEventListener("click", (event) => {
+            if (this.consumeSuppressedBuilderClick(event)) return;
+            this.handleCardClick(card.id, "royal");
+          });
           this.els.collectionGrid.append(royalButton);
         }
       });
@@ -1050,7 +1173,8 @@
         finish,
         drive: driveMode,
       });
-      row.addEventListener("click", () => {
+      row.addEventListener("click", (event) => {
+        if (this.consumeSuppressedBuilderClick(event)) return;
         this.selectedCardId = id;
         this.selectedFinish = finish;
         this.render({ preserveLibraryScroll: true, preserveDeckScroll: true });

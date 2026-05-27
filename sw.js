@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260527-app-confirm";
+const CACHE_VERSION = "chrono-drive-pwa-20260527-pointer-dnd";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260527deckbuilderdnd",
+  "/styles.css?v=20260527pointerdnd",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -23,7 +23,7 @@ const APP_SHELL_URLS = [
   "/src/ui/card-renderer.js?v=20260527rubyfix",
   "/src/ui/sound-effects.js?v=20260522h",
   "/src/ui/card-zoom.js?v=20260522k",
-  "/src/ui/deck-builder-view.js?v=20260527appconfirm",
+  "/src/ui/deck-builder-view.js?v=20260527pointerdnd",
   "/src/ui/pack-view.js?v=20260526packResultFlow",
   "/src/net/online-client.js?v=20260525openingattack",
   "/src/ui/duel-view.js?v=20260527thumbs",
