@@ -539,7 +539,7 @@
       attr: "影",
       cost: 1,
       theme: "電脳",
-      art: "assets/cards/art/cyber-intrusion.png",
+      art: "assets/cards/art/cyber-backchannel.png",
       effect: "cyberBackchannel",
       text: "発動時：この効果を発動する。デッキから「電脳」または無属性のリアクション1枚を手札に加える。相手のセット中リアクション1枚を公開状態にする。公開状態のリアクションがあるなら、追加で手札からコスト2以下の「電脳」ユニット1体を追加召喚できる。",
     },
