@@ -4932,7 +4932,7 @@ select {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 0.58fr) minmax(176px, 0.42fr) auto;
+  grid-template-rows: minmax(350px, 0.64fr) minmax(164px, 0.36fr) auto;
   grid-template-columns: 1fr;
   gap: 14px;
   padding-bottom: 104px;
