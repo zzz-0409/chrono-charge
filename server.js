@@ -818,6 +818,36 @@ function applyReactionEffect(game, card, player, opponent, event = {}, after = n
     log(game, `${card.name}で効果を止めた。`);
     return { negates: true };
   }
+  if (card.effect === "keikanBindingClause") {
+    if (countThemeChargeTypes(player, "契環") >= 3) {
+      queueOptionalAdditionalEffect(game, player, card, "チャージに「契環」のカード種類が3種類以上あります。追加でそのユニットを行動済みにしますか？", () => {
+        exhaustSourceUnitUntilOwnerTurnEnd(game, opponent, event);
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      }, () => {
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
+    log(game, `${card.name}で攻撃を止めた。`);
+    return { negates: true };
+  }
+  if (card.effect === "keikanNullClause") {
+    if (countThemeChargeTypes(player, "契環") >= 3) {
+      queueOptionalAdditionalEffect(game, player, card, "チャージに「契環」のカード種類が3種類以上あります。追加で1枚ドローしますか？", () => {
+        drawCards(player, 1, game);
+        log(game, `${card.name}で効果を止めた。`);
+        finishReaction({ negates: true });
+      }, () => {
+        log(game, `${card.name}で効果を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
+    log(game, `${card.name}で効果を止めた。`);
+    return { negates: true };
+  }
   if (card.effect === "watchSignal") {
     drawCards(player, 1, game);
     log(game, `${card.name}で1枚ドロー。攻撃は継続する。`);
@@ -1497,6 +1527,80 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
           });
         }
       });
+    case "keikanScribeYura":
+      return chooseFromDeck(game, player, (card) => card.type === "スペル" && card.theme === "契環", {
+        title: "契環スペルをサーチ",
+        message: "デッキから手札に加える「契環」スペルを選んでください。",
+      }, () => {
+        if (countThemeChargeTypes(player, "契環") >= 2) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "チャージに「契環」のカード種類が2種類以上あります。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
+      });
+    case "keikanCharmRen":
+      return chooseFromHandToCharge(game, player, (card) => card.theme === "契環", {
+        title: "契環カードをチャージ",
+        message: "手札からチャージに置く「契環」カードを選んでください。",
+      }, (moved) => {
+        if (moved && countThemeChargeTypes(player, "契環") >= 2) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "チャージに「契環」のカード種類が2種類以上あります。追加で「契環」チャージをアクティブにしますか？", () => {
+            untapOneCharge(player, (card) => card.theme === "契環");
+          });
+        }
+      });
+    case "keikanMediatorSae":
+      if (countThemeChargeTypes(player, "契環") >= 3) {
+        return chooseFromGrave(game, player, (card) => card.theme === "契環", {
+          title: "契環カードを回収",
+          message: "墓地から手札に戻す「契環」カードを選んでください。",
+        }, () => {
+          chooseExhaustUnit(game, player, opponent);
+        });
+      }
+      break;
+    case "keikanOathbearerKuga":
+      if (countThemeInCharge(player, "契環") >= 4) {
+        return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "契環" && card.cost <= 1, {
+          title: "契環ユニットを追加召喚",
+          message: "手札から追加召喚するコスト1以下の「契環」ユニットを選んでください。",
+        }, opponent);
+      }
+      break;
+    case "keikanRingAdeptMay":
+      if (countThemeChargeTypes(player, "契環") >= 2) untapOneCharge(player, (card) => card.theme === "契環");
+      if (hasThemeCore(player, "契環")) {
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「契環」コアがあります。追加で1枚ドローしますか？", () => {
+          drawCards(player, 1, game);
+        });
+      }
+      break;
+    case "keikanOathScript":
+      return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.theme === "契環", {
+        title: "契環ユニットをサーチ",
+        message: "デッキから手札に加える「契環」ユニットを選んでください。",
+      }, () => {
+        queueOptionalAdditionalEffect(game, player, sourceCard, "追加で手札から「契環」カードをチャージに置きますか？", () => {
+          chooseFromHandToCharge(game, player, (card) => card.theme === "契環", {
+            title: "契環カードをチャージ",
+            message: "手札からチャージに置く「契環」カードを選んでください。",
+          });
+        });
+      });
+    case "keikanSealExchange":
+      return chooseFromGraveToCharge(game, player, (card) => card.theme === "契環", {
+        title: "契環カードをチャージ",
+        message: "墓地からチャージに置く「契環」カードを選んでください。",
+      }, (moved) => {
+        if (moved && countThemeChargeTypes(player, "契環") >= 3) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "チャージに「契環」のカード種類が3種類以上あります。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
+      });
+    case "keikanWitnessRing":
+      drawCards(player, 1, game);
+      break;
     case "sosaiHikari":
       return chooseFromDeck(game, player, (card) => card.id === "sosai_mint", {
         title: "ミントをサーチ",
@@ -1612,6 +1716,17 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       break;
     case "genericFieldMedic":
       if (player.lp < opponent.lp) drawCards(player, 1, game);
+      break;
+    case "genericSupplyBox":
+      drawCards(player, 1, game);
+      if (player.hand.length <= 3) {
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分の手札が3枚以下です。追加で手札1枚をチャージに置きますか？", () => {
+          chooseFromHandToCharge(game, player, () => true, {
+            title: "手札をチャージ",
+            message: "手札からチャージに置くカードを選んでください。",
+          });
+        });
+      }
       break;
     case "bindUnit":
       return chooseExhaustUnit(game, player, opponent, () => {
@@ -1772,6 +1887,31 @@ function destroyBestUnit(player) {
   return true;
 }
 
+function sourceUnitIndex(player, event = {}) {
+  const sourceId = event.source?.id;
+  const sourceIndex = Number(event.sourceIndex);
+  if (
+    Number.isInteger(sourceIndex) &&
+    sourceIndex >= 0 &&
+    sourceIndex < player.units.length &&
+    player.units[sourceIndex] &&
+    (!sourceId || player.units[sourceIndex].id === sourceId)
+  ) return sourceIndex;
+  if (!sourceId) return -1;
+  return player.units.findIndex((unit) => unit?.id === sourceId);
+}
+
+function exhaustSourceUnitUntilOwnerTurnEnd(game, player, event = {}) {
+  const index = sourceUnitIndex(player, event);
+  if (index < 0) return false;
+  const unit = player.units[index];
+  unit.exhausted = true;
+  unit.exhaustedUntilOwnerTurnEnd = true;
+  unit.exhaustedUntilOwnerTurnEndReady = false;
+  log(game, `${cards[unit.id].name}を次のターン終了まで行動済みにした。`);
+  return true;
+}
+
 function returnBestUnitToHand(game, player) {
   const target = player.units
     .map((unit, index) => ({ unit, index }))
@@ -1835,6 +1975,17 @@ function countThemeInCharge(player, theme) {
   return player.charge.filter((entry) => cardHasTheme(cards[entry.id], theme)).length;
 }
 
+function countThemeChargeTypes(player, theme) {
+  const types = new Set();
+  player.charge.forEach((entry) => {
+    const card = cards[entry.id];
+    if (!cardHasTheme(card, theme)) return;
+    const type = baseDriveType(card.type) || card.type;
+    if (type) types.add(type);
+  });
+  return types.size;
+}
+
 function countThemeUnits(player, theme) {
   return player.units.filter((unit) => unit && cardHasTheme(cards[unit.id], theme)).length;
 }
@@ -1874,11 +2025,13 @@ function getUnitAtk(player, unit, game = null) {
   if (player.cores.includes("blade_scaffold") && cardHasTheme(cards[unit.id], "断刃")) atk += 200;
   if (player.cores.includes("cyber_network") && cardHasTheme(cards[unit.id], "電脳")) atk += 100;
   if (player.cores.includes("sosai_pop_stage") && cardHasTheme(cards[unit.id], "双彩") && hasSosaiPairMate(player, unit.id)) atk += 300;
+  if (player.cores.includes("keikan_witness_ring") && cardHasTheme(cards[unit.id], "契環") && countThemeChargeTypes(player, "契環") >= 3) atk += 300;
   if (player.cores.includes("drive_star_core") && cardHasTheme(cards[unit.id], "星導")) atk += 300;
   if (player.cores.includes("drive_black_core") && cardHasTheme(cards[unit.id], "黒機")) atk += 300;
   if (player.cores.includes("drive_blade_core") && cardHasTheme(cards[unit.id], "断刃")) atk += 300;
   if (player.cores.includes("drive_cyber_core") && cardHasTheme(cards[unit.id], "電脳")) atk += 200;
   if (player.cores.includes("drive_sosai_core") && cardHasTheme(cards[unit.id], "双彩") && hasSosaiPairMate(player, unit.id)) atk += 500;
+  if (player.cores.includes("drive_keikan_core") && cardHasTheme(cards[unit.id], "契環")) atk += 300;
   return atk;
 }
 
@@ -2038,6 +2191,10 @@ function validateDriveDeck(driveDeck) {
 
 function isDriveCard(card) {
   return Boolean(card?.driveKind || card?.type?.includes("ドライブ"));
+}
+
+function baseDriveType(type = "") {
+  return String(type).replace("ドライブ", "");
 }
 
 function getSeat(room, playerId) {

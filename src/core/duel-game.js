@@ -214,6 +214,8 @@
         case "driveSosaiCore":
         case "driveGenericCore":
           return true;
+        case "driveKeikanCore":
+          return player.grave.some((id) => cardHasTheme(cards[id], "契環"));
         case "driveBladeCore":
           return opponent.units.some((unit) => unit);
         case "driveCyberCore":
@@ -694,6 +696,30 @@
         this.log(`${card.name}で効果を止めた。`);
         return { negates: true };
       }
+      if (card.effect === "keikanBindingClause") {
+        if (
+          this.countThemeChargeTypes(player, "契環") >= 3 &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "チャージに「契環」のカード種類が3種類以上あります。追加でそのユニットを行動済みにしますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) this.exhaustSourceUnit(opponent, event);
+        this.log(`${card.name}で攻撃を止めた。`);
+        return { negates: true };
+      }
+      if (card.effect === "keikanNullClause") {
+        if (
+          this.countThemeChargeTypes(player, "契環") >= 3 &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "チャージに「契環」のカード種類が3種類以上あります。追加で1枚ドローしますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) this.drawCards(player, 1);
+        this.log(`${card.name}で効果を止めた。`);
+        return { negates: true };
+      }
       if (card.effect === "watchSignal") {
         this.drawCards(player, 1);
         this.log(`${card.name}で1枚ドロー。攻撃は継続する。`);
@@ -866,6 +892,21 @@
           this.drawCards(player, 1);
           if (this.hasSosaiPair(player)) this.returnSourceFieldCardToHand(opponent, event);
           return;
+        case "driveKeikanUnit":
+          await this.addFromDeck(player, (candidate) => candidate.theme === "契環", {
+            title: "契環カードを手札に加える",
+            message: "デッキから契環カードを1枚選んでください。",
+          });
+          this.drawCards(player, 1);
+          this.buffThemeUnits(player, "契環", 300);
+          this.untapOneCharge(player, (candidate) => candidate.theme === "契環");
+          return;
+        case "driveKeikanCore":
+          this.drawCards(player, 1);
+          return;
+        case "driveKeikanReactEffect":
+          if (!this.returnSourceFieldCardToHand(opponent, event)) this.drawCards(player, 1);
+          return;
         case "driveGenericUnit":
           await this.exhaustBestUnit(opponent);
           this.drawCards(player, 1);
@@ -912,6 +953,13 @@
         case "driveSosaiCore":
           this.drawCards(player, 1);
           if (this.hasSosaiPair(player)) this.untapOneCharge(player);
+          this.log(`${card.name}が起動。`);
+          return;
+        case "driveKeikanCore":
+          await this.moveGraveCardToCharge(player, (candidate) => candidate.theme === "契環", {
+            title: "契環カードをチャージ",
+            message: "墓地からチャージに置く「契環」カードを選んでください。",
+          });
           this.log(`${card.name}が起動。`);
           return;
         case "driveGenericCore":
@@ -1705,8 +1753,30 @@
       return true;
     }
 
+    buffThemeUnits(player, theme, amount) {
+      let changed = 0;
+      player.units.forEach((unit) => {
+        if (!unit || !cardHasTheme(cards[unit.id], theme)) return;
+        unit.atkMod = (unit.atkMod || 0) + amount;
+        changed += 1;
+      });
+      if (changed > 0) this.log(`「${theme}」ユニット${changed}体のATKを${amount}アップ。`);
+      return changed;
+    }
+
     countThemeInCharge(player, theme) {
       return player.charge.filter((entry) => cardHasTheme(cards[entry.id], theme)).length;
+    }
+
+    countThemeChargeTypes(player, theme) {
+      const types = new Set();
+      player.charge.forEach((entry) => {
+        const card = cards[entry.id];
+        if (!cardHasTheme(card, theme)) return;
+        const type = baseDriveType(card.type) || card.type;
+        if (type) types.add(type);
+      });
+      return types.size;
     }
 
     countThemeUnits(player, theme) {
@@ -1976,11 +2046,13 @@
       if (cardHasTheme(card, "断刃") && this.hasCore(player, "blade_scaffold")) atk += 200;
       if (cardHasTheme(card, "電脳") && this.hasCore(player, "cyber_network")) atk += 100;
       if (cardHasTheme(card, "双彩") && this.hasCore(player, "sosai_pop_stage") && this.hasSosaiPairMate(player, unit.id)) atk += 300;
+      if (cardHasTheme(card, "契環") && this.hasCore(player, "keikan_witness_ring") && this.countThemeChargeTypes(player, "契環") >= 3) atk += 300;
       if (cardHasTheme(card, "星導") && this.hasCore(player, "drive_star_core")) atk += 300;
       if (cardHasTheme(card, "黒機") && this.hasCore(player, "drive_black_core")) atk += 300;
       if (cardHasTheme(card, "断刃") && this.hasCore(player, "drive_blade_core")) atk += 300;
       if (cardHasTheme(card, "電脳") && this.hasCore(player, "drive_cyber_core")) atk += 200;
       if (cardHasTheme(card, "双彩") && this.hasCore(player, "drive_sosai_core") && this.hasSosaiPairMate(player, unit.id)) atk += 500;
+      if (cardHasTheme(card, "契環") && this.hasCore(player, "drive_keikan_core")) atk += 300;
       return atk;
     }
 

@@ -37,6 +37,7 @@
     blade: "断刃",
     cyber: "電脳",
     sosai: "双彩",
+    keikan: "契環",
     balance: "",
   };
   const PACK_COVERS = {
@@ -45,6 +46,7 @@
     "断刃": { image: "assets/packs/blade-pack.png", ace: "blade_arbiter" },
     "電脳": { image: "assets/packs/cyber-pack.png", ace: "cyber_akari" },
     "双彩": { image: "assets/packs/sosai-pack.png", ace: "sosai_hikari" },
+    "契環": { image: "assets/packs/keikan-pack.png", ace: "drive_keikan_unit" },
   };
 
   const driveDecks = {
@@ -53,6 +55,7 @@
     blade: themedDriveDeck("断刃"),
     cyber: themedDriveDeck("電脳"),
     sosai: themedDriveDeck("双彩"),
+    keikan: themedDriveDeck("契環"),
     balance: starterDriveDeck,
   };
 
@@ -149,6 +152,27 @@
         generic_bind: 2,
       },
       drive: driveDecks.sosai,
+    },
+    keikan: {
+      label: "契環おまかせ",
+      main: {
+        keikan_scribe_yura: 3,
+        keikan_charm_ren: 3,
+        keikan_mediator_sae: 3,
+        keikan_oathbearer_kuga: 2,
+        keikan_ring_adept_may: 3,
+        keikan_oath_script: 3,
+        keikan_seal_exchange: 3,
+        keikan_witness_ring: 3,
+        keikan_binding_clause: 3,
+        keikan_null_clause: 3,
+        generic_supply_box: 3,
+        generic_transfer: 2,
+        generic_wall: 2,
+        generic_code: 2,
+        generic_field_notes: 2,
+      },
+      drive: driveDecks.keikan,
     },
     balance: {
       label: "バランスおまかせ",
@@ -1228,12 +1252,19 @@
 
   function themedDriveDeck(theme) {
     const result = {};
-    drivePool
-      .filter((card) => card.theme === theme || !card.theme)
-      .slice(0, DRIVE_DECK_SIZE)
-      .forEach((card) => {
-        result[card.id] = 1;
-      });
+    const candidates = drivePool.filter((card) => card.theme === theme || !card.theme);
+    candidates.slice(0, DRIVE_DECK_SIZE).forEach((card) => {
+      result[card.id] = 1;
+    });
+
+    let index = 0;
+    while (deckTotal(result) < DRIVE_DECK_SIZE && candidates.length > 0) {
+      const card = candidates[index % candidates.length];
+      const current = result[card.id] || 0;
+      if (current < MAX_DRIVE_COPIES) result[card.id] = current + 1;
+      index += 1;
+      if (index > candidates.length * MAX_DRIVE_COPIES) break;
+    }
     return result;
   }
 

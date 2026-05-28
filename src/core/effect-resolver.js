@@ -370,6 +370,83 @@
             }, opponent);
           }
           break;
+        case "keikanScribeYura":
+          await this.game.addFromDeck(player, (card) => card.type === "スペル" && card.theme === "契環", {
+            title: "契環スペルをサーチ",
+            message: "デッキから手札に加える「契環」スペルを選んでください。",
+          });
+          if (
+            this.game.countThemeChargeTypes(player, "契環") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "チャージに「契環」のカード種類が2種類以上あります。追加で1枚ドローしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
+        case "keikanCharmRen":
+          if (await this.game.moveHandCardToCharge(player, (card) => card.theme === "契環", {
+            title: "契環カードをチャージ",
+            message: "手札からチャージに置く「契環」カードを選んでください。",
+          }) && this.game.countThemeChargeTypes(player, "契環") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "チャージに「契環」のカード種類が2種類以上あります。追加で「契環」チャージをアクティブにしますか？")) {
+            await this.game.afterEffectStep();
+            this.game.untapOneCharge(player, (card) => card.theme === "契環");
+          }
+          break;
+        case "keikanMediatorSae":
+          if (this.game.countThemeChargeTypes(player, "契環") >= 3) {
+            await this.game.addFromGrave(player, (card) => card.theme === "契環", {
+              title: "契環カードを回収",
+              message: "墓地から手札に戻す「契環」カードを選んでください。",
+            });
+            await this.game.afterEffectStep();
+            await this.game.exhaustBestUnit(opponent);
+          }
+          break;
+        case "keikanOathbearerKuga":
+          if (this.game.countThemeInCharge(player, "契環") >= 4) {
+            await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "契環" && card.cost <= 1, {
+              title: "契環ユニットを追加召喚",
+              message: "手札から追加召喚するコスト1以下の「契環」ユニットを選んでください。",
+            }, opponent);
+          }
+          break;
+        case "keikanRingAdeptMay":
+          if (this.game.countThemeChargeTypes(player, "契環") >= 2) this.game.untapOneCharge(player, (card) => card.theme === "契環");
+          if (
+            this.game.hasThemeCore(player, "契環") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「契環」コアがあります。追加で1枚ドローしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
+        case "keikanOathScript":
+          await this.game.addFromDeck(player, (card) => card.type === "ユニット" && card.theme === "契環", {
+            title: "契環ユニットをサーチ",
+            message: "デッキから手札に加える「契環」ユニットを選んでください。",
+          });
+          if (await this.optionalAdditional(player, sourceCard, "追加で手札から「契環」カードをチャージに置きますか？")) {
+            await this.game.afterEffectStep();
+            await this.game.moveHandCardToCharge(player, (card) => card.theme === "契環", {
+              title: "契環カードをチャージ",
+              message: "手札からチャージに置く「契環」カードを選んでください。",
+            });
+          }
+          break;
+        case "keikanSealExchange":
+          if (await this.game.moveGraveCardToCharge(player, (card) => card.theme === "契環", {
+            title: "契環カードをチャージ",
+            message: "墓地からチャージに置く「契環」カードを選んでください。",
+          }) && this.game.countThemeChargeTypes(player, "契環") >= 3 &&
+            await this.optionalAdditional(player, sourceCard, "チャージに「契環」のカード種類が3種類以上あります。追加で1枚ドローしますか？")) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
+        case "keikanWitnessRing":
+          this.game.drawCards(player, 1);
+          break;
         case "sosaiHikari":
           await this.game.addFromDeck(player, (card) => card.id === "sosai_mint", {
             title: "ミントをサーチ",
@@ -501,6 +578,19 @@
           break;
         case "genericFieldMedic":
           if (player.lp < opponent.lp) this.game.drawCards(player, 1);
+          break;
+        case "genericSupplyBox":
+          this.game.drawCards(player, 1);
+          if (
+            player.hand.length <= 3 &&
+            await this.optionalAdditional(player, sourceCard, "自分の手札が3枚以下です。追加で手札1枚をチャージに置きますか？")
+          ) {
+            await this.game.afterEffectStep();
+            await this.game.moveHandCardToCharge(player, () => true, {
+              title: "手札をチャージ",
+              message: "手札からチャージに置くカードを選んでください。",
+            });
+          }
           break;
         case "bindUnit":
           await this.game.exhaustBestUnit(opponent);

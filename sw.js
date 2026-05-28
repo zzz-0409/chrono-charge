@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260527-drive-identity";
+const CACHE_VERSION = "chrono-drive-pwa-20260528-keikan";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -19,13 +19,13 @@ const APP_SHELL_URLS = [
   "/assets/ui/duel-menu/shell-icons.png",
   "/assets/home/home-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
-  "/src/data/cards.js?v=20260527driveidentity",
-  "/src/core/deck-store.js?v=20260527deckbuilderdnd",
-  "/src/core/effect-resolver.js?v=20260527cybersupport",
+  "/src/data/cards.js?v=20260528keikan",
+  "/src/core/deck-store.js?v=20260528keikan",
+  "/src/core/effect-resolver.js?v=20260528keikan",
   "/src/core/cpu-controller.js?v=20260525safeattack",
-  "/src/core/duel-game.js?v=20260527driveidentity",
+  "/src/core/duel-game.js?v=20260528keikan",
   "/src/ui/scale-manager.js?v=20260524a",
-  "/src/ui/card-renderer.js?v=20260527rubyfix",
+  "/src/ui/card-renderer.js?v=20260528keikan",
   "/src/ui/sound-effects.js?v=20260522h",
   "/src/ui/card-zoom.js?v=20260522k",
   "/src/ui/deck-builder-view.js?v=20260527pointerdnd",
