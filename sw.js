@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260528-drive-rules";
+const CACHE_VERSION = "chrono-drive-pwa-20260528-drive-wording";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -19,7 +19,7 @@ const APP_SHELL_URLS = [
   "/assets/ui/duel-menu/shell-icons.png",
   "/assets/home/home-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
-  "/src/data/cards.js?v=20260528driverules",
+  "/src/data/cards.js?v=20260528drivewording",
   "/src/core/deck-store.js?v=20260528keikan",
   "/src/core/effect-resolver.js?v=20260528keikan",
   "/src/core/cpu-controller.js?v=20260525safeattack",
