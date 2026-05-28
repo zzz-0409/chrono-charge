@@ -2739,6 +2739,13 @@ select {
   text-align: center;
 }
 
+.duel-mode-rank-status {
+  display: inline-block;
+  margin-top: 4px;
+  color: #f4d889;
+  font-size: 0.76rem;
+}
+
 .duel-mode-actions {
   position: relative;
   z-index: 1;
@@ -2754,15 +2761,27 @@ select {
   position: relative;
   z-index: 1;
   min-height: 48px;
-  justify-content: center;
+  display: inline-grid;
+  place-items: center;
+  align-content: center;
   border-radius: 5px;
   border-color: rgba(255, 229, 154, 0.4);
   background-image: url("assets/ui/duel-menu/button-frames.png");
   background-repeat: no-repeat;
   background-size: 100% 400%;
+  background-origin: border-box;
+  background-clip: border-box;
   box-shadow: none;
   font-size: 0.92rem;
+  line-height: 1;
+  text-align: center;
   text-shadow: none;
+  white-space: nowrap;
+}
+
+.duel-mode-card > .primary-button,
+.duel-mode-card > .ghost-button {
+  width: 100%;
 }
 
 .duel-mode-card > .primary-button,
@@ -2872,6 +2891,9 @@ select {
   z-index: 1;
   justify-self: center;
   min-width: 170px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
   border-radius: 5px;
   padding: 10px 18px;
   border-color: rgba(82, 173, 244, 0.34);
@@ -2881,6 +2903,7 @@ select {
     url("assets/ui/duel-menu/button-frames.png") center 33.333% / 100% 400% no-repeat;
   text-align: center;
   font-size: 0.86rem;
+  line-height: 1;
 }
 
 .duel-menu-stage .shared-bottom-nav {
@@ -5201,6 +5224,12 @@ select {
   align-items: center;
   gap: 6px;
   color: var(--gold);
+  font-weight: 900;
+}
+
+.result-rank {
+  margin: 10px 0 0;
+  color: #f4d889;
   font-weight: 900;
 }
 

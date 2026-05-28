@@ -27,6 +27,9 @@
       this.roomId = session.roomId;
       this.playerId = session.playerId;
       this.seat = session.seat;
+      this.mode = session.mode || "room";
+      this.isRanked = Boolean(session.ranked || session.mode === "ranked");
+      this.matched = Boolean(session.matched);
     }
 
     static async createRoom(deck, driveDeck, playerName = "Player") {
@@ -41,6 +44,16 @@
     static async joinRoom(roomId, deck, driveDeck, playerName = "Player") {
       const session = await requestJson(`/api/rooms/${normalizeRoomId(roomId)}/join`, {
         method: "POST",
+        body: { deck, driveDeck, playerName },
+      });
+      this.saveSession(session);
+      return new OnlineClient(session);
+    }
+
+    static async enterRanked(deck, driveDeck, playerName = "Player", headers = {}) {
+      const session = await requestJson("/api/ranked/queue", {
+        method: "POST",
+        headers,
         body: { deck, driveDeck, playerName },
       });
       this.saveSession(session);
@@ -81,6 +94,8 @@
       this.showActivation = options.showActivation || (async () => {});
       this.onSoundEvent = options.onSoundEvent || (() => {});
       this.isOnline = true;
+      this.mode = this.client.mode || "room";
+      this.isRanked = Boolean(this.client.isRanked);
       this.status = "waiting";
       this.turn = 1;
       this.firstActive = "enemy";
@@ -97,6 +112,7 @@
       this.pollTimer = 0;
       this.fetching = false;
       this.reportedResult = false;
+      this.rankedResult = null;
       this.seenActivationEvents = new Set();
       this.seenSoundEvents = new Set();
       this.activationQueue = Promise.resolve();
@@ -173,6 +189,8 @@
     }
 
     applySnapshot(snapshot) {
+      this.mode = snapshot.mode || this.mode;
+      this.isRanked = Boolean(snapshot.ranked || this.isRanked);
       this.status = snapshot.status;
       this.turn = snapshot.turn || 1;
       this.firstActive = snapshot.firstActive || "enemy";
@@ -182,6 +200,7 @@
       this.won = Boolean(snapshot.won);
       this.pendingChoice = snapshot.pendingChoice || null;
       this.waitingChoice = snapshot.waitingChoice || null;
+      this.rankedResult = snapshot.rankedResult || this.rankedResult;
 
       if (snapshot.status === "waiting") {
         this.player = emptyDuelist("Player");
@@ -361,6 +380,7 @@
       method: options.method || "GET",
       headers: {
         "Content-Type": "application/json",
+        ...(options.headers || {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
     });

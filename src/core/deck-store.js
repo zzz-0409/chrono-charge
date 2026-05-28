@@ -25,6 +25,7 @@
   const CPU_LOSS_GEMS = 100;
   const ONLINE_WIN_GEMS = 200;
   const ONLINE_LOSS_GEMS = 100;
+  const RANKED_INITIAL_POINTS = 1000;
   const DUST_PER_DISMANTLE = 10;
   const ROYAL_DUST_PER_DISMANTLE = 100;
   const CRAFT_COST = 100;
@@ -312,6 +313,7 @@
         activeDeckId: decks[activeDeckId] ? activeDeckId : Object.keys(decks)[0],
         gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
         dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
+        ranked: normalizeRankedRecord(account.ranked),
         collection: this.normalizeCollection(account.collection, decks),
         collectionRoyal: this.normalizeCollection(account.collectionRoyal, decks, ROYAL_FINISH),
         updatedAt: String(account.updatedAt || new Date().toISOString()),
@@ -363,6 +365,7 @@
         activeDeckId: DEFAULT_DECK_ID,
         gems: 0,
         dust: 0,
+        ranked: normalizeRankedRecord(),
         collection: this.initialCollection(mainDeck, driveDeck),
         collectionRoyal: {},
         updatedAt: new Date().toISOString(),
@@ -962,6 +965,17 @@
       return gained;
     }
 
+    applyRankedSnapshot(snapshot) {
+      if (!snapshot) return this.ranked;
+      const incoming = normalizeRankedRecord(snapshot);
+      const current = normalizeRankedRecord(this.activeAccountData.ranked);
+      if (Date.parse(incoming.updatedAt) >= Date.parse(current.updatedAt)) {
+        this.activeAccountData.ranked = incoming;
+        this.persist();
+      }
+      return this.ranked;
+    }
+
     get total() {
       return deckTotal(this.counts) + deckTotal(this.royalCounts);
     }
@@ -1006,6 +1020,15 @@
 
     get dust() {
       return Math.max(0, Math.floor(Number(this.activeAccountData.dust) || 0));
+    }
+
+    get ranked() {
+      return normalizeRankedRecord(this.activeAccountData.ranked);
+    }
+
+    get rankedLabel() {
+      const ranked = this.ranked;
+      return `${rankName(ranked.points)} ${ranked.points} RP`;
     }
 
     get dustPerDismantle() {
@@ -1135,6 +1158,7 @@
         ...remote,
         gems: newer.gems,
         dust: newer.dust,
+        ranked: mergeRankedByUpdated(local.ranked, remote.ranked),
         collection: newer.collection,
         collectionRoyal: newer.collectionRoyal,
         updatedAt: newer.updatedAt,
@@ -1415,6 +1439,49 @@
       if (!existing || String(deck.updatedAt || "") >= String(existing.updatedAt || "")) result[id] = deck;
     });
     return result;
+  }
+
+  function normalizeRankedRecord(source = {}) {
+    const record = source && typeof source === "object" ? source : {};
+    const rawPoints = Number(record.points ?? record.pointsAfter);
+    const points = Math.max(0, Math.floor(Number.isFinite(rawPoints) ? rawPoints : RANKED_INITIAL_POINTS));
+    return {
+      points,
+      wins: Math.max(0, Math.floor(Number(record.wins) || 0)),
+      losses: Math.max(0, Math.floor(Number(record.losses) || 0)),
+      streak: Math.max(0, Math.floor(Number(record.streak) || 0)),
+      bestPoints: Math.max(points, Math.floor(Number(record.bestPoints) || points)),
+      updatedAt: String(record.updatedAt || new Date().toISOString()),
+    };
+  }
+
+  function mergeRankedByUpdated(local = {}, remote = {}) {
+    if (!hasRankedRecord(remote)) return normalizeRankedRecord(local);
+    if (!hasRankedRecord(local)) return normalizeRankedRecord(remote);
+    const localRanked = normalizeRankedRecord(local);
+    const remoteRanked = normalizeRankedRecord(remote);
+    return Date.parse(remoteRanked.updatedAt) >= Date.parse(localRanked.updatedAt)
+      ? remoteRanked
+      : localRanked;
+  }
+
+  function hasRankedRecord(source) {
+    return Boolean(source && typeof source === "object" && (
+      source.points !== undefined ||
+      source.pointsAfter !== undefined ||
+      source.wins !== undefined ||
+      source.losses !== undefined ||
+      source.updatedAt !== undefined
+    ));
+  }
+
+  function rankName(points) {
+    if (points >= 2600) return "マスター";
+    if (points >= 2200) return "ダイヤ";
+    if (points >= 1800) return "プラチナ";
+    if (points >= 1500) return "ゴールド";
+    if (points >= 1200) return "シルバー";
+    return "ブロンズ";
   }
 
   function accountUpdatedAt(account = {}) {

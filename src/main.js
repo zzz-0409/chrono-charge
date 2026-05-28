@@ -38,6 +38,8 @@
     modeCreateRoomButton: document.querySelector("#modeCreateRoomButton"),
     modeJoinRoomButton: document.querySelector("#modeJoinRoomButton"),
     modeCpuDuelButton: document.querySelector("#modeCpuDuelButton"),
+    modeRankedDuelButton: document.querySelector("#modeRankedDuelButton"),
+    rankedStatusText: document.querySelector("#rankedStatusText"),
     loginButton: document.querySelector("#loginButton"),
     displayNameInput: document.querySelector("#displayNameInput"),
     accountUsernameLabel: document.querySelector("#accountUsernameLabel"),
@@ -188,7 +190,10 @@
     els.logoutButton.disabled = !accountEnabled;
     if (showDeckSelect) renderDeckSelectView();
     if (showPack || showPackResult) packView?.render();
-    if (showDuelMenu) renderDuelMenuDeckCard();
+    if (showDuelMenu) {
+      renderDuelMenuDeckCard();
+      renderRankedStatus();
+    }
   };
 
   const openAppModal = (content) => {
@@ -345,9 +350,11 @@
       return gained;
     },
     onOnlineResult: (won) => {
+      if (duelView.game?.isRanked) store.applyRankedSnapshot(duelView.game.rankedResult);
       const gained = store.rewardOnlineResult(won);
       builderView.render({ preserveLibraryScroll: true });
       packView.render();
+      renderRankedStatus();
       return gained;
     },
   });
@@ -425,6 +432,16 @@
     `;
   }
 
+  function renderRankedStatus() {
+    if (!els.rankedStatusText) return;
+    if (!store.isAuthenticated) {
+      els.rankedStatusText.textContent = "ログインでランク記録";
+      return;
+    }
+    const ranked = store.ranked;
+    els.rankedStatusText.textContent = `${store.rankedLabel} / ${ranked.wins}勝 ${ranked.losses}敗`;
+  }
+
   function deckPresetCardHtml(deck) {
     const mainTotal = deckCount(deck.mainDeck) + deckCount(deck.mainDeckRoyal);
     const driveTotal = deckCount(deck.driveDeck) + deckCount(deck.driveDeckRoyal);
@@ -484,8 +501,7 @@
     if (driveTotal !== DRIVE_DECK_SIZE) issues.push(`ドライブ ${driveTotal}/${DRIVE_DECK_SIZE}`);
     const missing = deckOwnershipIssues(deck);
     if (missing.length) {
-      const first = missing[0];
-      issues.push(`${first.name} 不足`);
+      issues.push("カード不足");
     }
     return issues;
   }
@@ -737,8 +753,7 @@
     const driveDeck = store.driveList;
     const ownership = store.validateActiveDeckOwnership();
     if (!ownership.ok) {
-      const first = ownership.missing[0];
-      toast(`${first.name}の所持枚数が足りません。デッキを直してください。`);
+      toast("カード不足です。デッキを直してください。");
       setView("builder");
       builderView.render({ preserveLibraryScroll: true });
       return null;
@@ -804,10 +819,34 @@
     }
   };
 
+  const startRankedDuel = async () => {
+    if (!canUseOnline()) return;
+    if (!store.isAuthenticated) {
+      toast("ランク戦はログインが必要です。");
+      builderView.openAuthDialog({
+        onSuccess: () => {
+          renderRankedStatus();
+          startRankedDuel();
+        },
+      });
+      return;
+    }
+    const deckSet = requireDeck();
+    if (!deckSet) return;
+    try {
+      const client = await OnlineClient.enterRanked(deckSet.deck, deckSet.driveDeck, store.displayName, store.authHeaders());
+      startOnlineDuel(client);
+      toast(client.matched ? "ランク戦の相手が見つかりました。" : `ランク戦 ${client.roomId}: 対戦相手を検索中です。`);
+    } catch (error) {
+      toast(error.message || "ランク戦の開始に失敗しました。");
+    }
+  };
+
   els.createRoomButton?.addEventListener("click", createRoomDuel);
   els.joinRoomButton?.addEventListener("click", joinRoomDuel);
   els.newDuelButton?.addEventListener("click", () => startCpuDuel());
   els.duelSelectedDeckButton?.addEventListener("click", openDuelDeckSelector);
+  els.modeRankedDuelButton?.addEventListener("click", () => startRankedDuel());
   els.modeCreateRoomButton?.addEventListener("click", createRoomDuel);
   els.modeJoinRoomButton?.addEventListener("click", joinRoomDuel);
   els.modeCpuDuelButton?.addEventListener("click", () => startCpuDuel());
@@ -852,6 +891,7 @@
   store.syncActiveAccount().finally(() => {
     builderView.render();
     packView.render();
+    renderRankedStatus();
   });
 
   let accountSyncTimer = 0;
@@ -861,6 +901,7 @@
       store.syncActiveAccount().finally(() => {
         builderView.render({ preserveLibraryScroll: true });
         packView.render();
+        renderRankedStatus();
       });
     }, 120);
   };

@@ -1532,14 +1532,21 @@
 
     showResult(won) {
       const online = Boolean(this.game?.isOnline);
+      const ranked = Boolean(this.game?.isRanked);
+      const rankedResult = this.game?.rankedResult || null;
       const reward = online ? this.onOnlineResult(won) : this.onCpuResult(won);
+      const rankedDelta = rankedResult?.delta > 0 ? `+${rankedResult.delta}` : String(rankedResult?.delta || 0);
+      const rankedDetail = rankedResult
+        ? `<p class="result-rank">${rankedResult.rank} ${rankedResult.pointsBefore} → ${rankedResult.pointsAfter} RP (${rankedDelta})</p>`
+        : "";
       this.sounds?.play(won ? "victory" : "defeat", { volume: won ? 0.82 : 0.78 });
       const modal = document.createElement("div");
       modal.className = "modal-dialog";
       modal.innerHTML = `
         <p class="eyebrow">${won ? "Victory" : "Defeat"}</p>
         <h2>${won ? "勝利" : "敗北"}</h2>
-        <p>${resultMessage(won, online)}</p>
+        <p>${resultMessage(won, online, ranked)}</p>
+        ${rankedDetail}
         <p class="result-reward"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> +${reward}</p>
         <div class="modal-actions">
           <button id="resultRestart" class="primary-button" type="button"${this.restart ? "" : " disabled"}>再戦</button>
@@ -1619,7 +1626,8 @@
     return Object.entries(counts).flatMap(([id, count]) => Array(count).fill(id));
   }
 
-  function resultMessage(won, online) {
+  function resultMessage(won, online, ranked = false) {
+    if (ranked) return won ? "ランク戦に勝利しました。" : "ランク戦に敗北しました。";
     if (online) return won ? "友達との対戦に勝利しました。" : "友達との対戦に敗北しました。";
     return won ? "構築したルートが相手の盤面を突破しました。" : "黒機の展開を止めきれませんでした。";
   }

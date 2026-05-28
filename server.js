@@ -17,6 +17,10 @@ const MAX_LP = 8000;
 const UNIT_ZONES = 5;
 const CORE_ZONES = 2;
 const REACTION_ZONES = 3;
+const RANKED_INITIAL_POINTS = 1000;
+const RANKED_WIN_DELTA = 30;
+const RANKED_LOSS_DELTA = -18;
+const RANKED_WAITING_TTL_MS = 10 * 60 * 1000;
 
 const chrono = loadChronoData();
 const cards = chrono.cards;
@@ -118,6 +122,11 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/api/ranked/queue") {
+    await handleRankedQueueApi(req, res);
+    return;
+  }
+
   if (url.pathname === "/api/accounts") {
     sendJson(res, 410, { error: "password login is required" });
     return;
@@ -139,6 +148,8 @@ async function handleApi(req, res, url) {
       roomId: room.id,
       playerId: room.players.host.id,
       seat: "host",
+      mode: room.mode,
+      ranked: Boolean(room.ranked),
     });
     return;
   }
@@ -157,6 +168,10 @@ async function handleApi(req, res, url) {
 
   const route = match[2];
   if (req.method === "POST" && route === "join") {
+    if (room.mode === "ranked") {
+      sendJson(res, 403, { error: "use ranked matchmaking" });
+      return;
+    }
     const body = await readJson(req);
     if (room.players.guest) {
       sendJson(res, 409, { error: "room is full" });
@@ -173,6 +188,9 @@ async function handleApi(req, res, url) {
       roomId: room.id,
       playerId: room.players.guest.id,
       seat: "guest",
+      mode: room.mode,
+      ranked: Boolean(room.ranked),
+      matched: true,
     });
     return;
   }
@@ -195,7 +213,7 @@ async function handleApi(req, res, url) {
       sendJson(res, 403, { error: "invalid player" });
       return;
     }
-    applyAction(room, seat, body.action || {});
+    await applyAction(room, seat, body.action || {});
     sendJson(res, 200, roomSnapshot(room, seat));
     return;
   }
@@ -323,21 +341,88 @@ async function handleAuthenticatedAccountApi(req, res) {
   sendJson(res, 405, { error: "method not allowed" });
 }
 
-function createRoom(deck, driveDeck, playerName = "Player") {
+async function handleRankedQueueApi(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "method not allowed" });
+    return;
+  }
+
+  const auth = await authenticateRequest(req);
+  if (!auth) {
+    sendJson(res, 401, { error: "login required" });
+    return;
+  }
+
+  const body = await readJson(req);
+  const deck = validateDeck(body.deck);
+  const driveDeck = validateDriveDeck(body.driveDeck);
+  const playerName = normalizeAccountName(body.playerName || body.displayName || auth.account.displayName || auth.username);
+
+  cleanupRankedWaitingRooms();
+  removeRankedWaitingRoomsFor(auth.username);
+
+  const waitingRoom = findRankedWaitingRoom(auth.username);
+  if (waitingRoom) {
+    waitingRoom.players.guest = {
+      id: makeId(12),
+      name: playerName,
+      account: auth.username,
+      deck,
+      driveDeck,
+    };
+    waitingRoom.ranked.accounts.guest = auth.username;
+    startRoomGame(waitingRoom);
+    sendJson(res, 200, {
+      roomId: waitingRoom.id,
+      playerId: waitingRoom.players.guest.id,
+      seat: "guest",
+      mode: "ranked",
+      ranked: true,
+      matched: true,
+    });
+    return;
+  }
+
+  const room = createRoom(deck, driveDeck, playerName, {
+    mode: "ranked",
+    hostUsername: auth.username,
+  });
+  sendJson(res, 200, {
+    roomId: room.id,
+    playerId: room.players.host.id,
+    seat: "host",
+    mode: "ranked",
+    ranked: true,
+    matched: false,
+  });
+}
+
+function createRoom(deck, driveDeck, playerName = "Player", options = {}) {
   let id = "";
   do {
     id = makeId(5);
   } while (rooms.has(id));
+  const mode = options.mode === "ranked" ? "ranked" : "room";
+  const hostUsername = normalizeUsername(options.hostUsername);
   const room = {
     id,
+    mode,
     status: "waiting",
+    createdAt: Date.now(),
     version: 1,
     players: {
-      host: { id: makeId(12), name: normalizeAccountName(playerName), deck, driveDeck },
+      host: { id: makeId(12), name: normalizeAccountName(playerName), account: hostUsername, deck, driveDeck },
       guest: null,
     },
     game: null,
-    logItems: [`ルーム ${id} を作成しました。友達にIDを伝えてください。`],
+    ranked: mode === "ranked"
+      ? { accounts: { host: hostUsername, guest: "" }, reported: false, results: {} }
+      : null,
+    logItems: [
+      mode === "ranked"
+        ? `ランク戦 ${id}: 対戦相手を検索中です。`
+        : `ルーム ${id} を作成しました。友達にIDを伝えてください。`,
+    ],
   };
   rooms.set(id, room);
   return room;
@@ -345,6 +430,7 @@ function createRoom(deck, driveDeck, playerName = "Player") {
 
 function startRoomGame(room) {
   const firstActive = Math.random() < 0.5 ? "host" : "guest";
+  const modeLabel = room.mode === "ranked" ? "ランク戦" : "ルーム";
   room.game = {
     turn: 1,
     active: firstActive,
@@ -359,7 +445,7 @@ function startRoomGame(room) {
     host: newDuelist(room.players.host.name || "Host", room.players.host.deck, room.players.host.driveDeck),
     guest: newDuelist(room.players.guest.name || "Guest", room.players.guest.deck, room.players.guest.driveDeck),
     logItems: [
-      `ルーム ${room.id}: オンラインデュエル開始。`,
+      `${modeLabel} ${room.id}: オンラインデュエル開始。`,
       `先攻は${firstActive === "host" ? "ホスト" : "ゲスト"}です。`,
     ],
   };
@@ -368,6 +454,31 @@ function startRoomGame(room) {
   refreshTurn(room.game[firstActive]);
   room.status = "playing";
   room.version += 1;
+}
+
+function findRankedWaitingRoom(username) {
+  for (const room of rooms.values()) {
+    if (room.mode !== "ranked" || room.status !== "waiting" || !room.ranked || room.players.guest) continue;
+    if (room.ranked.accounts.host === username) continue;
+    return room;
+  }
+  return null;
+}
+
+function removeRankedWaitingRoomsFor(username) {
+  for (const [id, room] of rooms.entries()) {
+    if (room.mode !== "ranked" || room.status !== "waiting") continue;
+    if (room.ranked?.accounts?.host === username) rooms.delete(id);
+  }
+}
+
+function cleanupRankedWaitingRooms() {
+  const now = Date.now();
+  for (const [id, room] of rooms.entries()) {
+    if (room.mode === "ranked" && room.status === "waiting" && now - Number(room.createdAt || now) > RANKED_WAITING_TTL_MS) {
+      rooms.delete(id);
+    }
+  }
 }
 
 function newDuelist(name, deck, driveDeck = []) {
@@ -390,7 +501,7 @@ function newDuelist(name, deck, driveDeck = []) {
   };
 }
 
-function applyAction(room, seat, action) {
+async function applyAction(room, seat, action) {
   const game = room.game;
   if (!game || game.finished) return;
 
@@ -398,6 +509,7 @@ function applyAction(room, seat, action) {
     if (action.type === "choice" && game.pendingChoice.seat === seat) {
       resolvePendingChoice(game, action);
       checkGameEnd(game);
+      await finalizeRankedRoom(room);
       room.version += 1;
     }
     return;
@@ -429,6 +541,7 @@ function applyAction(room, seat, action) {
   }
 
   checkGameEnd(game);
+  await finalizeRankedRoom(room);
   room.version += 1;
 }
 
@@ -2061,14 +2174,85 @@ function checkGameEnd(game) {
   return false;
 }
 
+async function finalizeRankedRoom(room) {
+  const game = room.game;
+  if (!room.ranked || room.ranked.reported || !game?.finished) return;
+
+  const results = {};
+  for (const seat of ["host", "guest"]) {
+    const username = normalizeUsername(room.ranked.accounts?.[seat]);
+    if (!username) continue;
+    const account = await loadAccount(username);
+    if (!account) continue;
+    const clean = sanitizeAccountRecord(username, account);
+    const before = sanitizeRankedRecord(clean.ranked);
+    const after = rankedAfterResult(before, game.winner === seat);
+    clean.ranked = after;
+    clean.updatedAt = after.updatedAt;
+    await saveAccount(username, clean);
+    results[seat] = rankedResultPayload(before, after, game.winner === seat);
+  }
+
+  room.ranked.results = results;
+  room.ranked.reported = true;
+  room.version += 1;
+}
+
+function rankedAfterResult(current, won) {
+  const before = sanitizeRankedRecord(current);
+  const delta = won ? RANKED_WIN_DELTA : RANKED_LOSS_DELTA;
+  const points = Math.max(0, before.points + delta);
+  const now = new Date().toISOString();
+  return {
+    points,
+    wins: before.wins + (won ? 1 : 0),
+    losses: before.losses + (won ? 0 : 1),
+    streak: won ? before.streak + 1 : 0,
+    bestPoints: Math.max(before.bestPoints, points),
+    updatedAt: now,
+  };
+}
+
+function rankedResultPayload(before, after, won) {
+  return {
+    won,
+    pointsBefore: before.points,
+    pointsAfter: after.points,
+    points: after.points,
+    delta: after.points - before.points,
+    wins: after.wins,
+    losses: after.losses,
+    streak: after.streak,
+    bestPoints: after.bestPoints,
+    rank: rankName(after.points),
+    nextRankAt: nextRankAt(after.points),
+    updatedAt: after.updatedAt,
+  };
+}
+
+function rankName(points) {
+  if (points >= 2600) return "マスター";
+  if (points >= 2200) return "ダイヤ";
+  if (points >= 1800) return "プラチナ";
+  if (points >= 1500) return "ゴールド";
+  if (points >= 1200) return "シルバー";
+  return "ブロンズ";
+}
+
+function nextRankAt(points) {
+  return [1200, 1500, 1800, 2200, 2600].find((threshold) => points < threshold) || null;
+}
+
 function roomSnapshot(room, seat) {
   if (room.status === "waiting" || !room.game) {
     return {
       roomId: room.id,
+      mode: room.mode || "room",
+      ranked: Boolean(room.ranked),
       status: "waiting",
       version: room.version,
       seat,
-      message: `ルーム ${room.id}: 相手の参加待ち`,
+      message: room.mode === "ranked" ? `ランク戦 ${room.id}: 対戦相手を検索中` : `ルーム ${room.id}: 相手の参加待ち`,
     };
   }
   const enemySeat = seat === "host" ? "guest" : "host";
@@ -2077,6 +2261,8 @@ function roomSnapshot(room, seat) {
   const enemy = publicDuelist(game[enemySeat], false);
   return {
     roomId: room.id,
+    mode: room.mode || "room",
+    ranked: Boolean(room.ranked),
     status: game.finished ? "finished" : "playing",
     version: room.version,
     seat,
@@ -2090,6 +2276,7 @@ function roomSnapshot(room, seat) {
     waitingChoice: publicWaitingChoice(game.pendingChoice, seat),
     activationEvents: publicActivationEvents(game.activationEvents, seat),
     soundEvents: publicSoundEvents(game.soundEvents, seat),
+    rankedResult: game.finished && room.ranked?.results ? room.ranked.results[seat] || null : null,
     player,
     enemy,
     logItems: game.logItems.slice(),
@@ -2286,6 +2473,7 @@ function createDefaultAccountRecord(username, displayName = "Player") {
     activeDeckId: "main",
     gems: 0,
     dust: 0,
+    ranked: sanitizeRankedRecord({ updatedAt: now }),
     collection: initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {}),
     collectionRoyal: {},
     updatedAt: now,
@@ -2371,6 +2559,7 @@ function sanitizeAccountRecord(name, account = {}) {
     activeDeckId: sanitizeId(account.activeDeckId || "main"),
     gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
     dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
+    ranked: sanitizeRankedRecord(account.ranked),
     collection: sanitizeCollection(account.collection),
     collectionRoyal: sanitizeCounts(account.collectionRoyal),
     updatedAt: String(account.updatedAt || new Date().toISOString()),
@@ -2392,6 +2581,7 @@ function mergeAccountRecord(name, current, incoming) {
     displayName: incoming.displayName || current.displayName || current.name || name,
     gems: newer.gems,
     dust: newer.dust,
+    ranked: mergeRankedRecord(current.ranked, incoming.ranked),
     collection: newer.collection,
     collectionRoyal: newer.collectionRoyal,
     updatedAt: newer.updatedAt,
@@ -2464,6 +2654,40 @@ function isStoredPasswordHash(value) {
 
 function isStoredTokenHash(value) {
   return /^[a-f0-9]{64}$/i.test(String(value || ""));
+}
+
+function sanitizeRankedRecord(source = {}) {
+  const record = source && typeof source === "object" ? source : {};
+  const rawPoints = Number(record.points);
+  const points = Math.max(0, Math.floor(Number.isFinite(rawPoints) ? rawPoints : RANKED_INITIAL_POINTS));
+  const bestPoints = Math.max(points, Math.floor(Number(record.bestPoints) || points));
+  return {
+    points,
+    wins: Math.max(0, Math.floor(Number(record.wins) || 0)),
+    losses: Math.max(0, Math.floor(Number(record.losses) || 0)),
+    streak: Math.max(0, Math.floor(Number(record.streak) || 0)),
+    bestPoints,
+    updatedAt: String(record.updatedAt || new Date().toISOString()),
+  };
+}
+
+function mergeRankedRecord(current = {}, incoming = {}) {
+  if (!hasRankedRecord(incoming)) return sanitizeRankedRecord(current);
+  if (!hasRankedRecord(current)) return sanitizeRankedRecord(incoming);
+  const currentRanked = sanitizeRankedRecord(current);
+  const incomingRanked = sanitizeRankedRecord(incoming);
+  return Date.parse(incomingRanked.updatedAt) >= Date.parse(currentRanked.updatedAt)
+    ? incomingRanked
+    : currentRanked;
+}
+
+function hasRankedRecord(source) {
+  return Boolean(source && typeof source === "object" && (
+    source.points !== undefined ||
+    source.wins !== undefined ||
+    source.losses !== undefined ||
+    source.updatedAt !== undefined
+  ));
 }
 
 function sanitizeCounts(source = {}) {
