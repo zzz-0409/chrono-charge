@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260528-title";
+const CACHE_VERSION = "chrono-drive-pwa-20260528-tapstart";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260528title",
+  "/styles.css?v=20260528tapstart",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -40,7 +40,7 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260528packsound",
   "/src/net/online-client.js?v=20260528soundse",
   "/src/ui/duel-view.js?v=20260528resultse",
-  "/src/main.js?v=20260528title"
+  "/src/main.js?v=20260528tapstart"
 ];
 
 self.addEventListener("install", (event) => {

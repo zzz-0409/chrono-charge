@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
-    <link rel="stylesheet" href="styles.css?v=20260528title">
+    <link rel="stylesheet" href="styles.css?v=20260528tapstart">
     <script defer src="src/data/cards.js?v=20260528abyss"></script>
     <script defer src="src/core/deck-store.js?v=20260528keikan"></script>
     <script defer src="src/core/effect-resolver.js?v=20260528abyss"></script>
@@ -26,7 +26,7 @@
     <script defer src="src/ui/pack-view.js?v=20260528packsound"></script>
     <script defer src="src/net/online-client.js?v=20260528soundse"></script>
     <script defer src="src/ui/duel-view.js?v=20260528resultse"></script>
-    <script defer src="src/main.js?v=20260528title"></script>
+    <script defer src="src/main.js?v=20260528tapstart"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -146,11 +146,11 @@
 
     <div id="scaleMount" class="scale-mount">
     <div id="appShell" class="app-shell title-active">
-      <section id="titleView" class="title-view" aria-label="Chrono Drive title">
+      <section id="titleView" class="title-view" role="button" tabindex="0" aria-label="Chrono Drive title. Tap to start">
         <div class="title-screen-copy">
           <p class="title-screen-kana">クロノドライブ</p>
           <h1>Chrono Drive</h1>
-          <button id="titleStartButton" class="title-start-button" type="button">GAMESTART</button>
+          <p class="title-start-prompt">TAP TO START</p>
         </div>
       </section>
       <header class="app-header">

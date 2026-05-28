@@ -24,7 +24,6 @@
     duelTab: document.querySelector("#duelTab"),
     homeView: document.querySelector("#homeView"),
     titleView: document.querySelector("#titleView"),
-    titleStartButton: document.querySelector("#titleStartButton"),
     deckSelectView: document.querySelector("#deckSelectView"),
     builderView: document.querySelector("#builderView"),
     packView: document.querySelector("#packView"),
@@ -225,11 +224,18 @@
   };
 
   const handleTitleStart = () => {
+    if (!els.appShell?.classList.contains("title-active")) return;
     if (store.isAuthenticated) {
       enterAppFromTitle();
       return;
     }
     openTitleLogin();
+  };
+
+  const handleTitleKeydown = (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    handleTitleStart();
   };
 
   const askSaveBeforeLeaving = () => new Promise((resolve) => {
@@ -805,7 +811,8 @@
   els.modeCreateRoomButton?.addEventListener("click", createRoomDuel);
   els.modeJoinRoomButton?.addEventListener("click", joinRoomDuel);
   els.modeCpuDuelButton?.addEventListener("click", () => startCpuDuel());
-  els.titleStartButton?.addEventListener("click", handleTitleStart);
+  els.titleView?.addEventListener("click", handleTitleStart);
+  els.titleView?.addEventListener("keydown", handleTitleKeydown);
 
   els.homeTab?.addEventListener("click", () => navigateView("home"));
   els.builderTab?.addEventListener("click", () => navigateView("deckSelect"));

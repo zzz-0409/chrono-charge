@@ -155,6 +155,7 @@ button {
   background:
     linear-gradient(180deg, rgba(4, 7, 12, 0.1) 0%, rgba(4, 7, 12, 0.08) 48%, rgba(4, 7, 12, 0.72) 100%),
     url("assets/title/title-bg.png") center / cover no-repeat;
+  cursor: pointer;
 }
 
 .app-shell:not(.title-active) .title-view {
@@ -192,27 +193,43 @@ button {
     0 4px 28px rgba(0, 0, 0, 0.86);
 }
 
-.title-start-button {
+.title-start-prompt {
   min-width: 236px;
   min-height: 54px;
-  border: 1px solid rgba(255, 238, 178, 0.68);
-  border-radius: 8px;
-  padding: 0 34px;
-  color: #071016;
-  background: linear-gradient(180deg, #fff1a8 0%, #f0b95c 54%, #c98628 100%);
-  box-shadow: 0 0 24px rgba(240, 185, 92, 0.54), 0 18px 34px rgba(0, 0, 0, 0.44);
-  font-size: 21px;
+  display: inline-grid;
+  place-items: center;
+  margin: 2px 0 0;
+  color: #fff1a8;
+  font-size: 22px;
   font-weight: 1000;
   letter-spacing: 0;
-  cursor: pointer;
+  text-shadow:
+    0 0 18px rgba(240, 185, 92, 0.86),
+    0 4px 20px rgba(0, 0, 0, 0.72);
+  animation: title-prompt-pulse 1.45s ease-in-out infinite;
 }
 
-.title-start-button:hover {
-  filter: brightness(1.08);
+.title-view:hover .title-start-prompt,
+.title-view:focus-visible .title-start-prompt {
+  color: #fff7dc;
 }
 
-.title-start-button:active {
-  transform: translateY(1px);
+.title-view:focus-visible {
+  outline: 2px solid rgba(255, 241, 168, 0.72);
+  outline-offset: -8px;
+}
+
+@keyframes title-prompt-pulse {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
 }
 
 .app-header {
