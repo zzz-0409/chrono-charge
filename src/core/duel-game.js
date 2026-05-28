@@ -315,21 +315,28 @@
     }
 
     async attackWithUnit(attackerIndex, targetIndex) {
-      if (!this.canPlayerAct()) return;
-      if (!this.canAttack(this.player)) return;
+      if (!this.canPlayerAct()) return false;
+      if (!this.canAttack(this.player)) return false;
       const unit = this.player.units[attackerIndex];
-      if (!unit || unit.exhausted) return;
+      if (!unit || unit.exhausted) return false;
 
-      const negated = await this.resolveReactionWindow({ trigger: "attack", source: cards[unit.id], sourceIndex: attackerIndex }, this.enemy, this.player);
-      if (negated) {
-        unit.exhausted = true;
-        this.notify();
-        return;
-      }
-
-      this.resolveAttack(this.player, this.enemy, attackerIndex, targetIndex);
-      this.checkGameEnd();
+      this.busy = true;
       this.notify();
+      try {
+        const negated = await this.resolveReactionWindow({ trigger: "attack", source: cards[unit.id], sourceIndex: attackerIndex }, this.enemy, this.player);
+        if (negated) {
+          unit.exhausted = true;
+          this.notify();
+          return true;
+        }
+
+        this.resolveAttack(this.player, this.enemy, attackerIndex, targetIndex);
+        this.checkGameEnd();
+        return true;
+      } finally {
+        this.busy = false;
+        this.notify();
+      }
     }
 
     endPlayerTurn() {
@@ -1876,6 +1883,7 @@
       const [id] = player.grave.splice(index, 1);
       player.charge.push({ id, tapped: false });
       this.log(`${cards[id].name}をロストゾーンからチャージに置いた。`);
+      this.notify();
       return true;
     }
 
