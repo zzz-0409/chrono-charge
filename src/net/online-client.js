@@ -31,6 +31,7 @@
       this.isRanked = Boolean(session.ranked || session.mode === "ranked");
       this.matched = Boolean(session.matched);
       this.finished = Boolean(session.finished);
+      this.resumed = Boolean(session.resumed);
     }
 
     static async createRoom(deck, driveDeck, playerName = "Player") {
@@ -67,6 +68,7 @@
         headers,
       });
       if (!result.room) return null;
+      result.room.resumed = true;
       this.saveSession(result.room);
       return new OnlineClient(result.room);
     }
@@ -78,6 +80,7 @@
         body: { action: "abandon" },
       });
       if (!result.room) return null;
+      result.room.resumed = true;
       this.saveSession(result.room);
       return new OnlineClient(result.room);
     }
@@ -145,6 +148,8 @@
       this.seenActivationEvents = new Set();
       this.seenSoundEvents = new Set();
       this.activationQueue = Promise.resolve();
+      this.hasAppliedSnapshot = false;
+      this.skipInitialRemoteEvents = Boolean(this.client.resumed);
     }
 
     start() {
@@ -259,8 +264,11 @@
         this.logItems = snapshot.logItems || [];
       }
 
-      this.queueSoundEvents(snapshot.soundEvents || []);
-      const animationReady = this.queueActivationEvents(snapshot.activationEvents || []);
+      const skipEvents = this.skipInitialRemoteEvents && !this.hasAppliedSnapshot;
+      const animationReady = skipEvents
+        ? this.markRemoteEventsSeen(snapshot)
+        : this.queueSnapshotEvents(snapshot);
+      this.hasAppliedSnapshot = true;
       this.onChange(this);
       if (this.pendingChoice) {
         const pending = this.pendingChoice;
@@ -272,6 +280,21 @@
         this.reportedResult = true;
         this.onResult(this.won, this);
       }
+    }
+
+    markRemoteEventsSeen(snapshot) {
+      (snapshot.activationEvents || []).forEach((event) => {
+        if (event?.eventId) this.seenActivationEvents.add(event.eventId);
+      });
+      (snapshot.soundEvents || []).forEach((event) => {
+        if (event?.eventId) this.seenSoundEvents.add(event.eventId);
+      });
+      return this.activationQueue;
+    }
+
+    queueSnapshotEvents(snapshot) {
+      this.queueSoundEvents(snapshot.soundEvents || []);
+      return this.queueActivationEvents(snapshot.activationEvents || []);
     }
 
     queueActivationEvents(events) {
