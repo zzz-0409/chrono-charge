@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260528-soundse";
+const CACHE_VERSION = "chrono-drive-pwa-20260528-packsound";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260528abyss",
+  "/styles.css?v=20260528packsound",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -34,10 +34,10 @@ const APP_SHELL_URLS = [
   "/src/ui/sound-effects.js?v=20260528soundse",
   "/src/ui/card-zoom.js?v=20260522k",
   "/src/ui/deck-builder-view.js?v=20260527pointerdnd",
-  "/src/ui/pack-view.js?v=20260526packResultFlow",
+  "/src/ui/pack-view.js?v=20260528packsound",
   "/src/net/online-client.js?v=20260528soundse",
   "/src/ui/duel-view.js?v=20260528soundse",
-  "/src/main.js?v=20260528abyss"
+  "/src/main.js?v=20260528packsound"
 ];
 
 self.addEventListener("install", (event) => {

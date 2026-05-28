@@ -1,7 +1,10 @@
 (function () {
   "use strict";
 
-  const { CardRenderer, CardZoom } = window.Chrono;
+  const { CardRenderer, CardZoom, SoundEffects } = window.Chrono;
+
+  const PACK_REVEAL_SOUND_INITIAL_DELAY_MS = 70;
+  const PACK_REVEAL_SOUND_STEP_MS = 90;
 
   class PackView {
     constructor(options) {
@@ -10,9 +13,11 @@
       this.toast = options.toast;
       this.setView = options.setView || (() => {});
       this.onCollectionChange = options.onCollectionChange || (() => {});
+      this.sounds = options.sounds || SoundEffects;
       this.selectedPackId = this.store.packDefinitions[0]?.id || "";
       this.lastResultPack = null;
       this.lastResultCount = 0;
+      this.packSoundTimers = [];
       this.bindEvents();
     }
 
@@ -126,6 +131,7 @@
       const grid = this.els.packResultGrid;
       if (!grid) return;
       this.lastResultCount = results.length;
+      this.clearPackSoundTimers();
       grid.replaceChildren();
       if (this.els.packResultEyebrow) this.els.packResultEyebrow.textContent = `${results.length} cards`;
       if (this.els.packResultTitle) this.els.packResultTitle.textContent = `${pack?.name || "パック"} 開封結果`;
@@ -149,12 +155,29 @@
         slot.append(card, badge);
         grid.append(slot);
       });
+      this.schedulePackResultSounds(results);
     }
 
     clearResults() {
       this.lastResultPack = null;
       this.lastResultCount = 0;
+      this.clearPackSoundTimers();
       this.els.packResultGrid?.replaceChildren();
+    }
+
+    schedulePackResultSounds(results) {
+      results.forEach((entry, index) => {
+        const timer = window.setTimeout(() => {
+          if (entry.finish === "royal") this.sounds?.play("activation", { volume: 0.7 });
+          else this.sounds?.play("place", { volume: 0.72 });
+        }, PACK_REVEAL_SOUND_INITIAL_DELAY_MS + (index * PACK_REVEAL_SOUND_STEP_MS));
+        this.packSoundTimers.push(timer);
+      });
+    }
+
+    clearPackSoundTimers() {
+      this.packSoundTimers.forEach((timer) => window.clearTimeout(timer));
+      this.packSoundTimers = [];
     }
 
     get selectedPack() {

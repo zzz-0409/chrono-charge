@@ -11,6 +11,7 @@
     ScaleManager,
     OnlineClient,
     OnlineGameProxy,
+    SoundEffects,
     cards,
   } = window.Chrono;
 
@@ -330,6 +331,7 @@
     els,
     toast,
     setView,
+    sounds: SoundEffects,
     onCollectionChange: () => builderView.render({ preserveLibraryScroll: true }),
   });
 

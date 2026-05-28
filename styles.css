@@ -5090,7 +5090,7 @@ select {
   --card-height: var(--card-hand-height);
   --card-render-scale: 0.311475;
   animation: pack-card-pop 260ms ease both;
-  animation-delay: calc(var(--pack-index, 0) * 70ms);
+  animation-delay: calc(var(--pack-index, 0) * 90ms);
 }
 
 .pack-owned-badge {
