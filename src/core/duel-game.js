@@ -2111,7 +2111,7 @@
 
     async chooseReactionTargetIndex(player, predicate = () => true, choice = {}) {
       const candidates = player.reactions
-        .map((entry, index) => ({ id: reactionId(entry), entry, index }))
+        .map((entry, index) => ({ id: reactionId(entry), entry, index, facedown: !reactionRevealed(entry) }))
         .filter((candidate) => candidate.id && predicate(candidate.entry, candidate.index));
       if (candidates.length === 0) return -1;
       if (player !== this.enemy) return candidates[0].index;

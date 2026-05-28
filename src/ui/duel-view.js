@@ -1483,11 +1483,15 @@
             card.classList.toggle("selected", selected?.index === entry.index);
           });
           decide.disabled = !selected;
-          CardRenderer.focus(selected?.id, focus, { finish: this.finishFor(selected?.id) });
+          if (selected?.facedown) {
+            CardRenderer.facedownFocus(focus);
+          } else {
+            CardRenderer.focus(selected?.id, focus, { finish: this.finishFor(selected?.id) });
+          }
         };
 
         candidates.forEach((entry) => {
-          const card = CardRenderer.tcgCard(entry.id, { interactive: true, finish: this.finishFor(entry.id) });
+          const card = CardRenderer.tcgCard(entry.id, { facedown: entry.facedown, interactive: true, finish: this.finishFor(entry.id) });
           card.classList.add("grave-list-card");
           card.addEventListener("click", () => {
             selected = entry;

@@ -1538,7 +1538,7 @@ function chooseExhaustUnit(game, chooser, targetPlayer, after = () => {}) {
 
 function queueReactionTargetChoice(game, chooser, targetPlayer, predicate, choice, handler, emptyHandler = () => {}) {
   const candidates = targetPlayer.reactions
-    .map((entry, index) => ({ id: reactionId(entry), entry, index }))
+    .map((entry, index) => ({ id: reactionId(entry), entry, index, facedown: !reactionRevealed(entry) }))
     .filter((candidate) => candidate.id && predicate(candidate.entry, candidate.index));
   if (candidates.length === 0) {
     emptyHandler();
@@ -2848,6 +2848,7 @@ function publicPendingChoice(choice, seat) {
     candidates: choice.candidates.map((entry) => ({
       id: entry.id,
       index: entry.index,
+      facedown: Boolean(entry.facedown),
     })),
   };
 }
