@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260528-packsound";
+const CACHE_VERSION = "chrono-drive-pwa-20260528-resultse";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -24,6 +24,8 @@ const APP_SHELL_URLS = [
   "/assets/SE/dame-ji.mp3",
   "/assets/SE/hakai.mp3",
   "/assets/SE/koukahatudou.mp3",
+  "/assets/SE/shouri.mp3",
+  "/assets/SE/haiboku.mp3",
   "/src/data/cards.js?v=20260528abyss",
   "/src/core/deck-store.js?v=20260528keikan",
   "/src/core/effect-resolver.js?v=20260528abyss",
@@ -31,12 +33,12 @@ const APP_SHELL_URLS = [
   "/src/core/duel-game.js?v=20260528soundse",
   "/src/ui/scale-manager.js?v=20260524a",
   "/src/ui/card-renderer.js?v=20260528abyss",
-  "/src/ui/sound-effects.js?v=20260528soundse",
+  "/src/ui/sound-effects.js?v=20260528resultse",
   "/src/ui/card-zoom.js?v=20260522k",
   "/src/ui/deck-builder-view.js?v=20260527pointerdnd",
   "/src/ui/pack-view.js?v=20260528packsound",
   "/src/net/online-client.js?v=20260528soundse",
-  "/src/ui/duel-view.js?v=20260528soundse",
+  "/src/ui/duel-view.js?v=20260528resultse",
   "/src/main.js?v=20260528packsound"
 ];
 

@@ -1533,6 +1533,7 @@
     showResult(won) {
       const online = Boolean(this.game?.isOnline);
       const reward = online ? this.onOnlineResult(won) : this.onCpuResult(won);
+      this.sounds?.play(won ? "victory" : "defeat", { volume: won ? 0.82 : 0.78 });
       const modal = document.createElement("div");
       modal.className = "modal-dialog";
       modal.innerHTML = `

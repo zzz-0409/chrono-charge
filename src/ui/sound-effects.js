@@ -9,6 +9,8 @@
     damage: "assets/SE/dame-ji.mp3",
     destroy: "assets/SE/hakai.mp3",
     activation: "assets/SE/koukahatudou.mp3",
+    victory: "assets/SE/shouri.mp3",
+    defeat: "assets/SE/haiboku.mp3",
   };
 
   class SoundEffects {
