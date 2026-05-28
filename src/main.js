@@ -39,6 +39,9 @@
     modeJoinRoomButton: document.querySelector("#modeJoinRoomButton"),
     modeCpuDuelButton: document.querySelector("#modeCpuDuelButton"),
     modeRankedDuelButton: document.querySelector("#modeRankedDuelButton"),
+    rankedLeaderboardButton: document.querySelector("#rankedLeaderboardButton"),
+    cpuThemeSelect: document.querySelector("#cpuThemeSelect"),
+    cpuFirstSelect: document.querySelector("#cpuFirstSelect"),
     rankedStatusText: document.querySelector("#rankedStatusText"),
     loginButton: document.querySelector("#loginButton"),
     displayNameInput: document.querySelector("#displayNameInput"),
@@ -373,6 +376,7 @@
       await store.syncActiveAccount();
       packView.render();
       renderShellResources();
+      checkRankedResume();
     },
     onLoginBonus: () => showLoginBonusIfReady(),
     confirmDeleteDeck: askDeleteDeck,
@@ -848,6 +852,8 @@
     duelView.start(deckSet.deck, deckSet.driveDeck, {
       mainRoyalIds: store.royalBattleIds,
       driveRoyalIds: store.driveRoyalBattleIds,
+      cpuTheme: els.cpuThemeSelect?.value || "random",
+      firstActive: els.cpuFirstSelect?.value || "random",
     });
   };
 
@@ -860,6 +866,46 @@
   const startOnlineDuel = (client) => {
     const game = new OnlineGameProxy({ client, toast });
     duelView.startOnline(game);
+  };
+
+  const askRankedResume = () => new Promise((resolve) => {
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog app-confirm-dialog";
+    modal.innerHTML = `
+      <h2>中断されたランク戦があります</h2>
+      <p>復帰すると対戦を続けます。復帰しない場合は敗北になります。</p>
+      <div class="modal-actions modal-actions-row">
+        <button class="ghost-button danger" type="button" data-choice="abandon">復帰しない</button>
+        <button class="primary-button" type="button" data-choice="resume">復帰する</button>
+      </div>
+    `;
+    modal.querySelectorAll("[data-choice]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const choice = button.dataset.choice;
+        closeAppModal();
+        resolve(choice);
+      });
+    });
+    openAppModal(modal);
+  });
+
+  let rankedResumePromptActive = false;
+  const checkRankedResume = async () => {
+    if (!store.isAuthenticated || rankedResumePromptActive || duelView.game?.isRanked) return;
+    rankedResumePromptActive = true;
+    try {
+      const client = await OnlineClient.resumeRanked(store.authHeaders());
+      if (!client) return;
+      const choice = client.finished ? "resume" : await askRankedResume();
+      const finalClient = choice === "abandon"
+        ? await OnlineClient.abandonRankedResume(store.authHeaders())
+        : client;
+      if (finalClient) startOnlineDuel(finalClient);
+    } catch {
+      // Resume is a convenience prompt; normal play should continue if it fails.
+    } finally {
+      rankedResumePromptActive = false;
+    }
   };
 
   const createRoomDuel = async () => {
@@ -936,6 +982,41 @@
     return `${present.amount}`;
   }
 
+  const openRankedLeaderboard = async () => {
+    if (!canUseOnline()) return;
+    try {
+      const result = await OnlineClient.rankedLeaderboard();
+      const entries = Array.isArray(result.entries) ? result.entries : [];
+      const modal = document.createElement("div");
+      modal.className = "modal-dialog ranked-leaderboard-dialog";
+      modal.innerHTML = `
+        <h2>ランク順位表</h2>
+        <div class="ranked-leaderboard-list">
+          ${entries.length ? entries.map((entry) => rankedLeaderboardRow(entry)).join("") : '<p class="small-note">まだランク記録がありません。</p>'}
+        </div>
+        <div class="modal-actions modal-actions-row">
+          <button class="ghost-button" type="button" data-action="close">閉じる</button>
+        </div>
+      `;
+      modal.querySelector('[data-action="close"]').addEventListener("click", closeAppModal);
+      openAppModal(modal);
+    } catch (error) {
+      toast(error.message || "順位表を取得できませんでした。");
+    }
+  };
+
+  function rankedLeaderboardRow(entry) {
+    const current = store.isAuthenticated && entry.username === store.username;
+    return `
+      <article class="ranked-leaderboard-row${current ? " current" : ""}">
+        <strong>${entry.place}</strong>
+        <span>${escapeHtml(entry.displayName || entry.username)}</span>
+        <em>${escapeHtml(entry.rank)} ${entry.points} RP</em>
+        <small>${entry.wins}勝 ${entry.losses}敗</small>
+      </article>
+    `;
+  }
+
   const startRankedDuel = async () => {
     if (!canUseOnline()) return;
     if (!store.isAuthenticated) {
@@ -953,7 +1034,7 @@
     try {
       const client = await OnlineClient.enterRanked(deckSet.deck, deckSet.driveDeck, store.displayName, store.authHeaders());
       startOnlineDuel(client);
-      toast(client.matched ? "ランク戦の相手が見つかりました。" : `ランク戦 ${client.roomId}: 対戦相手を検索中です。`);
+      toast(client.matched ? "ランク戦の相手が見つかりました。" : "ランク戦の相手を検索中です。");
     } catch (error) {
       toast(error.message || "ランク戦の開始に失敗しました。");
     }
@@ -964,6 +1045,7 @@
   els.newDuelButton?.addEventListener("click", () => startCpuDuel());
   els.duelSelectedDeckButton?.addEventListener("click", openDuelDeckSelector);
   els.modeRankedDuelButton?.addEventListener("click", () => startRankedDuel());
+  els.rankedLeaderboardButton?.addEventListener("click", openRankedLeaderboard);
   els.modeCreateRoomButton?.addEventListener("click", createRoomDuel);
   els.modeJoinRoomButton?.addEventListener("click", joinRoomDuel);
   els.modeCpuDuelButton?.addEventListener("click", () => startCpuDuel());
@@ -1015,6 +1097,7 @@
     renderRankedStatus();
     renderShellResources();
     showLoginBonusIfReady();
+    checkRankedResume();
   });
 
   let accountSyncTimer = 0;
@@ -1027,6 +1110,7 @@
         renderRankedStatus();
         renderShellResources();
         showLoginBonusIfReady();
+        checkRankedResume();
       });
     }, 120);
   };

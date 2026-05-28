@@ -2755,6 +2755,36 @@ select {
   gap: 10px;
 }
 
+.duel-mode-options {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.duel-mode-options label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: rgba(237, 242, 246, 0.78);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.duel-mode-options select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid rgba(255, 229, 154, 0.34);
+  border-radius: 5px;
+  background: rgba(12, 18, 28, 0.86);
+  color: #f8f1db;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
 .duel-mode-card > .primary-button,
 .duel-mode-card > .ghost-button,
 .duel-mode-actions .primary-button,
@@ -3375,6 +3405,14 @@ select {
   background: rgba(7, 24, 28, 0.52);
   text-align: center;
   line-height: 1.35;
+}
+
+.disconnect-claim {
+  gap: 8px;
+}
+
+.disconnect-claim .primary-button {
+  min-height: 36px;
 }
 
 .battle-log {
@@ -5763,6 +5801,59 @@ select {
   color: var(--gold);
   font-weight: 1000;
   white-space: nowrap;
+}
+
+.ranked-leaderboard-dialog {
+  width: min(560px, calc(100% - 24px));
+}
+
+.ranked-leaderboard-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(520px, 62vh);
+  overflow: auto;
+}
+
+.ranked-leaderboard-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 229, 154, 0.2);
+  border-radius: 6px;
+  background: rgba(10, 18, 30, 0.72);
+}
+
+.ranked-leaderboard-row.current {
+  border-color: rgba(244, 216, 137, 0.62);
+  background: rgba(65, 50, 18, 0.52);
+}
+
+.ranked-leaderboard-row strong,
+.ranked-leaderboard-row em,
+.ranked-leaderboard-row small {
+  white-space: nowrap;
+}
+
+.ranked-leaderboard-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 900;
+}
+
+.ranked-leaderboard-row em {
+  color: #f4d889;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.ranked-leaderboard-row small {
+  color: rgba(237, 242, 246, 0.72);
+  font-weight: 800;
 }
 
 .modal-field {

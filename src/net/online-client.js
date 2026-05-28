@@ -30,6 +30,7 @@
       this.mode = session.mode || "room";
       this.isRanked = Boolean(session.ranked || session.mode === "ranked");
       this.matched = Boolean(session.matched);
+      this.finished = Boolean(session.finished);
     }
 
     static async createRoom(deck, driveDeck, playerName = "Player") {
@@ -58,6 +59,33 @@
       });
       this.saveSession(session);
       return new OnlineClient(session);
+    }
+
+    static async resumeRanked(headers = {}) {
+      const result = await requestJson("/api/ranked/resume", {
+        method: "GET",
+        headers,
+      });
+      if (!result.room) return null;
+      this.saveSession(result.room);
+      return new OnlineClient(result.room);
+    }
+
+    static async abandonRankedResume(headers = {}) {
+      const result = await requestJson("/api/ranked/resume", {
+        method: "POST",
+        headers,
+        body: { action: "abandon" },
+      });
+      if (!result.room) return null;
+      this.saveSession(result.room);
+      return new OnlineClient(result.room);
+    }
+
+    static async rankedLeaderboard() {
+      return requestJson("/api/ranked/leaderboard", {
+        method: "GET",
+      });
     }
 
     static saveSession(session) {
@@ -107,6 +135,7 @@
       this.logItems = [];
       this.pendingChoice = null;
       this.waitingChoice = null;
+      this.disconnectStatus = null;
       this.player = emptyDuelist("Player");
       this.enemy = emptyDuelist("Opponent");
       this.pollTimer = 0;
@@ -158,6 +187,23 @@
       return this.sendAction({ type: "endTurn" });
     }
 
+    async claimDisconnectWin() {
+      if (this.status !== "playing" || this.finished || !this.disconnectStatus?.canClaim) return false;
+      this.busy = true;
+      this.onChange(this);
+      try {
+        const snapshot = await this.client.action({ type: "claimDisconnectWin" });
+        this.busy = false;
+        this.applySnapshot(snapshot);
+        return true;
+      } catch (error) {
+        this.busy = false;
+        this.toast(error.message || "切断勝利の確定に失敗しました。");
+        this.onChange(this);
+        return false;
+      }
+    }
+
     async sendAction(action) {
       if (!this.canPlayerAct()) return false;
       this.busy = true;
@@ -201,11 +247,12 @@
       this.pendingChoice = snapshot.pendingChoice || null;
       this.waitingChoice = snapshot.waitingChoice || null;
       this.rankedResult = snapshot.rankedResult || this.rankedResult;
+      this.disconnectStatus = snapshot.disconnectStatus || null;
 
       if (snapshot.status === "waiting") {
         this.player = emptyDuelist("Player");
         this.enemy = emptyDuelist("Opponent");
-        this.logItems = [snapshot.message || `ルーム ${snapshot.roomId}: 相手の参加待ち`];
+        this.logItems = [snapshot.message || (this.isRanked ? "マッチング中 0秒" : `ルーム ${snapshot.roomId}: 相手の参加待ち`)];
       } else {
         this.player = normalizeDuelist(snapshot.player, "Player");
         this.enemy = normalizeDuelist(snapshot.enemy, "Opponent");

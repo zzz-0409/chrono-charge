@@ -12,21 +12,21 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
-    <link rel="stylesheet" href="styles.css?v=20260528loginbonusui">
+    <link rel="stylesheet" href="styles.css?v=20260528rankedsystems">
     <script defer src="src/data/cards.js?v=20260528abyss"></script>
     <script defer src="src/core/deck-store.js?v=20260528loginbonusui"></script>
     <script defer src="src/core/effect-resolver.js?v=20260528abyss"></script>
     <script defer src="src/core/cpu-controller.js?v=20260525safeattack"></script>
-    <script defer src="src/core/duel-game.js?v=20260528soundse"></script>
+    <script defer src="src/core/duel-game.js?v=20260528rankedsystems"></script>
     <script defer src="src/ui/scale-manager.js?v=20260524a"></script>
     <script defer src="src/ui/card-renderer.js?v=20260528abyss"></script>
     <script defer src="src/ui/sound-effects.js?v=20260528resultse"></script>
     <script defer src="src/ui/card-zoom.js?v=20260522k"></script>
     <script defer src="src/ui/deck-builder-view.js?v=20260528loginbonusui"></script>
     <script defer src="src/ui/pack-view.js?v=20260528packsound"></script>
-    <script defer src="src/net/online-client.js?v=20260528ranked"></script>
-    <script defer src="src/ui/duel-view.js?v=20260528ranked"></script>
-    <script defer src="src/main.js?v=20260528loginbonusui"></script>
+    <script defer src="src/net/online-client.js?v=20260528rankedsystems"></script>
+    <script defer src="src/ui/duel-view.js?v=20260528rankedsystems"></script>
+    <script defer src="src/main.js?v=20260528rankedsystems"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -467,7 +467,10 @@
                 </div>
                 <span class="duel-mode-visual duel-mode-visual-ranked" aria-hidden="true"></span>
                 <p class="duel-mode-description">ランクを競い、上位を目指そう<br><span id="rankedStatusText" class="duel-mode-rank-status">ブロンズ 1000 RP</span></p>
-                <button id="modeRankedDuelButton" class="primary-button" type="button">マッチ開始</button>
+                <div class="duel-mode-actions">
+                  <button id="modeRankedDuelButton" class="primary-button" type="button">マッチ開始</button>
+                  <button id="rankedLeaderboardButton" class="ghost-button" type="button">順位表</button>
+                </div>
               </section>
               <section class="duel-mode-card mode-room">
                 <div class="duel-mode-card-head">
@@ -494,6 +497,29 @@
                 </div>
                 <span class="duel-mode-visual duel-mode-visual-cpu" aria-hidden="true"></span>
                 <p class="duel-mode-description">CPUを相手に練習しよう<br>難易度を選んで挑戦可能</p>
+                <div class="duel-mode-options">
+                  <label>
+                    <span>CPUテーマ</span>
+                    <select id="cpuThemeSelect">
+                      <option value="random">ランダム</option>
+                      <option value="mirror">相手のデッキテーマ</option>
+                      <option value="星導">星導</option>
+                      <option value="黒機">黒機</option>
+                      <option value="断刃">断刃</option>
+                      <option value="電脳">電脳</option>
+                      <option value="双彩">双彩</option>
+                      <option value="契環">契環</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>先攻後攻</span>
+                    <select id="cpuFirstSelect">
+                      <option value="random">ランダム</option>
+                      <option value="player">先攻</option>
+                      <option value="enemy">後攻</option>
+                    </select>
+                  </label>
+                </div>
                 <button id="modeCpuDuelButton" class="primary-button" type="button">対戦開始</button>
               </section>
             </div>

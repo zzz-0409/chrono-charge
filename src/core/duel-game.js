@@ -76,7 +76,9 @@
         ...options,
       };
       this.turn = 1;
-      this.active = Math.random() < 0.5 ? "player" : "enemy";
+      this.active = this.options.firstActive === "player" || this.options.firstActive === "enemy"
+        ? this.options.firstActive
+        : Math.random() < 0.5 ? "player" : "enemy";
       this.busy = false;
       this.finished = false;
       this.logItems = [];

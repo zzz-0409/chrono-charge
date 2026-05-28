@@ -21,6 +21,9 @@ const RANKED_INITIAL_POINTS = 1000;
 const RANKED_WIN_DELTA = 30;
 const RANKED_LOSS_DELTA = -18;
 const RANKED_WAITING_TTL_MS = 10 * 60 * 1000;
+const RANKED_CPU_FALLBACK_MS = 15 * 1000;
+const RANKED_DISCONNECT_GRACE_MS = 30 * 1000;
+const RANKED_LEADERBOARD_LIMIT = 50;
 const DAILY_LOGIN_BONUS_GEMS = 1000;
 const LOGIN_BONUS_CYCLE_DAYS = 10;
 
@@ -129,6 +132,16 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/api/ranked/resume") {
+    await handleRankedResumeApi(req, res);
+    return;
+  }
+
+  if (url.pathname === "/api/ranked/leaderboard") {
+    await handleRankedLeaderboardApi(req, res);
+    return;
+  }
+
   if (url.pathname === "/api/accounts") {
     sendJson(res, 410, { error: "password login is required" });
     return;
@@ -204,6 +217,7 @@ async function handleApi(req, res, url) {
       sendJson(res, 403, { error: "invalid player" });
       return;
     }
+    await prepareRoomForSeat(room, seat);
     sendJson(res, 200, roomSnapshot(room, seat));
     return;
   }
@@ -215,6 +229,7 @@ async function handleApi(req, res, url) {
       sendJson(res, 403, { error: "invalid player" });
       return;
     }
+    touchRankedSeat(room, seat);
     await applyAction(room, seat, body.action || {});
     sendJson(res, 200, roomSnapshot(room, seat));
     return;
@@ -365,6 +380,7 @@ async function handleRankedQueueApi(req, res) {
   const deck = validateDeck(body.deck);
   const driveDeck = validateDriveDeck(body.driveDeck);
   const playerName = normalizeAccountName(body.playerName || body.displayName || auth.account.displayName || auth.username);
+  const rankedRecord = sanitizeRankedRecord(auth.account.ranked);
 
   cleanupRankedWaitingRooms();
   removeRankedWaitingRoomsFor(auth.username);
@@ -379,6 +395,12 @@ async function handleRankedQueueApi(req, res) {
       driveDeck,
     };
     waitingRoom.ranked.accounts.guest = auth.username;
+    waitingRoom.ranked.profiles.guest = rankedProfile({
+      username: auth.username,
+      name: playerName,
+      points: rankedRecord.points,
+    });
+    touchRankedSeat(waitingRoom, "guest");
     startRoomGame(waitingRoom);
     sendJson(res, 200, {
       roomId: waitingRoom.id,
@@ -394,6 +416,7 @@ async function handleRankedQueueApi(req, res) {
   const room = createRoom(deck, driveDeck, playerName, {
     mode: "ranked",
     hostUsername: auth.username,
+    hostRankedPoints: rankedRecord.points,
   });
   sendJson(res, 200, {
     roomId: room.id,
@@ -405,6 +428,69 @@ async function handleRankedQueueApi(req, res) {
   });
 }
 
+async function handleRankedResumeApi(req, res) {
+  const auth = await authenticateRequest(req);
+  if (!auth) {
+    sendJson(res, 401, { error: "login required" });
+    return;
+  }
+
+  const found = findRankedRoomForAccount(auth.username);
+  if (!found) {
+    sendJson(res, 200, { room: null });
+    return;
+  }
+
+  if (req.method === "POST") {
+    const body = await readJson(req);
+    if (body.action === "abandon" && found.room.game && !found.room.game.finished) {
+      await finishRankedRoomByForfeit(found.room, found.seat);
+    }
+  } else if (req.method !== "GET") {
+    sendJson(res, 405, { error: "method not allowed" });
+    return;
+  }
+
+  touchRankedSeat(found.room, found.seat);
+  await prepareRoomForSeat(found.room, found.seat);
+  sendJson(res, 200, { room: rankedResumePayload(found.room, found.seat) });
+}
+
+async function handleRankedLeaderboardApi(req, res) {
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "method not allowed" });
+    return;
+  }
+
+  const accounts = await listAccountRecords();
+  const entries = accounts
+    .map((account) => {
+      const clean = sanitizeAccountRecord(account.username || account.name, account);
+      const ranked = sanitizeRankedRecord(clean.ranked);
+      return {
+        username: clean.username,
+        displayName: clean.displayName || clean.name || clean.username,
+        rank: rankName(ranked.points),
+        points: ranked.points,
+        wins: ranked.wins,
+        losses: ranked.losses,
+        streak: ranked.streak,
+        bestPoints: ranked.bestPoints,
+        updatedAt: ranked.updatedAt,
+      };
+    })
+    .sort((a, b) => (
+      b.points - a.points ||
+      b.wins - a.wins ||
+      a.losses - b.losses ||
+      a.username.localeCompare(b.username)
+    ))
+    .slice(0, RANKED_LEADERBOARD_LIMIT)
+    .map((entry, index) => ({ ...entry, place: index + 1 }));
+
+  sendJson(res, 200, { entries, limit: RANKED_LEADERBOARD_LIMIT });
+}
+
 function createRoom(deck, driveDeck, playerName = "Player", options = {}) {
   let id = "";
   do {
@@ -412,11 +498,13 @@ function createRoom(deck, driveDeck, playerName = "Player", options = {}) {
   } while (rooms.has(id));
   const mode = options.mode === "ranked" ? "ranked" : "room";
   const hostUsername = normalizeUsername(options.hostUsername);
+  const hostRankedPoints = rankedPointsValue(options.hostRankedPoints);
+  const now = Date.now();
   const room = {
     id,
     mode,
     status: "waiting",
-    createdAt: Date.now(),
+    createdAt: now,
     version: 1,
     players: {
       host: { id: makeId(12), name: normalizeAccountName(playerName), account: hostUsername, deck, driveDeck },
@@ -424,11 +512,25 @@ function createRoom(deck, driveDeck, playerName = "Player", options = {}) {
     },
     game: null,
     ranked: mode === "ranked"
-      ? { accounts: { host: hostUsername, guest: "" }, reported: false, results: {} }
+      ? {
+        accounts: { host: hostUsername, guest: "" },
+        profiles: {
+          host: rankedProfile({
+            username: hostUsername,
+            name: playerName,
+            points: hostRankedPoints,
+          }),
+          guest: null,
+        },
+        lastSeenAt: { host: now, guest: 0 },
+        cpuSeat: "",
+        reported: false,
+        results: {},
+      }
       : null,
     logItems: [
       mode === "ranked"
-        ? `ランク戦 ${id}: 対戦相手を検索中です。`
+        ? "マッチング中 0秒"
         : `ルーム ${id} を作成しました。友達にIDを伝えてください。`,
     ],
   };
@@ -489,6 +591,59 @@ function cleanupRankedWaitingRooms() {
   }
 }
 
+async function prepareRoomForSeat(room, seat) {
+  touchRankedSeat(room, seat);
+  maybeStartRankedCpuFallback(room);
+  await advanceRankedCpu(room);
+  await finalizeRankedRoom(room);
+}
+
+function touchRankedSeat(room, seat) {
+  if (!room?.ranked || !seat || isRankedCpuSeat(room, seat)) return;
+  room.ranked.lastSeenAt = room.ranked.lastSeenAt || {};
+  room.ranked.lastSeenAt[seat] = Date.now();
+}
+
+function rankedProfile(options = {}) {
+  const username = normalizeUsername(options.username);
+  const points = rankedPointsValue(options.points);
+  return {
+    username,
+    name: normalizeAccountName(options.name || username || "CPU"),
+    points,
+    cpu: Boolean(options.cpu),
+    aiLevel: Math.max(1, Math.min(5, Math.floor(Number(options.aiLevel) || rankedCpuAiLevel(points)))),
+  };
+}
+
+function rankedPointsValue(value, fallback = RANKED_INITIAL_POINTS) {
+  const numeric = Number(value);
+  return Math.max(0, Math.floor(Number.isFinite(numeric) ? numeric : fallback));
+}
+
+function maybeStartRankedCpuFallback(room) {
+  if (!room?.ranked || room.status !== "waiting" || room.players.guest) return false;
+  if (Date.now() - Number(room.createdAt || Date.now()) < RANKED_CPU_FALLBACK_MS) return false;
+  const hostProfile = room.ranked.profiles?.host || rankedProfile({ points: RANKED_INITIAL_POINTS, name: "Player" });
+  const cpuProfile = chooseRankedCpuProfile(hostProfile.points);
+  room.players.guest = {
+    id: makeId(12),
+    name: cpuProfile.name,
+    account: "",
+    deck: cpuProfile.deck,
+    driveDeck: cpuProfile.driveDeck,
+    cpu: true,
+  };
+  room.ranked.accounts.guest = "";
+  room.ranked.profiles.guest = rankedProfile(cpuProfile);
+  room.ranked.cpuSeat = "guest";
+  room.ranked.lastSeenAt.guest = Number.POSITIVE_INFINITY;
+  startRoomGame(room);
+  log(room.game, `${cpuProfile.name}がマッチングに参加しました。`);
+  room.version += 1;
+  return true;
+}
+
 function newDuelist(name, deck, driveDeck = []) {
   return {
     name,
@@ -513,10 +668,18 @@ async function applyAction(room, seat, action) {
   const game = room.game;
   if (!game || game.finished) return;
 
+  if (action.type === "claimDisconnectWin") {
+    if (canClaimDisconnectWin(room, seat)) {
+      await finishRankedRoomByDisconnect(room, seat);
+    }
+    return;
+  }
+
   if (game.pendingChoice) {
     if (action.type === "choice" && game.pendingChoice.seat === seat) {
       resolvePendingChoice(game, action);
       checkGameEnd(game);
+      await advanceRankedCpu(room);
       await finalizeRankedRoom(room);
       room.version += 1;
     }
@@ -549,6 +712,7 @@ async function applyAction(room, seat, action) {
   }
 
   checkGameEnd(game);
+  await advanceRankedCpu(room);
   await finalizeRankedRoom(room);
   room.version += 1;
 }
@@ -557,6 +721,239 @@ function actionSlotIndex(action) {
   if (action.slotIndex === null || action.slotIndex === undefined) return null;
   const slot = Number(action.slotIndex);
   return Number.isInteger(slot) ? slot : null;
+}
+
+async function advanceRankedCpu(room) {
+  if (!room?.ranked || !room.game || room.game.finished) return;
+  const cpuSeat = room.ranked.cpuSeat;
+  if (!cpuSeat || room.game.active !== cpuSeat) return;
+
+  const game = room.game;
+  let safety = 0;
+  while (!game.finished && game.active === cpuSeat && safety < 60) {
+    safety += 1;
+    if (game.pendingChoice) {
+      if (game.pendingChoice.seat !== cpuSeat) break;
+      resolveCpuPendingChoice(room);
+      checkGameEnd(game);
+      continue;
+    }
+
+    const acted = runRankedCpuTurnSlice(room);
+    checkGameEnd(game);
+    if (!acted || game.pendingChoice) break;
+  }
+
+  if (safety >= 60 && !game.finished && game.active === cpuSeat && !game.pendingChoice) {
+    endTurn(game);
+  }
+  await finalizeRankedRoom(room);
+  room.version += 1;
+}
+
+function runRankedCpuTurnSlice(room) {
+  const game = room.game;
+  const cpuSeat = room.ranked.cpuSeat;
+  const cpu = game[cpuSeat];
+  const opponentSeat = cpuSeat === "host" ? "guest" : "host";
+  const opponent = game[opponentSeat];
+  const profile = room.ranked.profiles?.[cpuSeat] || rankedProfile({ cpu: true });
+  const aiLevel = profile.aiLevel || rankedCpuAiLevel(profile.points);
+
+  if (!cpu.chargedThisTurn && shouldCpuCharge(cpu, aiLevel)) {
+    const index = chooseCpuChargeIndex(cpu, aiLevel);
+    if (chargeFromHand(game, cpu, index)) {
+      resolveCpuPendingChoice(room);
+      return true;
+    }
+  }
+
+  if (setCpuReactions(game, cpu, aiLevel)) return true;
+
+  const playLimit = cpuPlayLimit(aiLevel);
+  for (let i = 0; i < playLimit; i += 1) {
+    const move = chooseCpuPlay(cpu, aiLevel);
+    if (!move) break;
+    if (playFromHand(game, cpu, opponent, move.index, cpuSeat)) {
+      resolveCpuPendingChoice(room);
+      return true;
+    }
+  }
+
+  const attack = chooseCpuAttack(game, cpu, opponent, aiLevel);
+  if (attack) {
+    attackWithUnit(game, cpu, opponent, attack.attackerIndex, attack.targetIndex);
+    resolveCpuPendingChoice(room);
+    return true;
+  }
+
+  endTurn(game);
+  return true;
+}
+
+function resolveCpuPendingChoice(room) {
+  const game = room.game;
+  const cpuSeat = room.ranked.cpuSeat;
+  let safety = 0;
+  while (game.pendingChoice && game.pendingChoice.seat === cpuSeat && safety < 20) {
+    safety += 1;
+    const choice = game.pendingChoice;
+    resolvePendingChoice(game, {
+      type: "choice",
+      choiceId: choice.id,
+      index: chooseCpuChoiceIndex(room, choice),
+    });
+  }
+}
+
+function shouldCpuCharge(cpu, aiLevel) {
+  if (!cpu.hand.length) return false;
+  if (cpu.hand.length === 1 && aiLevel >= 3 && canCpuUseHandCard(cpu, cpu.hand[0])) return false;
+  if (aiLevel <= 1 && Math.random() < 0.22) return false;
+  return true;
+}
+
+function chooseCpuChargeIndex(cpu, aiLevel) {
+  const entries = cpu.hand.map((id, index) => ({ id, index, card: cards[id] })).filter((entry) => entry.card);
+  if (entries.length === 0) return 0;
+  if (aiLevel <= 2 && Math.random() < 0.35) return entries[Math.floor(Math.random() * entries.length)].index;
+  const reaction = entries.find((entry) => entry.card.type === "リアクション" && cpu.charge.length < 2);
+  if (reaction) return reaction.index;
+  return entries.slice().sort((a, b) => (b.card.cost || 0) - (a.card.cost || 0))[0].index;
+}
+
+function canCpuUseHandCard(cpu, id) {
+  const card = cards[id];
+  if (!card) return false;
+  if (card.type === "リアクション") return cpu.reactions.some((entry) => !entry);
+  return canPlayCard(cpu, card) && canPay(cpu, card.cost);
+}
+
+function setCpuReactions(game, cpu, aiLevel) {
+  if (aiLevel <= 1 && Math.random() < 0.35) return false;
+  const slot = cpu.reactions.findIndex((entry) => !entry);
+  if (slot === -1) return false;
+  const index = cpu.hand.findIndex((id) => cards[id]?.type === "リアクション");
+  if (index === -1) return false;
+  setReaction(game, cpu, index, slot);
+  return true;
+}
+
+function chooseCpuPlay(cpu, aiLevel) {
+  const playable = cpu.hand
+    .map((id, index) => ({ id, index, card: cards[id] }))
+    .filter((entry) => entry.card && entry.card.type !== "リアクション" && canPlayCard(cpu, entry.card) && canPay(cpu, entry.card.cost));
+  if (playable.length === 0) return null;
+  if (aiLevel <= 1 && Math.random() < 0.28) return null;
+  if (aiLevel <= 2 && Math.random() < 0.35) return playable[Math.floor(Math.random() * playable.length)];
+  return playable
+    .slice()
+    .sort((a, b) => cpuPlayScore(b.card, aiLevel) - cpuPlayScore(a.card, aiLevel))[0];
+}
+
+function cpuPlayScore(card, aiLevel) {
+  const typeBonus = card.type === "コア" ? 18 : card.type === "ユニット" ? 14 : 10;
+  const effectBonus = card.effect ? 8 : 0;
+  const atkBonus = Math.floor((card.atk || 0) / 200);
+  return typeBonus + effectBonus + atkBonus + (card.cost || 0) * (aiLevel >= 4 ? 4 : 2);
+}
+
+function cpuPlayLimit(aiLevel) {
+  if (aiLevel >= 5) return 7;
+  if (aiLevel >= 4) return 5;
+  if (aiLevel >= 3) return 4;
+  return 2;
+}
+
+function chooseCpuAttack(game, cpu, opponent, aiLevel) {
+  if (!canAttack(game, cpu)) return null;
+  const attackers = cpu.units
+    .map((unit, index) => ({ unit, index }))
+    .filter((entry) => entry.unit && !entry.unit.exhausted);
+  if (attackers.length === 0) return null;
+
+  for (const attacker of attackers) {
+    const targetIndex = chooseCpuAttackTarget(game, cpu, attacker.unit, opponent, aiLevel);
+    if (targetIndex !== undefined) return { attackerIndex: attacker.index, targetIndex };
+  }
+  return null;
+}
+
+function chooseCpuAttackTarget(game, cpu, attacker, opponent, aiLevel) {
+  const attackerAtk = getUnitAtk(cpu, attacker, game);
+  const targets = opponent.units
+    .map((unit, index) => ({ unit, index }))
+    .filter((entry) => entry.unit)
+    .map((entry) => ({ ...entry, atk: getUnitAtk(opponent, entry.unit, game) }));
+  if (targets.length === 0) return null;
+  const winningTargets = targets
+    .filter((entry) => entry.atk <= attackerAtk)
+    .sort((a, b) => b.atk - a.atk);
+  if (winningTargets.length > 0) return winningTargets[0].index;
+  if (aiLevel <= 2 && Math.random() < 0.32) {
+    return targets.slice().sort((a, b) => a.atk - b.atk)[0].index;
+  }
+  return undefined;
+}
+
+function chooseCpuChoiceIndex(room, choice) {
+  const profile = room.ranked.profiles?.[room.ranked.cpuSeat] || rankedProfile({ cpu: true });
+  const aiLevel = profile.aiLevel || 1;
+  if (!choice?.candidates?.length) return choice?.allowPass ? "pass" : null;
+  if (choice.allowPass) {
+    if (choice.zone === "reaction" && Math.random() > cpuReactionChance(aiLevel)) return "pass";
+    if (choice.zone === "effectActivation" && aiLevel <= 1 && Math.random() < 0.3) return "pass";
+  }
+  const candidates = choice.candidates.slice();
+  candidates.sort((a, b) => cpuCandidateScore(b) - cpuCandidateScore(a));
+  return candidates[0]?.index ?? (choice.allowPass ? "pass" : null);
+}
+
+function cpuCandidateScore(candidate) {
+  const card = cards[candidate.id];
+  if (!card) return 0;
+  return (card.cost || 0) * 5 + (card.atk || 0) / 100 + (card.effect ? 8 : 0) + (card.driveKind ? 6 : 0);
+}
+
+function cpuReactionChance(aiLevel) {
+  if (aiLevel >= 5) return 0.92;
+  if (aiLevel >= 4) return 0.78;
+  if (aiLevel >= 3) return 0.62;
+  if (aiLevel >= 2) return 0.45;
+  return 0.28;
+}
+
+function rankedCpuAiLevel(points) {
+  if (points >= 2600) return 5;
+  if (points >= 2200) return 4;
+  if (points >= 1700) return 3;
+  if (points >= 1200) return 2;
+  return 1;
+}
+
+function chooseRankedCpuProfile(playerPoints) {
+  const options = Array.isArray(chrono.cpuDecks) && chrono.cpuDecks.length
+    ? chrono.cpuDecks
+    : [{ name: "CPU", deck: chrono.cpuDeck || chrono.starterDeck || {}, driveDeck: chrono.cpuDriveDeck || chrono.starterDriveDeck || {} }];
+  const basePoints = rankedPointsValue(playerPoints);
+  const spread = basePoints >= 2200 ? 260 : basePoints >= 1600 ? 210 : 160;
+  const points = Math.max(700, Math.min(2800, basePoints + Math.floor((Math.random() * 2 - 1) * spread)));
+  const aiLevel = rankedCpuAiLevel(points);
+  const deckIndex = Math.min(options.length - 1, Math.max(0, aiLevel - 1));
+  const source = options[deckIndex] || options[Math.floor(Math.random() * options.length)] || options[0];
+  return {
+    cpu: true,
+    username: "",
+    name: `${String(source.name || "CPU").replace(/^CPU:\s*/, "")} CPU ${points}RP`,
+    points,
+    aiLevel,
+    deck: expandDeckCounts(source.deck || chrono.cpuDeck || chrono.starterDeck || {}),
+    driveDeck: expandDeckCounts(source.driveDeck || chrono.cpuDriveDeck || chrono.starterDriveDeck || {}),
+  };
+}
+
+function expandDeckCounts(counts = {}) {
+  return Object.entries(counts || {}).flatMap(([id, count]) => Array(Math.max(0, Math.floor(Number(count) || 0))).fill(id));
 }
 
 function chargeFromHand(game, player, index) {
@@ -2182,33 +2579,86 @@ function checkGameEnd(game) {
   return false;
 }
 
+async function finishRankedRoomByDisconnect(room, winnerSeat) {
+  if (!room?.ranked || !room.game || room.game.finished) return false;
+  room.ranked.finishReason = "disconnect";
+  room.game.finished = true;
+  room.game.winner = winnerSeat;
+  log(room.game, `${seatLabel(winnerSeat)}が切断勝利を確定しました。`);
+  await finalizeRankedRoom(room);
+  room.version += 1;
+  return true;
+}
+
+async function finishRankedRoomByForfeit(room, forfeitingSeat) {
+  if (!room?.ranked || !room.game || room.game.finished) return false;
+  const winnerSeat = forfeitingSeat === "host" ? "guest" : "host";
+  room.ranked.finishReason = "forfeit";
+  room.game.finished = true;
+  room.game.winner = winnerSeat;
+  log(room.game, `${seatLabel(forfeitingSeat)}が復帰せず敗北しました。`);
+  await finalizeRankedRoom(room);
+  room.version += 1;
+  return true;
+}
+
 async function finalizeRankedRoom(room) {
   const game = room.game;
   if (!room.ranked || room.ranked.reported || !game?.finished) return;
 
   const results = {};
+  const beforeBySeat = {};
+  const accountsBySeat = {};
   for (const seat of ["host", "guest"]) {
     const username = normalizeUsername(room.ranked.accounts?.[seat]);
-    if (!username) continue;
-    const account = await loadAccount(username);
-    if (!account) continue;
-    const clean = sanitizeAccountRecord(username, account);
-    const before = sanitizeRankedRecord(clean.ranked);
-    const after = rankedAfterResult(before, game.winner === seat);
-    clean.ranked = after;
-    clean.updatedAt = after.updatedAt;
-    await saveAccount(username, clean);
-    results[seat] = rankedResultPayload(before, after, game.winner === seat);
+    if (username) {
+      const account = await loadAccount(username);
+      if (account) {
+        const clean = sanitizeAccountRecord(username, account);
+        beforeBySeat[seat] = sanitizeRankedRecord(clean.ranked);
+        accountsBySeat[seat] = clean;
+        continue;
+      }
+    }
+    const profile = room.ranked.profiles?.[seat] || {};
+    beforeBySeat[seat] = sanitizeRankedRecord({ points: profile.points, updatedAt: new Date(room.createdAt || Date.now()).toISOString() });
+  }
+
+  for (const seat of ["host", "guest"]) {
+    const before = beforeBySeat[seat];
+    if (!before) continue;
+    const opponentSeat = seat === "host" ? "guest" : "host";
+    const opponentBefore = beforeBySeat[opponentSeat] || sanitizeRankedRecord();
+    const after = rankedAfterResult(before, game.winner === seat, opponentBefore.points);
+    const clean = accountsBySeat[seat];
+    if (clean) {
+      const username = normalizeUsername(room.ranked.accounts?.[seat]);
+      clean.ranked = after;
+      clean.updatedAt = after.updatedAt;
+      await saveAccount(username, clean);
+    }
+    results[seat] = rankedResultPayload(before, after, game.winner === seat, opponentBefore);
+  }
+
+  for (const seat of ["host", "guest"]) {
+    if (results[seat]) continue;
+    const before = beforeBySeat[seat];
+    if (!before) continue;
+    const opponentSeat = seat === "host" ? "guest" : "host";
+    const opponentBefore = beforeBySeat[opponentSeat] || sanitizeRankedRecord();
+    const after = rankedAfterResult(before, game.winner === seat, opponentBefore.points);
+    results[seat] = rankedResultPayload(before, after, game.winner === seat, opponentBefore);
   }
 
   room.ranked.results = results;
   room.ranked.reported = true;
+  room.ranked.finishedAt = Date.now();
   room.version += 1;
 }
 
-function rankedAfterResult(current, won) {
+function rankedAfterResult(current, won, opponentPoints = RANKED_INITIAL_POINTS) {
   const before = sanitizeRankedRecord(current);
-  const delta = won ? RANKED_WIN_DELTA : RANKED_LOSS_DELTA;
+  const delta = rankedDelta(before.points, opponentPoints, won);
   const points = Math.max(0, before.points + delta);
   const now = new Date().toISOString();
   return {
@@ -2221,13 +2671,22 @@ function rankedAfterResult(current, won) {
   };
 }
 
-function rankedResultPayload(before, after, won) {
+function rankedDelta(points, opponentPoints, won) {
+  const diff = Math.max(-800, Math.min(800, rankedPointsValue(opponentPoints) - rankedPointsValue(points)));
+  if (won) {
+    return Math.max(12, Math.min(50, Math.round(RANKED_WIN_DELTA + diff / 40)));
+  }
+  return -Math.max(8, Math.min(32, Math.round(Math.abs(RANKED_LOSS_DELTA) - diff / 60)));
+}
+
+function rankedResultPayload(before, after, won, opponentBefore = {}) {
   return {
     won,
     pointsBefore: before.points,
     pointsAfter: after.points,
     points: after.points,
     delta: after.points - before.points,
+    opponentPointsBefore: sanitizeRankedRecord(opponentBefore).points,
     wins: after.wins,
     losses: after.losses,
     streak: after.streak,
@@ -2251,8 +2710,71 @@ function nextRankAt(points) {
   return [1200, 1500, 1800, 2200, 2600].find((threshold) => points < threshold) || null;
 }
 
+function seatLabel(seat) {
+  return seat === "host" ? "ホスト" : "ゲスト";
+}
+
+function isRankedCpuSeat(room, seat) {
+  return Boolean(room?.ranked?.cpuSeat && room.ranked.cpuSeat === seat);
+}
+
+function rankedOpponentSeat(seat) {
+  return seat === "host" ? "guest" : "host";
+}
+
+function rankedDisconnectStatus(room, seat) {
+  if (!room?.ranked || !room.game || room.game.finished) return null;
+  const opponentSeat = rankedOpponentSeat(seat);
+  if (isRankedCpuSeat(room, opponentSeat)) return null;
+  const lastSeenAt = Number(room.ranked.lastSeenAt?.[opponentSeat] || room.createdAt || Date.now());
+  const elapsedMs = Math.max(0, Date.now() - lastSeenAt);
+  if (elapsedMs < 5000) return null;
+  const secondsRemaining = Math.max(0, Math.ceil((RANKED_DISCONNECT_GRACE_MS - elapsedMs) / 1000));
+  return {
+    opponentMissing: true,
+    secondsRemaining,
+    canClaim: elapsedMs >= RANKED_DISCONNECT_GRACE_MS,
+  };
+}
+
+function canClaimDisconnectWin(room, seat) {
+  const status = rankedDisconnectStatus(room, seat);
+  return Boolean(status?.canClaim);
+}
+
+function findRankedRoomForAccount(username) {
+  const normalized = normalizeUsername(username);
+  let best = null;
+  for (const room of rooms.values()) {
+    if (room.mode !== "ranked" || !room.ranked) continue;
+    for (const seat of ["host", "guest"]) {
+      if (normalizeUsername(room.ranked.accounts?.[seat]) !== normalized) continue;
+      if (room.status === "waiting" && !room.game) continue;
+      if (room.game?.finished && room.ranked.resultSeenAt?.[seat]) continue;
+      if (!best || Number(room.createdAt || 0) > Number(best.room.createdAt || 0)) {
+        best = { room, seat };
+      }
+    }
+  }
+  return best;
+}
+
+function rankedResumePayload(room, seat) {
+  return {
+    roomId: room.id,
+    playerId: room.players[seat]?.id,
+    seat,
+    mode: "ranked",
+    ranked: true,
+    matched: room.status !== "waiting",
+    finished: Boolean(room.game?.finished),
+  };
+}
+
 function roomSnapshot(room, seat) {
   if (room.status === "waiting" || !room.game) {
+    const elapsedMs = Date.now() - Number(room.createdAt || Date.now());
+    const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
     return {
       roomId: room.id,
       mode: room.mode || "room",
@@ -2260,13 +2782,19 @@ function roomSnapshot(room, seat) {
       status: "waiting",
       version: room.version,
       seat,
-      message: room.mode === "ranked" ? `ランク戦 ${room.id}: 対戦相手を検索中` : `ルーム ${room.id}: 相手の参加待ち`,
+      matchingSeconds: elapsedSeconds,
+      cpuFallbackSeconds: room.mode === "ranked" ? Math.max(0, Math.ceil((RANKED_CPU_FALLBACK_MS - elapsedMs) / 1000)) : null,
+      message: room.mode === "ranked" ? `マッチング中 ${elapsedSeconds}秒` : `ルーム ${room.id}: 相手の参加待ち`,
     };
   }
   const enemySeat = seat === "host" ? "guest" : "host";
   const game = room.game;
   const player = publicDuelist(game[seat], true);
   const enemy = publicDuelist(game[enemySeat], false);
+  if (game.finished && room.ranked) {
+    room.ranked.resultSeenAt = room.ranked.resultSeenAt || {};
+    room.ranked.resultSeenAt[seat] = Date.now();
+  }
   return {
     roomId: room.id,
     mode: room.mode || "room",
@@ -2285,6 +2813,7 @@ function roomSnapshot(room, seat) {
     activationEvents: publicActivationEvents(game.activationEvents, seat),
     soundEvents: publicSoundEvents(game.soundEvents, seat),
     rankedResult: game.finished && room.ranked?.results ? room.ranked.results[seat] || null : null,
+    disconnectStatus: rankedDisconnectStatus(room, seat),
     player,
     enemy,
     logItems: game.logItems.slice(),
@@ -2472,6 +3001,11 @@ async function saveAccount(name, account) {
   saveAccounts(accounts);
 }
 
+async function listAccountRecords() {
+  if (db?.listAccounts) return db.listAccounts();
+  return Object.values(loadAccounts());
+}
+
 function createDefaultAccountRecord(username, displayName = "Player") {
   const now = new Date().toISOString();
   return {
@@ -2557,6 +3091,11 @@ function createAccountDb() {
          do update set account = excluded.account, updated_at = now()`,
         [name, JSON.stringify(account)],
       );
+    },
+    async listAccounts() {
+      await ready;
+      const result = await pool.query("select account from chrono_accounts");
+      return result.rows.map((row) => row.account).filter(Boolean);
     },
   };
 }

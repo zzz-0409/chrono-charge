@@ -103,13 +103,14 @@
       this.handDrag = null;
       this.pointerHandDrag = null;
       this.boardSoundSnapshot = null;
-      const cpuChoice = this.chooseCpuDeck();
+      const cpuChoice = this.chooseCpuDeck(deckList, finishInfo.cpuTheme || "random");
       this.game = new DuelGame({
         playerDeck: deckList,
         playerDriveDeck: driveDeckList,
         cpuName: this.cpuDisplayName(cpuChoice.name),
         cpuDeck: expandDeck(cpuChoice.deck),
         cpuDriveDeck: expandDeck(cpuChoice.driveDeck),
+        firstActive: finishInfo.firstActive || "random",
         onChange: () => this.render(),
         onResult: (won) => this.showResult(won),
         requestReaction: (options, event) => this.requestReactionChoice(options, event),
@@ -121,10 +122,19 @@
       this.setView("duel");
     }
 
-    chooseCpuDeck() {
+    chooseCpuDeck(playerDeckList = [], mode = "random") {
       const options = Array.isArray(cpuDecks) && cpuDecks.length
         ? cpuDecks
         : [{ name: "CPU: 黒機", deck: cpuDeck, driveDeck: cpuDriveDeck }];
+      const requested = String(mode || "random");
+      if (requested === "mirror") {
+        const playerTheme = dominantTheme(playerDeckList);
+        const mirrored = options.find((entry) => dominantTheme(expandDeck(entry.deck)) === playerTheme);
+        if (mirrored) return mirrored;
+      } else if (requested !== "random") {
+        const themed = options.find((entry) => dominantTheme(expandDeck(entry.deck)) === requested);
+        if (themed) return themed;
+      }
       return options[Math.floor(Math.random() * options.length)] || options[0];
     }
 
@@ -1007,6 +1017,10 @@
         this.selectionRenderKey = selectionRenderKey;
       }
       this.els.contextActions.replaceChildren();
+      if (this.game?.disconnectStatus?.opponentMissing && !this.game.finished) {
+        this.renderDisconnectNotice();
+        return;
+      }
       if (this.game?.waitingChoice) {
         this.renderWaitingActionNotice();
         return;
@@ -1083,6 +1097,26 @@
       notice.className = "context-waiting";
       notice.textContent = this.waitingChoiceMessage();
       this.els.contextActions.append(notice);
+    }
+
+    renderDisconnectNotice() {
+      const status = this.game.disconnectStatus;
+      const wrap = document.createElement("div");
+      wrap.className = "context-waiting disconnect-claim";
+      const message = document.createElement("span");
+      message.textContent = status.canClaim
+        ? "相手の通信が切れています。勝利を確定できます。"
+        : `相手の通信が切れています。あと${status.secondsRemaining}秒待機します。`;
+      wrap.append(message);
+      if (status.canClaim && typeof this.game.claimDisconnectWin === "function") {
+        const button = document.createElement("button");
+        button.className = "primary-button";
+        button.type = "button";
+        button.textContent = "勝利を確定";
+        button.addEventListener("click", () => this.game.claimDisconnectWin());
+        wrap.append(button);
+      }
+      this.els.contextActions.append(wrap);
     }
 
     selectedFocusStats() {
@@ -1536,8 +1570,9 @@
       const rankedResult = this.game?.rankedResult || null;
       const reward = online ? this.onOnlineResult(won) : this.onCpuResult(won);
       const rankedDelta = rankedResult?.delta > 0 ? `+${rankedResult.delta}` : String(rankedResult?.delta || 0);
+      const opponentRank = rankedResult?.opponentPointsBefore !== undefined ? ` / 相手 ${rankedResult.opponentPointsBefore} RP` : "";
       const rankedDetail = rankedResult
-        ? `<p class="result-rank">${rankedResult.rank} ${rankedResult.pointsBefore} → ${rankedResult.pointsAfter} RP (${rankedDelta})</p>`
+        ? `<p class="result-rank">${rankedResult.rank} ${rankedResult.pointsBefore} → ${rankedResult.pointsAfter} RP (${rankedDelta})${opponentRank}</p>`
         : "";
       this.sounds?.play(won ? "victory" : "defeat", { volume: won ? 0.82 : 0.78 });
       const modal = document.createElement("div");
@@ -1624,6 +1659,16 @@
 
   function expandDeck(counts) {
     return Object.entries(counts).flatMap(([id, count]) => Array(count).fill(id));
+  }
+
+  function dominantTheme(deckList = []) {
+    const counts = new Map();
+    deckList.forEach((id) => {
+      const theme = cards[id]?.theme;
+      if (!theme) return;
+      counts.set(theme, (counts.get(theme) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
   }
 
   function resultMessage(won, online, ranked = false) {
