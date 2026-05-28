@@ -27,6 +27,7 @@
   const ONLINE_LOSS_GEMS = 100;
   const RANKED_INITIAL_POINTS = 1000;
   const PRESENT_TYPE_GEMS = "gems";
+  const LOGIN_BONUS_CYCLE_DAYS = 10;
   const DUST_PER_DISMANTLE = 10;
   const ROYAL_DUST_PER_DISMANTLE = 100;
   const CRAFT_COST = 100;
@@ -224,6 +225,7 @@
       this.remoteDirty = false;
       this.remoteSaveInFlight = false;
       this.remoteSaveTimer = 0;
+      this.pendingLoginBonus = null;
     }
 
     load() {
@@ -317,6 +319,7 @@
         ranked: normalizeRankedRecord(account.ranked),
         presents: normalizePresents(account.presents),
         lastLoginBonusDate: String(account.lastLoginBonusDate || ""),
+        loginBonus: normalizeLoginBonusRecord(account.loginBonus),
         collection: this.normalizeCollection(account.collection, decks),
         collectionRoyal: this.normalizeCollection(account.collectionRoyal, decks, ROYAL_FINISH),
         updatedAt: String(account.updatedAt || new Date().toISOString()),
@@ -371,6 +374,7 @@
         ranked: normalizeRankedRecord(),
         presents: [],
         lastLoginBonusDate: "",
+        loginBonus: normalizeLoginBonusRecord(),
         collection: this.initialCollection(mainDeck, driveDeck),
         collectionRoyal: {},
         updatedAt: new Date().toISOString(),
@@ -540,6 +544,7 @@
       if (!response.ok) throw new Error(result.error || "登録に失敗しました。");
       this.saveAuth({ username: result.account.username, token: result.token });
       this.applyAuthenticatedAccount(result.account);
+      this.setPendingLoginBonus(result.loginBonus);
       return this.activeAccountData;
     }
 
@@ -554,6 +559,7 @@
       if (!response.ok) throw new Error(result.error || "ログインに失敗しました。");
       this.saveAuth({ username: result.account.username, token: result.token });
       this.applyAuthenticatedAccount(result.account);
+      this.setPendingLoginBonus(result.loginBonus);
       return this.activeAccountData;
     }
 
@@ -565,6 +571,7 @@
         }).catch(() => {});
       }
       this.saveAuth(null);
+      this.pendingLoginBonus = null;
       this.storage.removeItem(STORAGE_KEY);
       this.applyLoadedState(this.guestState());
     }
@@ -606,6 +613,16 @@
       this.remoteDirty = false;
       this.remoteSaveInFlight = false;
       window.clearTimeout(this.remoteSaveTimer);
+    }
+
+    setPendingLoginBonus(reward) {
+      this.pendingLoginBonus = normalizeLoginBonusReward(reward);
+    }
+
+    takeLoginBonusReward() {
+      const reward = this.pendingLoginBonus;
+      this.pendingLoginBonus = null;
+      return reward;
     }
 
     autoBuild(mode = "star", options = {}) {
@@ -1162,6 +1179,7 @@
           return this.activeAccountData;
         }
         if (remote?.account) {
+          if (remote.loginBonus) this.setPendingLoginBonus(remote.loginBonus);
           this.mergeRemoteAccount(remote.account);
           this.persistLocalOnly();
           this.saveRemoteAccount();
@@ -1186,6 +1204,7 @@
         ranked: mergeRankedByUpdated(local.ranked, remote.ranked),
         presents: newer.presents,
         lastLoginBonusDate: newer.lastLoginBonusDate,
+        loginBonus: newer.loginBonus,
         collection: newer.collection,
         collectionRoyal: newer.collectionRoyal,
         updatedAt: newer.updatedAt,
@@ -1529,6 +1548,32 @@
       })
       .filter(Boolean)
       .slice(-100);
+  }
+
+  function normalizeLoginBonusRecord(source = {}) {
+    const record = source && typeof source === "object" ? source : {};
+    return {
+      cycleDay: Math.max(0, Math.min(LOGIN_BONUS_CYCLE_DAYS, Math.floor(Number(record.cycleDay) || 0))),
+      totalClaims: Math.max(0, Math.floor(Number(record.totalClaims) || 0)),
+      updatedAt: String(record.updatedAt || ""),
+    };
+  }
+
+  function normalizeLoginBonusReward(source = {}) {
+    if (!source || typeof source !== "object") return null;
+    const type = source.type === PRESENT_TYPE_GEMS ? PRESENT_TYPE_GEMS : "";
+    const amount = Math.max(0, Math.floor(Number(source.amount) || 0));
+    if (!type || amount <= 0) return null;
+    return {
+      id: sanitizePresentId(source.id) || `login_${Date.now().toString(36)}`,
+      type,
+      amount,
+      date: String(source.date || ""),
+      cycleDay: Math.max(1, Math.min(LOGIN_BONUS_CYCLE_DAYS, Math.floor(Number(source.cycleDay) || 1))),
+      cycleDays: Math.max(1, Math.min(31, Math.floor(Number(source.cycleDays) || LOGIN_BONUS_CYCLE_DAYS))),
+      resetHour: Math.max(0, Math.min(23, Math.floor(Number(source.resetHour) || 0))),
+      timeZone: String(source.timeZone || "Asia/Tokyo"),
+    };
   }
 
   function sanitizePresentId(id) {

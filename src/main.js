@@ -218,6 +218,7 @@
     setView("home");
     builderView.render();
     packView.render();
+    showLoginBonusIfReady();
   };
 
   const openTitleLogin = () => {
@@ -373,6 +374,7 @@
       packView.render();
       renderShellResources();
     },
+    onLoginBonus: () => showLoginBonusIfReady(),
     confirmDeleteDeck: askDeleteDeck,
     openAppModal,
     closeAppModal,
@@ -461,6 +463,54 @@
       els.giftButton.setAttribute("aria-label", label);
       els.giftButton.title = label;
     }
+  }
+
+  function showLoginBonusIfReady() {
+    if (els.appShell?.classList.contains("title-active")) return;
+    const reward = store.takeLoginBonusReward();
+    if (!reward) return;
+    openLoginBonusModal(reward);
+  }
+
+  function openLoginBonusModal(reward) {
+    const cycleDays = Math.max(1, Math.min(10, Math.floor(Number(reward.cycleDays) || 10)));
+    const currentDay = Math.max(1, Math.min(cycleDays, Math.floor(Number(reward.cycleDay) || 1)));
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog login-bonus-dialog";
+    modal.innerHTML = `
+      <div class="login-bonus-hero">
+        <p>DAILY LOGIN</p>
+        <h2>ログインボーナス</h2>
+        <span>毎日24:00更新</span>
+      </div>
+      <div class="login-bonus-grid">
+        ${Array.from({ length: cycleDays }, (_, index) => loginBonusDayHtml(index + 1, currentDay, reward.amount)).join("")}
+      </div>
+      <p class="login-bonus-message">本日の報酬はプレゼントに届きました。</p>
+      <div class="modal-actions modal-actions-row">
+        <button class="ghost-button" type="button" data-action="close">OK</button>
+        <button class="primary-button" type="button" data-action="present">プレゼントを見る</button>
+      </div>
+    `;
+    modal.querySelector('[data-action="close"]').addEventListener("click", closeAppModal);
+    modal.querySelector('[data-action="present"]').addEventListener("click", () => {
+      closeAppModal();
+      openPresentBox();
+    });
+    openAppModal(modal);
+  }
+
+  function loginBonusDayHtml(day, currentDay, amount) {
+    const claimed = day <= currentDay;
+    const current = day === currentDay;
+    return `
+      <article class="login-bonus-day${claimed ? " claimed" : ""}${current ? " current" : ""}">
+        <span class="login-bonus-day-label">${day}日目</span>
+        <span class="login-bonus-check" aria-hidden="true">✓</span>
+        <img src="assets/ui/gacha-stone.png" alt="">
+        <strong>${escapeHtml(amount)}個</strong>
+      </article>
+    `;
   }
 
   function deckPresetCardHtml(deck) {
@@ -964,6 +1014,7 @@
     packView.render();
     renderRankedStatus();
     renderShellResources();
+    showLoginBonusIfReady();
   });
 
   let accountSyncTimer = 0;
@@ -975,6 +1026,7 @@
         packView.render();
         renderRankedStatus();
         renderShellResources();
+        showLoginBonusIfReady();
       });
     }, 120);
   };

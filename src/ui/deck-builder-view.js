@@ -24,6 +24,7 @@
       this.toast = options.toast;
       this.onStartDuel = options.onStartDuel;
       this.onAccountChange = options.onAccountChange || (() => {});
+      this.onLoginBonus = options.onLoginBonus || (() => {});
       this.confirmDeleteDeck = options.confirmDeleteDeck || (() => Promise.resolve(false));
       this.openAppModal = options.openAppModal || (() => {});
       this.closeAppModal = options.closeAppModal || (() => {});
@@ -175,6 +176,7 @@
         this.selectedCardId = this.firstSelectedId();
         this.render();
         options.onSuccess?.(account);
+        this.onLoginBonus();
         this.toast(mode === "register" ? "登録しました。" : `${this.store.displayName}でログインしました。`);
       } catch (error) {
         if (errorEl) errorEl.textContent = this.authErrorMessage(error);

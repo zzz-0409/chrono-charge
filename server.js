@@ -22,6 +22,7 @@ const RANKED_WIN_DELTA = 30;
 const RANKED_LOSS_DELTA = -18;
 const RANKED_WAITING_TTL_MS = 10 * 60 * 1000;
 const DAILY_LOGIN_BONUS_GEMS = 1000;
+const LOGIN_BONUS_CYCLE_DAYS = 10;
 
 const chrono = loadChronoData();
 const cards = chrono.cards;
@@ -252,10 +253,10 @@ async function handleRegisterApi(req, res) {
     displayName,
     passwordHash: hashPassword(password),
   });
-  applyDailyLoginBonus(account);
+  const loginBonus = applyDailyLoginBonus(account);
   const token = applySessionToken(account);
   await saveAccount(username, account);
-  sendJson(res, 200, { account: publicAccount(account), token });
+  sendJson(res, 200, { account: publicAccount(account), token, loginBonus });
 }
 
 async function handleLoginApi(req, res) {
@@ -289,10 +290,10 @@ async function handleLoginApi(req, res) {
   }
 
   account = sanitizeAccountRecord(username, account);
-  applyDailyLoginBonus(account);
+  const loginBonus = applyDailyLoginBonus(account);
   const token = applySessionToken(account);
   await saveAccount(username, account);
-  sendJson(res, 200, { account: publicAccount(account), token });
+  sendJson(res, 200, { account: publicAccount(account), token, loginBonus });
 }
 
 async function handleLogoutApi(req, res) {
@@ -317,10 +318,11 @@ async function handleAuthenticatedAccountApi(req, res) {
   }
 
   if (req.method === "GET") {
-    if (applyDailyLoginBonus(auth.account)) {
+    const loginBonus = applyDailyLoginBonus(auth.account);
+    if (loginBonus) {
       await saveAccount(auth.username, auth.account);
     }
-    sendJson(res, 200, { account: publicAccount(auth.account) });
+    sendJson(res, 200, { account: publicAccount(auth.account), loginBonus });
     return;
   }
 
@@ -2482,6 +2484,7 @@ function createDefaultAccountRecord(username, displayName = "Player") {
     ranked: sanitizeRankedRecord({ updatedAt: now }),
     presents: [],
     lastLoginBonusDate: "",
+    loginBonus: sanitizeLoginBonusRecord({ updatedAt: now }),
     collection: initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {}),
     collectionRoyal: {},
     updatedAt: now,
@@ -2570,6 +2573,7 @@ function sanitizeAccountRecord(name, account = {}) {
     ranked: sanitizeRankedRecord(account.ranked),
     presents: sanitizePresents(account.presents),
     lastLoginBonusDate: String(account.lastLoginBonusDate || ""),
+    loginBonus: sanitizeLoginBonusRecord(account.loginBonus),
     collection: sanitizeCollection(account.collection),
     collectionRoyal: sanitizeCounts(account.collectionRoyal),
     updatedAt: String(account.updatedAt || new Date().toISOString()),
@@ -2594,6 +2598,7 @@ function mergeAccountRecord(name, current, incoming) {
     ranked: mergeRankedRecord(current.ranked, incoming.ranked),
     presents: newer.presents,
     lastLoginBonusDate: newer.lastLoginBonusDate,
+    loginBonus: newer.loginBonus,
     collection: newer.collection,
     collectionRoyal: newer.collectionRoyal,
     updatedAt: newer.updatedAt,
@@ -2704,19 +2709,45 @@ function hasRankedRecord(source) {
 
 function applyDailyLoginBonus(account) {
   const today = todayKeyJst();
-  if (account.lastLoginBonusDate === today) return false;
+  if (account.lastLoginBonusDate === today) return null;
+  account.loginBonus = sanitizeLoginBonusRecord(account.loginBonus);
+  const cycleDay = (account.loginBonus.cycleDay % LOGIN_BONUS_CYCLE_DAYS) + 1;
+  const presentId = `login_${today}_${makeId(6)}`;
   account.presents = sanitizePresents(account.presents);
   account.presents.push({
-    id: `login_${today}_${makeId(6)}`,
+    id: presentId,
     type: "gems",
     amount: DAILY_LOGIN_BONUS_GEMS,
     title: "ログインボーナス",
     message: "本日の初回ログインボーナスです。",
     createdAt: new Date().toISOString(),
   });
+  account.loginBonus = {
+    cycleDay,
+    totalClaims: account.loginBonus.totalClaims + 1,
+    updatedAt: new Date().toISOString(),
+  };
   account.lastLoginBonusDate = today;
   account.updatedAt = new Date().toISOString();
-  return true;
+  return {
+    id: presentId,
+    type: "gems",
+    amount: DAILY_LOGIN_BONUS_GEMS,
+    date: today,
+    cycleDay,
+    cycleDays: LOGIN_BONUS_CYCLE_DAYS,
+    resetHour: 0,
+    timeZone: "Asia/Tokyo",
+  };
+}
+
+function sanitizeLoginBonusRecord(source = {}) {
+  const record = source && typeof source === "object" ? source : {};
+  return {
+    cycleDay: Math.max(0, Math.min(LOGIN_BONUS_CYCLE_DAYS, Math.floor(Number(record.cycleDay) || 0))),
+    totalClaims: Math.max(0, Math.floor(Number(record.totalClaims) || 0)),
+    updatedAt: String(record.updatedAt || ""),
+  };
 }
 
 function sanitizePresents(source = []) {
