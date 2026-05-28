@@ -175,7 +175,7 @@
       this.renderLog();
       this.els.turnBadge.textContent = `Turn ${this.game.turn}`;
       this.els.phaseBadge.textContent = this.phaseLabel();
-      this.els.phaseBadge.classList.toggle("is-waiting", Boolean(this.game.pendingChoice || this.game.waitingChoice));
+      this.els.phaseBadge.classList.toggle("is-waiting", Boolean(this.game.pendingChoice || this.game.waitingChoice || this.game.cpuThinking));
       this.els.endTurnButton.disabled = !this.game.canPlayerAct();
       this.els.restartDuelButton.disabled = Boolean(this.game.isOnline);
       const playerAbyss = this.game.player.abyss || [];
@@ -190,6 +190,7 @@
       if (this.game.finished) return "決着";
       if (this.game.waitingChoice) return this.choiceStatusLabel(this.game.waitingChoice, "opponent");
       if (this.game.pendingChoice) return this.choiceStatusLabel(this.game.pendingChoice, "player");
+      if (this.game.cpuThinking) return "相手思考中";
       return this.game.active === "player" ? "自分ターン" : "相手ターン";
     }
 
@@ -1021,6 +1022,10 @@
         this.renderWaitingActionNotice();
         return;
       }
+      if (this.game?.cpuThinking) {
+        this.renderCpuThinkingNotice();
+        return;
+      }
       if (!this.game || this.game.finished) return;
       if (!this.selectedContext) return;
       if (this.selectedContext.owner !== "player" || !this.game.canPlayerAct()) return;
@@ -1092,6 +1097,13 @@
       const notice = document.createElement("div");
       notice.className = "context-waiting";
       notice.textContent = this.waitingChoiceMessage();
+      this.els.contextActions.append(notice);
+    }
+
+    renderCpuThinkingNotice() {
+      const notice = document.createElement("div");
+      notice.className = "context-waiting";
+      notice.textContent = "相手が考えています。";
       this.els.contextActions.append(notice);
     }
 

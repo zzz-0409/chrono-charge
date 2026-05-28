@@ -23,6 +23,12 @@
     "drive_sosai_coco_luna_unit",
   ];
 
+  const CPU_THINK_DELAY_MS = 760;
+  const CPU_ACTION_DELAY_MS = 520;
+  const CPU_CARD_PLAY_DELAY_MS = 720;
+  const CPU_SET_REACTION_DELAY_MS = 420;
+  const CPU_ATTACK_DELAY_MS = 680;
+
   class Duelist {
     constructor(name, deck, driveDeck = []) {
       this.name = name;
@@ -73,6 +79,11 @@
         showActivation: async () => {},
         onSoundEvent: () => {},
         delayMs: 360,
+        cpuThinkDelayMs: CPU_THINK_DELAY_MS,
+        cpuActionDelayMs: CPU_ACTION_DELAY_MS,
+        cpuCardPlayDelayMs: CPU_CARD_PLAY_DELAY_MS,
+        cpuSetReactionDelayMs: CPU_SET_REACTION_DELAY_MS,
+        cpuAttackDelayMs: CPU_ATTACK_DELAY_MS,
         ...options,
       };
       this.turn = 1;
@@ -80,6 +91,8 @@
         ? this.options.firstActive
         : Math.random() < 0.5 ? "player" : "enemy";
       this.busy = false;
+      this.cpuThinking = false;
+      this.enemyTurnRunning = false;
       this.finished = false;
       this.logItems = [];
       this.player = new Duelist("Player", this.options.playerDeck, this.options.playerDriveDeck || []);
@@ -108,6 +121,37 @@
     async afterEffectStep(delayMs = this.options.delayMs) {
       this.notify();
       await pause(delayMs);
+    }
+
+    normalizeCpuDelay(delayMs, fallback) {
+      const value = Number(delayMs);
+      if (Number.isFinite(value) && value >= 0) return value;
+      return fallback;
+    }
+
+    async showCpuThinking(delayMs = this.options.cpuThinkDelayMs) {
+      if (this.finished || this.active !== "enemy") return;
+      this.cpuThinking = true;
+      this.notify();
+      await pause(this.normalizeCpuDelay(delayMs, CPU_THINK_DELAY_MS));
+      this.cpuThinking = false;
+      this.notify();
+    }
+
+    async waitAfterCpuAction(delayMs = this.options.cpuActionDelayMs, fallback = CPU_ACTION_DELAY_MS) {
+      if (this.finished || this.active !== "enemy") return;
+      await pause(this.normalizeCpuDelay(delayMs, fallback));
+    }
+
+    finishEnemyTurn(openingTurn = false) {
+      if (this.finished || this.active !== "enemy") return;
+      this.completeTurn();
+      this.active = "player";
+      if (!openingTurn) this.turn += 1;
+      this.player.refreshTurn();
+      this.drawCards(this.player, 1);
+      this.log("自分ターン。");
+      this.checkGameEnd();
     }
 
     log(message) {
@@ -351,113 +395,129 @@
     }
 
     async runEnemyTurn(options = {}) {
-      if (this.finished) return;
+      if (this.finished || this.enemyTurnRunning) return;
       const openingTurn = Boolean(options.opening);
+      this.enemyTurnRunning = true;
       this.busy = true;
-      this.enemy.refreshTurn();
-      if (!openingTurn) this.drawCards(this.enemy, 1);
-      this.log("相手ターン。");
-      this.notify();
-      await pause(this.options.delayMs);
-      if (this.checkGameEnd()) return;
+      this.cpuThinking = false;
 
-      if (this.cpu.shouldCharge()) {
-        const chargeIndex = this.cpu.chooseChargeIndex();
-        const id = this.enemy.hand.splice(chargeIndex, 1)[0];
-        this.enemy.charge.push({ id, tapped: false });
-        this.enemy.chargedThisTurn = true;
-        this.log(`相手は${cards[id].attr}カードをチャージ。`);
-        await this.triggerChargeCore(this.enemy);
+      try {
+        this.enemy.refreshTurn();
+        if (!openingTurn) this.drawCards(this.enemy, 1);
+        this.log("相手ターン。");
         this.notify();
-        await pause(this.options.delayMs);
-      }
+        await this.showCpuThinking(this.options.cpuThinkDelayMs);
+        if (this.checkGameEnd()) return;
 
-      this.cpu.setReactions();
-      this.notify();
-      await pause(220);
-
-      for (let i = 0; i < 7; i += 1) {
-        const move = this.cpu.choosePlay();
-        if (!move) break;
-        await this.cpuPlayCard(move.index);
-        if (this.finished) return;
-        await pause(this.options.delayMs);
-      }
-
-      for (let i = 0; i < 3; i += 1) {
-        const driveId = this.usableDriveCards(this.enemy)[0];
-        if (!driveId) break;
-        await this.cpuPlayDriveCard(driveId);
-        if (this.finished) return;
-        await pause(this.options.delayMs);
-      }
-
-      for (let i = 0; i < this.enemy.cores.length; i += 1) {
-        if (!this.canActivateDriveCore(this.enemy, i)) continue;
-        await this.activateDriveCore(i, this.enemy);
-        if (this.finished) return;
-        await pause(this.options.delayMs);
-      }
-
-      for (let i = this.enemy.grave.length - 1; i >= 0; i -= 1) {
-        if (!this.canActivateSpellDriveGraveEffect(this.enemy, i)) continue;
-        await this.activateSpellDriveGraveEffect(i, this.enemy);
-        if (this.finished) return;
-        await pause(this.options.delayMs);
-      }
-
-      for (let i = 0; i < this.enemy.units.length; i += 1) {
-        if (!this.canAttack(this.enemy)) break;
-        const unit = this.enemy.units[i];
-        if (!unit || unit.exhausted || this.finished) continue;
-        const target = this.cpu.chooseAttackTarget(unit, this.player);
-        if (target === undefined) continue;
-        const negated = await this.resolveReactionWindow({ trigger: "attack", source: cards[unit.id], sourceIndex: i }, this.player, this.enemy);
-        if (negated) {
-          unit.exhausted = true;
-          this.notify();
-          await pause(this.options.delayMs);
-          continue;
+        if (this.cpu.shouldCharge()) {
+          const chargeIndex = this.cpu.chooseChargeIndex();
+          const id = chargeIndex >= 0 ? this.enemy.hand.splice(chargeIndex, 1)[0] : null;
+          const card = cards[id];
+          if (card) {
+            this.enemy.charge.push({ id, tapped: false });
+            this.enemy.chargedThisTurn = true;
+            this.log(`相手は${card.attr}カードをチャージ。`);
+            await this.triggerChargeCore(this.enemy);
+            this.notify();
+            await this.waitAfterCpuAction(this.options.cpuActionDelayMs, CPU_ACTION_DELAY_MS);
+          }
         }
-        this.resolveAttack(this.enemy, this.player, i, target);
-        this.checkGameEnd();
-        this.notify();
-        await pause(this.options.delayMs + 120);
-      }
 
-      if (this.finished) return;
-      this.completeTurn();
-      this.active = "player";
-      if (!openingTurn) this.turn += 1;
-      this.busy = false;
-      this.player.refreshTurn();
-      this.drawCards(this.player, 1);
-      this.log("自分ターン。");
-      this.checkGameEnd();
-      this.notify();
+        while (this.cpu.setNextReaction()) {
+          this.notify();
+          await this.waitAfterCpuAction(this.options.cpuSetReactionDelayMs, CPU_SET_REACTION_DELAY_MS);
+        }
+
+        for (let i = 0; i < 7; i += 1) {
+          const move = this.cpu.choosePlay();
+          if (!move) break;
+          await this.showCpuThinking(this.options.cpuCardPlayDelayMs);
+          if (!await this.cpuPlayCard(move.index)) break;
+          if (this.finished) return;
+          await this.waitAfterCpuAction(this.options.cpuCardPlayDelayMs, CPU_CARD_PLAY_DELAY_MS);
+        }
+
+        for (let i = 0; i < 3; i += 1) {
+          const driveId = this.usableDriveCards(this.enemy)[0];
+          if (!driveId) break;
+          await this.showCpuThinking(this.options.cpuActionDelayMs);
+          if (!await this.cpuPlayDriveCard(driveId)) break;
+          if (this.finished) return;
+          await this.waitAfterCpuAction(this.options.cpuCardPlayDelayMs, CPU_CARD_PLAY_DELAY_MS);
+        }
+
+        for (let i = 0; i < this.enemy.cores.length; i += 1) {
+          if (!this.canActivateDriveCore(this.enemy, i)) continue;
+          await this.showCpuThinking(this.options.cpuActionDelayMs);
+          await this.activateDriveCore(i, this.enemy);
+          if (this.finished) return;
+          await this.waitAfterCpuAction(this.options.cpuActionDelayMs, CPU_ACTION_DELAY_MS);
+        }
+
+        for (let i = this.enemy.grave.length - 1; i >= 0; i -= 1) {
+          if (!this.canActivateSpellDriveGraveEffect(this.enemy, i)) continue;
+          await this.showCpuThinking(this.options.cpuActionDelayMs);
+          await this.activateSpellDriveGraveEffect(i, this.enemy);
+          if (this.finished) return;
+          await this.waitAfterCpuAction(this.options.cpuActionDelayMs, CPU_ACTION_DELAY_MS);
+        }
+
+        for (let i = 0; i < this.enemy.units.length; i += 1) {
+          if (!this.canAttack(this.enemy)) break;
+          const unit = this.enemy.units[i];
+          if (!unit || unit.exhausted || this.finished) continue;
+          const target = this.cpu.chooseAttackTarget(unit, this.player);
+          if (target === undefined) continue;
+          await this.showCpuThinking(this.options.cpuAttackDelayMs);
+          const negated = await this.resolveReactionWindow({ trigger: "attack", source: cards[unit.id], sourceIndex: i }, this.player, this.enemy);
+          if (negated) {
+            unit.exhausted = true;
+            this.notify();
+            await this.waitAfterCpuAction(this.options.cpuAttackDelayMs, CPU_ATTACK_DELAY_MS);
+            continue;
+          }
+          this.resolveAttack(this.enemy, this.player, i, target);
+          this.checkGameEnd();
+          this.notify();
+          await this.waitAfterCpuAction(this.normalizeCpuDelay(this.options.cpuAttackDelayMs, CPU_ATTACK_DELAY_MS) + 120, CPU_ATTACK_DELAY_MS + 120);
+        }
+      } catch (error) {
+        console.warn("CPU turn recovered", error);
+        this.log("相手の行動処理を安全に終了しました。");
+      } finally {
+        this.cpuThinking = false;
+        this.enemyTurnRunning = false;
+        if (!this.finished && this.active === "enemy") {
+          this.finishEnemyTurn(openingTurn);
+        }
+        if (!this.finished) this.busy = false;
+        this.notify();
+      }
     }
 
     async cpuPlayCard(index) {
       const id = this.enemy.hand[index];
       const card = cards[id];
-      if (!card || !this.canPlayCard(this.enemy, card) || !this.payCost(this.enemy, card.cost)) return;
+      if (!card || !this.canPlayCard(this.enemy, card) || !this.payCost(this.enemy, card.cost)) return false;
       this.enemy.hand.splice(index, 1);
 
       this.notify();
       await this.resolvePlayedCard(this.enemy, this.player, card, "enemy");
       this.checkGameEnd();
       this.notify();
+      return true;
     }
 
     async cpuPlayDriveCard(id) {
       const card = cards[id];
-      if (!card || card.driveKind === "reaction" || !this.canUseDriveCard(this.enemy, card)) return;
-      if (!await this.activateDriveCard(this.enemy, card)) return;
+      if (!card || card.driveKind === "reaction" || !this.canUseDriveCard(this.enemy, card)) return false;
+      if (!await this.activateDriveCard(this.enemy, card)) return false;
 
       this.notify();
       await this.resolveDriveCardEffect(this.enemy, this.player, card, "enemy");
       this.checkGameEnd();
       this.notify();
+      return true;
     }
 
     async showActivation(card, owner, kind) {
