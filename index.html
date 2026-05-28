@@ -12,9 +12,9 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
-    <link rel="stylesheet" href="styles.css?v=20260528ranked">
+    <link rel="stylesheet" href="styles.css?v=20260528loginbonus">
     <script defer src="src/data/cards.js?v=20260528abyss"></script>
-    <script defer src="src/core/deck-store.js?v=20260528ranked"></script>
+    <script defer src="src/core/deck-store.js?v=20260528loginbonus"></script>
     <script defer src="src/core/effect-resolver.js?v=20260528abyss"></script>
     <script defer src="src/core/cpu-controller.js?v=20260525safeattack"></script>
     <script defer src="src/core/duel-game.js?v=20260528soundse"></script>
@@ -26,7 +26,7 @@
     <script defer src="src/ui/pack-view.js?v=20260528packsound"></script>
     <script defer src="src/net/online-client.js?v=20260528ranked"></script>
     <script defer src="src/ui/duel-view.js?v=20260528ranked"></script>
-    <script defer src="src/main.js?v=20260528ranked"></script>
+    <script defer src="src/main.js?v=20260528loginbonus"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -179,7 +179,7 @@
           <button class="resource-pill" type="button" data-shell-action="dismantleStone" title="分解石"><img class="item-icon" src="assets/ui/dismantle-stone.png" alt=""> <strong id="headerDustCount">0</strong><span class="resource-plus" aria-hidden="true">+</span></button>
           <button class="top-icon-button" type="button" data-shell-action="mail" aria-label="メール"><span class="shell-icon shell-icon-mail"></span></button>
           <button class="top-icon-button" type="button" data-shell-action="notice" aria-label="お知らせ"><span class="shell-icon shell-icon-bell"></span></button>
-          <button class="top-icon-button" type="button" data-shell-action="gift" aria-label="プレゼント"><span class="shell-icon shell-icon-gift"></span></button>
+          <button id="giftButton" class="top-icon-button" type="button" data-shell-action="gift" aria-label="プレゼント"><span class="shell-icon shell-icon-gift"></span><span id="giftCountBadge" class="top-icon-badge" hidden>0</span></button>
           <button class="top-icon-button" type="button" data-shell-action="settings" aria-label="設定"><span class="shell-icon shell-icon-settings"></span></button>
         </div>
       </header>

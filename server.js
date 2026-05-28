@@ -21,6 +21,7 @@ const RANKED_INITIAL_POINTS = 1000;
 const RANKED_WIN_DELTA = 30;
 const RANKED_LOSS_DELTA = -18;
 const RANKED_WAITING_TTL_MS = 10 * 60 * 1000;
+const DAILY_LOGIN_BONUS_GEMS = 1000;
 
 const chrono = loadChronoData();
 const cards = chrono.cards;
@@ -251,6 +252,7 @@ async function handleRegisterApi(req, res) {
     displayName,
     passwordHash: hashPassword(password),
   });
+  applyDailyLoginBonus(account);
   const token = applySessionToken(account);
   await saveAccount(username, account);
   sendJson(res, 200, { account: publicAccount(account), token });
@@ -287,6 +289,7 @@ async function handleLoginApi(req, res) {
   }
 
   account = sanitizeAccountRecord(username, account);
+  applyDailyLoginBonus(account);
   const token = applySessionToken(account);
   await saveAccount(username, account);
   sendJson(res, 200, { account: publicAccount(account), token });
@@ -314,6 +317,9 @@ async function handleAuthenticatedAccountApi(req, res) {
   }
 
   if (req.method === "GET") {
+    if (applyDailyLoginBonus(auth.account)) {
+      await saveAccount(auth.username, auth.account);
+    }
     sendJson(res, 200, { account: publicAccount(auth.account) });
     return;
   }
@@ -2474,6 +2480,8 @@ function createDefaultAccountRecord(username, displayName = "Player") {
     gems: 0,
     dust: 0,
     ranked: sanitizeRankedRecord({ updatedAt: now }),
+    presents: [],
+    lastLoginBonusDate: "",
     collection: initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {}),
     collectionRoyal: {},
     updatedAt: now,
@@ -2560,6 +2568,8 @@ function sanitizeAccountRecord(name, account = {}) {
     gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
     dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
     ranked: sanitizeRankedRecord(account.ranked),
+    presents: sanitizePresents(account.presents),
+    lastLoginBonusDate: String(account.lastLoginBonusDate || ""),
     collection: sanitizeCollection(account.collection),
     collectionRoyal: sanitizeCounts(account.collectionRoyal),
     updatedAt: String(account.updatedAt || new Date().toISOString()),
@@ -2582,6 +2592,8 @@ function mergeAccountRecord(name, current, incoming) {
     gems: newer.gems,
     dust: newer.dust,
     ranked: mergeRankedRecord(current.ranked, incoming.ranked),
+    presents: newer.presents,
+    lastLoginBonusDate: newer.lastLoginBonusDate,
     collection: newer.collection,
     collectionRoyal: newer.collectionRoyal,
     updatedAt: newer.updatedAt,
@@ -2688,6 +2700,57 @@ function hasRankedRecord(source) {
     source.losses !== undefined ||
     source.updatedAt !== undefined
   ));
+}
+
+function applyDailyLoginBonus(account) {
+  const today = todayKeyJst();
+  if (account.lastLoginBonusDate === today) return false;
+  account.presents = sanitizePresents(account.presents);
+  account.presents.push({
+    id: `login_${today}_${makeId(6)}`,
+    type: "gems",
+    amount: DAILY_LOGIN_BONUS_GEMS,
+    title: "ログインボーナス",
+    message: "本日の初回ログインボーナスです。",
+    createdAt: new Date().toISOString(),
+  });
+  account.lastLoginBonusDate = today;
+  account.updatedAt = new Date().toISOString();
+  return true;
+}
+
+function sanitizePresents(source = []) {
+  if (!Array.isArray(source)) return [];
+  return source
+    .map((entry) => {
+      const type = entry?.type === "gems" ? "gems" : "";
+      const amount = Math.max(0, Math.floor(Number(entry?.amount) || 0));
+      if (!type || amount <= 0) return null;
+      return {
+        id: sanitizePresentId(entry.id) || `present_${makeId(8)}`,
+        type,
+        amount,
+        title: String(entry.title || "プレゼント").trim().slice(0, 32) || "プレゼント",
+        message: String(entry.message || "").trim().slice(0, 120),
+        createdAt: String(entry.createdAt || new Date().toISOString()),
+      };
+    })
+    .filter(Boolean)
+    .slice(-100);
+}
+
+function sanitizePresentId(id) {
+  return String(id || "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 48);
+}
+
+function todayKeyJst(date = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function sanitizeCounts(source = {}) {

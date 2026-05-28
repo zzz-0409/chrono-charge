@@ -58,6 +58,8 @@
     deckSelectHomeButton: document.querySelector("#deckSelectHomeButton"),
     headerGachaStoneCount: document.querySelector("#headerGachaStoneCount"),
     headerDustCount: document.querySelector("#headerDustCount"),
+    giftButton: document.querySelector("#giftButton"),
+    giftCountBadge: document.querySelector("#giftCountBadge"),
     gachaStoneCount: document.querySelector("#gachaStoneCount"),
     packDustCount: document.querySelector("#packDustCount"),
     packList: document.querySelector("#packList"),
@@ -194,6 +196,7 @@
       renderDuelMenuDeckCard();
       renderRankedStatus();
     }
+    renderShellResources();
   };
 
   const openAppModal = (content) => {
@@ -347,6 +350,7 @@
       const gained = store.rewardCpuResult(won);
       builderView.render({ preserveLibraryScroll: true });
       packView.render();
+      renderShellResources();
       return gained;
     },
     onOnlineResult: (won) => {
@@ -355,6 +359,7 @@
       builderView.render({ preserveLibraryScroll: true });
       packView.render();
       renderRankedStatus();
+      renderShellResources();
       return gained;
     },
   });
@@ -366,6 +371,7 @@
     onAccountChange: async () => {
       await store.syncActiveAccount();
       packView.render();
+      renderShellResources();
     },
     confirmDeleteDeck: askDeleteDeck,
     openAppModal,
@@ -440,6 +446,21 @@
     }
     const ranked = store.ranked;
     els.rankedStatusText.textContent = `${store.rankedLabel} / ${ranked.wins}勝 ${ranked.losses}敗`;
+  }
+
+  function renderShellResources() {
+    if (els.headerGachaStoneCount) els.headerGachaStoneCount.textContent = store.isAuthorAccount ? "作者" : String(store.gems);
+    if (els.headerDustCount) els.headerDustCount.textContent = String(store.dust);
+    const count = store.presentCount;
+    if (els.giftCountBadge) {
+      els.giftCountBadge.hidden = count <= 0;
+      els.giftCountBadge.textContent = String(Math.min(count, 99));
+    }
+    if (els.giftButton) {
+      const label = count > 0 ? `プレゼント ${count}件` : "プレゼント";
+      els.giftButton.setAttribute("aria-label", label);
+      els.giftButton.title = label;
+    }
   }
 
   function deckPresetCardHtml(deck) {
@@ -819,6 +840,52 @@
     }
   };
 
+  function openPresentBox() {
+    const presents = store.presents;
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog present-dialog";
+    modal.innerHTML = `
+      <h2>プレゼント</h2>
+      <div class="present-list">
+        ${presents.length
+          ? presents.map((present) => presentRowHtml(present)).join("")
+          : '<p class="small-note present-empty">未受け取りのプレゼントはありません。</p>'}
+      </div>
+      <div class="modal-actions modal-actions-row">
+        <button class="ghost-button" type="button" data-action="close">閉じる</button>
+        <button class="primary-button" type="button" data-action="claim"${presents.length ? "" : " disabled"}>まとめて受け取り</button>
+      </div>
+    `;
+    modal.querySelector('[data-action="close"]').addEventListener("click", closeAppModal);
+    modal.querySelector('[data-action="claim"]').addEventListener("click", () => {
+      const result = store.claimAllPresents();
+      if (!result.ok) return;
+      closeAppModal();
+      builderView.render({ preserveLibraryScroll: true });
+      packView.render();
+      renderShellResources();
+      toast(result.gems > 0 ? `プレゼントを受け取りました。ガチャ石 +${result.gems}` : "プレゼントを受け取りました。");
+    });
+    openAppModal(modal);
+  }
+
+  function presentRowHtml(present) {
+    return `
+      <article class="present-row">
+        <div>
+          <strong>${escapeHtml(present.title)}</strong>
+          <p>${escapeHtml(present.message || "プレゼントが届いています。")}</p>
+        </div>
+        <span class="present-reward"><img class="item-icon" src="assets/ui/gacha-stone.png" alt=""> ${escapeHtml(presentRewardText(present))}</span>
+      </article>
+    `;
+  }
+
+  function presentRewardText(present) {
+    if (present.type === "gems") return `${present.amount}`;
+    return `${present.amount}`;
+  }
+
   const startRankedDuel = async () => {
     if (!canUseOnline()) return;
     if (!store.isAuthenticated) {
@@ -882,6 +949,10 @@
   };
   document.querySelectorAll("[data-shell-action]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (button.dataset.shellAction === "gift") {
+        openPresentBox();
+        return;
+      }
       const label = shellActionLabels[button.dataset.shellAction] || "この機能";
       toast(`${label}はまだ準備中です。`);
     });
@@ -892,6 +963,7 @@
     builderView.render();
     packView.render();
     renderRankedStatus();
+    renderShellResources();
   });
 
   let accountSyncTimer = 0;
@@ -902,6 +974,7 @@
         builderView.render({ preserveLibraryScroll: true });
         packView.render();
         renderRankedStatus();
+        renderShellResources();
       });
     }, 120);
   };

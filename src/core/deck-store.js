@@ -26,6 +26,7 @@
   const ONLINE_WIN_GEMS = 200;
   const ONLINE_LOSS_GEMS = 100;
   const RANKED_INITIAL_POINTS = 1000;
+  const PRESENT_TYPE_GEMS = "gems";
   const DUST_PER_DISMANTLE = 10;
   const ROYAL_DUST_PER_DISMANTLE = 100;
   const CRAFT_COST = 100;
@@ -314,6 +315,8 @@
         gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
         dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
         ranked: normalizeRankedRecord(account.ranked),
+        presents: normalizePresents(account.presents),
+        lastLoginBonusDate: String(account.lastLoginBonusDate || ""),
         collection: this.normalizeCollection(account.collection, decks),
         collectionRoyal: this.normalizeCollection(account.collectionRoyal, decks, ROYAL_FINISH),
         updatedAt: String(account.updatedAt || new Date().toISOString()),
@@ -366,6 +369,8 @@
         gems: 0,
         dust: 0,
         ranked: normalizeRankedRecord(),
+        presents: [],
+        lastLoginBonusDate: "",
         collection: this.initialCollection(mainDeck, driveDeck),
         collectionRoyal: {},
         updatedAt: new Date().toISOString(),
@@ -965,6 +970,18 @@
       return gained;
     }
 
+    claimAllPresents() {
+      const presents = this.presents;
+      if (presents.length === 0) return { ok: false, reason: "empty", gems: 0, count: 0 };
+      const gainedGems = presents
+        .filter((present) => present.type === PRESENT_TYPE_GEMS)
+        .reduce((sum, present) => sum + present.amount, 0);
+      this.activeAccountData.presents = [];
+      if (gainedGems > 0) this.activeAccountData.gems = this.gems + gainedGems;
+      this.persist();
+      return { ok: true, gems: gainedGems, count: presents.length };
+    }
+
     applyRankedSnapshot(snapshot) {
       if (!snapshot) return this.ranked;
       const incoming = normalizeRankedRecord(snapshot);
@@ -1029,6 +1046,14 @@
     get rankedLabel() {
       const ranked = this.ranked;
       return `${rankName(ranked.points)} ${ranked.points} RP`;
+    }
+
+    get presents() {
+      return normalizePresents(this.activeAccountData.presents);
+    }
+
+    get presentCount() {
+      return this.presents.length;
     }
 
     get dustPerDismantle() {
@@ -1159,6 +1184,8 @@
         gems: newer.gems,
         dust: newer.dust,
         ranked: mergeRankedByUpdated(local.ranked, remote.ranked),
+        presents: newer.presents,
+        lastLoginBonusDate: newer.lastLoginBonusDate,
         collection: newer.collection,
         collectionRoyal: newer.collectionRoyal,
         updatedAt: newer.updatedAt,
@@ -1482,6 +1509,30 @@
     if (points >= 1500) return "ゴールド";
     if (points >= 1200) return "シルバー";
     return "ブロンズ";
+  }
+
+  function normalizePresents(source = []) {
+    if (!Array.isArray(source)) return [];
+    return source
+      .map((entry) => {
+        const type = entry?.type === PRESENT_TYPE_GEMS ? PRESENT_TYPE_GEMS : "";
+        const amount = Math.max(0, Math.floor(Number(entry?.amount) || 0));
+        if (!type || amount <= 0) return null;
+        return {
+          id: sanitizePresentId(entry.id) || `present_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}`,
+          type,
+          amount,
+          title: String(entry.title || "プレゼント").trim().slice(0, 32) || "プレゼント",
+          message: String(entry.message || "").trim().slice(0, 120),
+          createdAt: String(entry.createdAt || new Date().toISOString()),
+        };
+      })
+      .filter(Boolean)
+      .slice(-100);
+  }
+
+  function sanitizePresentId(id) {
+    return String(id || "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 48);
   }
 
   function accountUpdatedAt(account = {}) {

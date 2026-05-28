@@ -1256,6 +1256,7 @@ button:disabled {
 .shell-icon-plus { background-position: 100% 100%; }
 
 .top-icon-button {
+  position: relative;
   width: 42px;
   height: 42px;
   display: grid;
@@ -2777,6 +2778,29 @@ select {
   text-align: center;
   text-shadow: none;
   white-space: nowrap;
+}
+
+.top-icon-badge {
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 242, 190, 0.9);
+  border-radius: 999px;
+  padding: 0 5px;
+  color: #1a1004;
+  background: #f0b95c;
+  font-size: 0.62rem;
+  font-weight: 1000;
+  line-height: 1;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.36);
+}
+
+.top-icon-badge[hidden] {
+  display: none;
 }
 
 .duel-mode-card > .primary-button,
@@ -5563,6 +5587,50 @@ select {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.present-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.present-list {
+  max-height: 360px;
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.present-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(112, 223, 230, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.present-row strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.present-row p,
+.present-empty {
+  margin: 4px 0 0;
+}
+
+.present-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gold);
+  font-weight: 1000;
+  white-space: nowrap;
 }
 
 .modal-field {
