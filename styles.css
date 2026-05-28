@@ -144,6 +144,77 @@ button {
   transform-origin: top left;
 }
 
+.title-view {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  padding: 0 48px 76px;
+  background:
+    linear-gradient(180deg, rgba(4, 7, 12, 0.1) 0%, rgba(4, 7, 12, 0.08) 48%, rgba(4, 7, 12, 0.72) 100%),
+    url("assets/title/title-bg.png") center / cover no-repeat;
+}
+
+.app-shell:not(.title-active) .title-view {
+  display: none;
+}
+
+.app-shell.title-active .app-header,
+.app-shell.title-active main {
+  display: none;
+}
+
+.title-screen-copy {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.title-screen-kana {
+  margin: 0;
+  color: rgba(237, 244, 242, 0.82);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.title-screen-copy h1 {
+  margin: 0;
+  font-size: 82px;
+  line-height: 0.95;
+  font-weight: 1000;
+  letter-spacing: 0;
+  color: #fff7dc;
+  text-shadow:
+    0 0 22px rgba(240, 185, 92, 0.82),
+    0 4px 28px rgba(0, 0, 0, 0.86);
+}
+
+.title-start-button {
+  min-width: 236px;
+  min-height: 54px;
+  border: 1px solid rgba(255, 238, 178, 0.68);
+  border-radius: 8px;
+  padding: 0 34px;
+  color: #071016;
+  background: linear-gradient(180deg, #fff1a8 0%, #f0b95c 54%, #c98628 100%);
+  box-shadow: 0 0 24px rgba(240, 185, 92, 0.54), 0 18px 34px rgba(0, 0, 0, 0.44);
+  font-size: 21px;
+  font-weight: 1000;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.title-start-button:hover {
+  filter: brightness(1.08);
+}
+
+.title-start-button:active {
+  transform: translateY(1px);
+}
+
 .app-header {
   min-height: var(--current-header-height);
   display: grid;

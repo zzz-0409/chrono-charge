@@ -103,7 +103,7 @@
       this.els.driveDeckModeButton?.addEventListener("click", () => this.setDeckMode("drive"));
     }
 
-    openAuthDialog() {
+    openAuthDialog(options = {}) {
       const modal = document.createElement("div");
       modal.className = "modal-dialog auth-dialog";
       let mode = "login";
@@ -123,6 +123,7 @@
           <p class="auth-error" data-auth-error></p>
           <div class="modal-actions modal-actions-row">
             <button class="ghost-button" type="button" data-action="cancel">キャンセル</button>
+            ${options.allowGuest ? `<button class="ghost-button" type="button" data-action="guest">ゲストモード</button>` : ""}
             <button class="primary-button" type="button" data-action="submit">${isRegister ? "登録" : "ログイン"}</button>
           </div>
           <button class="ghost-button auth-mode-switch" type="button" data-action="switch">
@@ -130,13 +131,17 @@
           </button>
         `;
         modal.querySelector('[data-action="cancel"]').addEventListener("click", () => this.closeAppModal());
+        modal.querySelector('[data-action="guest"]')?.addEventListener("click", () => {
+          this.closeAppModal();
+          options.onGuest?.();
+        });
         modal.querySelector('[data-action="switch"]').addEventListener("click", () => {
           mode = isRegister ? "login" : "register";
           renderMode();
         });
-        modal.querySelector('[data-action="submit"]').addEventListener("click", () => this.submitAuthDialog(modal, mode));
+        modal.querySelector('[data-action="submit"]').addEventListener("click", () => this.submitAuthDialog(modal, mode, options));
         modal.querySelector('[data-field="password"]').addEventListener("keydown", (event) => {
-          if (event.key === "Enter") this.submitAuthDialog(modal, mode);
+          if (event.key === "Enter") this.submitAuthDialog(modal, mode, options);
         });
         window.setTimeout(() => modal.querySelector('[data-field="username"]')?.focus(), 0);
       };
@@ -145,7 +150,7 @@
       this.openAppModal(modal);
     }
 
-    async submitAuthDialog(modal, mode) {
+    async submitAuthDialog(modal, mode, options = {}) {
       const username = modal.querySelector('[data-field="username"]')?.value || "";
       const password = modal.querySelector('[data-field="password"]')?.value || "";
       const errorEl = modal.querySelector("[data-auth-error]");
@@ -157,6 +162,7 @@
         this.closeAppModal();
         this.selectedCardId = this.firstSelectedId();
         this.render();
+        options.onSuccess?.(account);
         this.toast(mode === "register" ? "登録しました。" : `${this.store.displayName}でログインしました。`);
       } catch (error) {
         if (errorEl) errorEl.textContent = this.authErrorMessage(error);

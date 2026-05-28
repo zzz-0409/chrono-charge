@@ -23,6 +23,8 @@
     packTab: document.querySelector("#packTab"),
     duelTab: document.querySelector("#duelTab"),
     homeView: document.querySelector("#homeView"),
+    titleView: document.querySelector("#titleView"),
+    titleStartButton: document.querySelector("#titleStartButton"),
     deckSelectView: document.querySelector("#deckSelectView"),
     builderView: document.querySelector("#builderView"),
     packView: document.querySelector("#packView"),
@@ -198,6 +200,36 @@
   const closeAppModal = () => {
     els.modalRoot.hidden = true;
     els.modalRoot.replaceChildren();
+  };
+
+  const setTitleActive = (active) => {
+    els.appShell?.classList.toggle("title-active", active);
+  };
+
+  const enterAppFromTitle = () => {
+    setTitleActive(false);
+    setView("home");
+    builderView.render();
+    packView.render();
+  };
+
+  const openTitleLogin = () => {
+    builderView.openAuthDialog({
+      allowGuest: true,
+      onSuccess: () => enterAppFromTitle(),
+      onGuest: () => {
+        enterAppFromTitle();
+        toast("ゲストモードで開始しました。");
+      },
+    });
+  };
+
+  const handleTitleStart = () => {
+    if (store.isAuthenticated) {
+      enterAppFromTitle();
+      return;
+    }
+    openTitleLogin();
   };
 
   const askSaveBeforeLeaving = () => new Promise((resolve) => {
@@ -773,6 +805,7 @@
   els.modeCreateRoomButton?.addEventListener("click", createRoomDuel);
   els.modeJoinRoomButton?.addEventListener("click", joinRoomDuel);
   els.modeCpuDuelButton?.addEventListener("click", () => startCpuDuel());
+  els.titleStartButton?.addEventListener("click", handleTitleStart);
 
   els.homeTab?.addEventListener("click", () => navigateView("home"));
   els.builderTab?.addEventListener("click", () => navigateView("deckSelect"));

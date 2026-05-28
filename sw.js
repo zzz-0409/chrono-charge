@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260528-resultse";
+const CACHE_VERSION = "chrono-drive-pwa-20260528-title";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260528packsound",
+  "/styles.css?v=20260528title",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -18,6 +18,7 @@ const APP_SHELL_URLS = [
   "/assets/ui/duel-menu/mode-emblems.png",
   "/assets/ui/duel-menu/shell-icons.png",
   "/assets/home/home-bg.png",
+  "/assets/title/title-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
   "/assets/SE/doro-.mp3",
   "/assets/SE/ka-dohaiti.mp3",
@@ -35,11 +36,11 @@ const APP_SHELL_URLS = [
   "/src/ui/card-renderer.js?v=20260528abyss",
   "/src/ui/sound-effects.js?v=20260528resultse",
   "/src/ui/card-zoom.js?v=20260522k",
-  "/src/ui/deck-builder-view.js?v=20260527pointerdnd",
+  "/src/ui/deck-builder-view.js?v=20260528title",
   "/src/ui/pack-view.js?v=20260528packsound",
   "/src/net/online-client.js?v=20260528soundse",
   "/src/ui/duel-view.js?v=20260528resultse",
-  "/src/main.js?v=20260528packsound"
+  "/src/main.js?v=20260528title"
 ];
 
 self.addEventListener("install", (event) => {
