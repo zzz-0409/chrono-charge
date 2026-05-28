@@ -221,7 +221,7 @@
         case "driveCyberCore":
           return opponent.reactions.some((entry) => reactionId(entry));
         default:
-          return false;
+          return card?.driveKind === "core";
       }
     }
 
@@ -265,6 +265,45 @@
         } else {
           await this.applyDriveCoreAbility(card, player, opponent);
         }
+        this.checkGameEnd();
+        return true;
+      } finally {
+        if (player === this.player) this.busy = wasBusy;
+        this.notify();
+      }
+    }
+
+    canActivateSpellDriveGraveEffect(player, graveIndex) {
+      if (!player || this.finished) return false;
+      if (player === this.player && !this.canPlayerAct()) return false;
+      if (player === this.enemy && (this.active !== "enemy" || !this.busy)) return false;
+      const card = cards[player.grave[graveIndex]];
+      if (!card || card.driveKind !== "spell") return false;
+      return this.spellDriveGraveEffectAvailable(card, player, this.opponentOf(player));
+    }
+
+    async activateSpellDriveGraveEffect(graveIndex, player = this.player) {
+      if (!this.canActivateSpellDriveGraveEffect(player, graveIndex)) return false;
+      const card = cards[player.grave[graveIndex]];
+      const opponent = this.opponentOf(player);
+      const wasBusy = this.busy;
+      if (player === this.player) {
+        const activates = await this.confirmEffectActivation(player, card, {
+          title: `${card.name}の墓地効果`,
+          message: `${card.name}の墓地効果を発動しますか？`,
+        });
+        if (!activates) return false;
+      }
+      if (player === this.player) this.busy = true;
+      try {
+        const [removed] = player.grave.splice(graveIndex, 1);
+        player.driveUsed.push(removed);
+        this.log(`${card.name}の墓地効果を発動。`);
+        this.notify();
+        await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
+        const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
+        if (negated) this.log(`${card.name}の墓地効果は無効化された。`);
+        else await this.applySpellDriveGraveEffect(card, player, opponent);
         this.checkGameEnd();
         return true;
       } finally {
@@ -344,6 +383,13 @@
       for (let i = 0; i < this.enemy.cores.length; i += 1) {
         if (!this.canActivateDriveCore(this.enemy, i)) continue;
         await this.activateDriveCore(i, this.enemy);
+        if (this.finished) return;
+        await pause(this.options.delayMs);
+      }
+
+      for (let i = this.enemy.grave.length - 1; i >= 0; i -= 1) {
+        if (!this.canActivateSpellDriveGraveEffect(this.enemy, i)) continue;
+        await this.activateSpellDriveGraveEffect(i, this.enemy);
         if (this.finished) return;
         await pause(this.options.delayMs);
       }
@@ -591,6 +637,7 @@
           : await this.applyReactionEffect(link.card, link.player, link.opponent, link.event);
         if (result?.negates) {
           if (i === 0) baseNegated = true;
+          else if (chain[i - 1].drive) this.log(`${chain[i - 1].card.name}の効果は無効化されない。`);
           else chain[i - 1].negated = true;
         }
         this.notify();
@@ -752,7 +799,6 @@
           });
           await this.returnBestUnitToHand(opponent);
           this.drawCards(player, 2);
-          this.untapOneCharge(player);
           return;
         case "driveStarCore":
           this.drawCards(player, 1);
@@ -776,7 +822,7 @@
           return;
         case "driveBlackUnit":
           this.damage(opponent, 2000);
-          if (await this.destroyBestUnit(opponent)) this.damage(opponent, 500);
+          await this.destroyBestUnit(opponent);
           return;
         case "driveBlackCore":
           this.damage(opponent, 1000);
@@ -796,7 +842,6 @@
           return;
         case "driveBladeUnit":
           this.exhaustAllUnitsUntilOwnerTurnEnd(opponent);
-          await this.destroyBestExhaustedUnit(opponent);
           return;
         case "driveBladeCore":
           await this.exhaustBestUnit(opponent);
@@ -821,10 +866,6 @@
         case "driveCyberUnit":
           await this.revealReactions(opponent, 2);
           await this.removeRevealedReaction(opponent);
-          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "電脳", {
-            title: "電脳ユニットを追加召喚",
-            message: "手札から追加召喚する電脳ユニットを選んでください。",
-          }, opponent);
           return;
         case "driveCyberCore":
           await this.revealReactions(opponent, 1);
@@ -856,18 +897,15 @@
             message: "デッキから双彩ユニットを1枚選んでください。",
           });
           await this.returnBestUnitToHand(opponent);
-          this.drawCards(player, 1);
           return;
         case "driveSosaiNeneRuriUnit":
           await this.returnBestUnitToHand(opponent);
           this.damage(opponent, 1000);
           this.drawCards(player, 1);
-          this.untapOneCharge(player);
           return;
         case "driveSosaiCocoLunaUnit":
           this.untapOneCharge(player);
           this.untapOneCharge(player);
-          this.drawCards(player, 1);
           await this.destroyBestUnit(opponent);
           return;
         case "driveSosaiCore":
@@ -899,7 +937,6 @@
           });
           this.drawCards(player, 1);
           this.buffThemeUnits(player, "契環", 300);
-          this.untapOneCharge(player, (candidate) => candidate.theme === "契環");
           return;
         case "driveKeikanCore":
           this.drawCards(player, 1);
@@ -909,7 +946,6 @@
           return;
         case "driveGenericUnit":
           await this.exhaustBestUnit(opponent);
-          this.drawCards(player, 1);
           return;
         case "driveGenericCore":
           this.drawCards(player, 2);
@@ -930,6 +966,51 @@
           if (!this.destroySourceFieldCard(opponent, event)) this.drawCards(player, 1);
           return;
         default:
+          if (card.driveKind === "core") {
+            this.drawCards(player, 1);
+            return;
+          }
+          return;
+      }
+    }
+
+    spellDriveGraveEffectAvailable(card, player, opponent) {
+      return Boolean(card?.driveKind === "spell" && player && opponent);
+    }
+
+    async applySpellDriveGraveEffect(card, player, opponent) {
+      switch (card.driveEffect) {
+        case "driveStarSpell":
+          if (!await this.moveGraveCardToCharge(player, (candidate) => cardHasTheme(candidate, "星導"), {
+            title: "星導カードをチャージ",
+            message: "墓地からチャージに置く星導カードを選んでください。",
+          })) this.drawCards(player, 1);
+          return;
+        case "driveBlackSpell":
+          this.damage(opponent, 600);
+          return;
+        case "driveBladeSpell":
+          if (!await this.exhaustBestUnit(opponent)) this.damage(opponent, 500);
+          return;
+        case "driveCyberSpell":
+          if (await this.revealReactions(opponent, 1) > 0) await this.removeRevealedReaction(opponent);
+          else this.drawCards(player, 1);
+          return;
+        case "driveSosaiSpell":
+          if (!await this.addFromGrave(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩", {
+            title: "双彩ユニットを回収",
+            message: "墓地から双彩ユニットを1枚選んでください。",
+          })) this.drawCards(player, 1);
+          return;
+        case "driveGenericSpell":
+          this.drawCards(player, 1);
+          await this.discardFromHand(player, {
+            title: "手札を1枚捨てる",
+            message: "時空圧縮の墓地効果で墓地に送るカードを選んでください。",
+          });
+          return;
+        default:
+          this.drawCards(player, 1);
           return;
       }
     }
@@ -971,6 +1052,11 @@
           this.log(`${card.name}が起動。`);
           return;
         default:
+          if (card.driveKind === "core") {
+            this.drawCards(player, 1);
+            this.log(`${card.name}が起動。`);
+            return;
+          }
           return;
       }
     }
@@ -1162,6 +1248,11 @@
       return this.drivePaymentOptions(player, card).length > 0;
     }
 
+    drivePaymentRule(card) {
+      if (card?.driveKind === "unit" || card?.driveKind === "core") return "materialsAndCharge";
+      return "materialsOrCharge";
+    }
+
     availableSlotsAfterDriveCost(zone, player, driveCost, type) {
       const open = zone.filter((entry) => !entry).length;
       if (Array.isArray(driveCost?.materials)) {
@@ -1187,6 +1278,9 @@
 
     drivePaymentOptions(player, card) {
       const requiredFreedType = this.requiredFreedTypeForDrive(player, card);
+      if (this.drivePaymentRule(card) === "materialsAndCharge") {
+        return this.canPayDriveCombinedCost(player, card, requiredFreedType) ? ["materialsAndCharge"] : [];
+      }
       const options = [];
       if (this.canPayDriveMaterialCost(player, card, requiredFreedType)) options.push("materials");
       if (!requiredFreedType && this.canPayDriveChargeCost(player, card)) options.push("charge");
@@ -1212,12 +1306,43 @@
       );
     }
 
+    canPayDriveCombinedCost(player, card, requiredFreedType = this.requiredFreedTypeForDrive(player, card)) {
+      const driveCost = card?.driveCost || {};
+      if (Array.isArray(driveCost.materials)) {
+        const selection = this.selectDriveMaterials(
+          player,
+          driveCost,
+          Math.max(0, Number(card?.cost || 0)),
+          requiredFreedType,
+          card
+        );
+        return Boolean(selection);
+      }
+      const selection = this.selectLegacyDriveMaterialPlan(player, driveCost, requiredFreedType);
+      return Boolean(selection && this.canPayDriveChargeCostAfterMaterials(player, card, selection));
+    }
+
     canPayDriveChargeCost(player, card) {
       const cost = Math.max(0, Number(card?.cost || 0));
       if (cost === 0) return true;
       if (!this.canPay(player, cost)) return false;
       if (!card.theme) return this.countDriveChargeType(player, card) >= cost;
       return this.countThemeInCharge(player, card.theme) >= cost;
+    }
+
+    canPayDriveChargeCostAfterMaterials(player, card, selectedMaterials = []) {
+      const cost = Math.max(0, Number(card?.cost || 0));
+      if (cost === 0) return true;
+      const selectedChargeIndexes = new Set(selectedMaterials
+        .filter((entry) => entry.source === "charge" || entry.originalIndex !== undefined)
+        .map((entry) => entry.originalIndex));
+      const remainingCharge = player.charge.filter((_, index) => !selectedChargeIndexes.has(index));
+      if (remainingCharge.filter((entry) => !entry.tapped).length < cost) return false;
+      if (!card.theme) {
+        const type = baseDriveType(card?.type);
+        return remainingCharge.filter((entry) => baseDriveType(cards[entry.id]?.type) === type).length >= cost;
+      }
+      return remainingCharge.filter((entry) => cardHasTheme(cards[entry.id], card.theme)).length >= cost;
     }
 
     countDriveChargeType(player, card) {
@@ -1230,6 +1355,11 @@
       if (!this.canPayDriveCost(player, card)) return false;
       const options = this.drivePaymentOptions(player, card);
       if (options.length === 0) return false;
+      if (options.includes("materialsAndCharge")) {
+        return player === this.player
+          ? await this.payDriveCombinedCostWithChoices(player, card)
+          : this.payDriveCombinedCostAutomatically(player, card);
+      }
       if (player === this.player && options.length > 1) {
         const useCharge = await this.chooseDrivePaymentMode(player, card);
         return useCharge ? this.payDriveChargeCost(player, card) : await this.payDriveMaterialCostWithChoices(player, card);
@@ -1260,6 +1390,26 @@
       return this.payCost(player, Math.max(0, Number(card?.cost || 0)));
     }
 
+    payDriveCombinedCostAutomatically(player, card) {
+      const driveCost = card?.driveCost || {};
+      const selection = Array.isArray(driveCost.materials)
+        ? this.selectDriveMaterials(player, driveCost, Math.max(0, Number(card?.cost || 0)), this.requiredFreedTypeForDrive(player, card), card)
+        : this.selectLegacyDriveMaterialPlan(player, driveCost, this.requiredFreedTypeForDrive(player, card));
+      if (!selection || !this.canPayDriveChargeCostAfterMaterials(player, card, selection)) return false;
+      this.removeDriveMaterialSelection(player, selection);
+      return this.payDriveChargeCost(player, card);
+    }
+
+    async payDriveCombinedCostWithChoices(player, card) {
+      const selectedMaterials = Array.isArray(card?.driveCost?.materials)
+        ? await this.chooseDriveMaterialSelection(player, card)
+        : await this.chooseLegacyDriveMaterialSelection(player, card);
+      if (!selectedMaterials) return false;
+      if (!this.canPayDriveChargeCostAfterMaterials(player, card, selectedMaterials)) return false;
+      this.removeDriveMaterialSelection(player, selectedMaterials);
+      return this.payDriveChargeCost(player, card);
+    }
+
     payDriveCostAutomatically(player, card) {
       const driveCost = card?.driveCost || {};
       if (Array.isArray(driveCost.materials)) {
@@ -1283,9 +1433,10 @@
       if (chargeRemaining > 0) {
         const selected = this.driveChargeMaterialIndexes(player, driveCost)
           .slice(0, chargeRemaining)
-          .sort((a, b) => b.index - a.index);
-        for (const { index } of selected) {
-          const [removed] = player.charge.splice(index, 1);
+          .map((entry) => ({ ...entry, originalIndex: entry.index, source: "charge", key: `charge:${entry.index}` }))
+          .sort((a, b) => b.originalIndex - a.originalIndex);
+        for (const { originalIndex } of selected) {
+          const [removed] = player.charge.splice(originalIndex, 1);
           player.grave.push(removed.id);
           chargeRemaining -= 1;
         }
@@ -1314,10 +1465,8 @@
       for (let i = 0; i < chargeRequired; i += 1) {
         const material = await this.chooseDriveChargeMaterial(player, card, chargeMaterials, i + 1, chargeRequired);
         if (!material) return false;
-        chargeMaterials.push(material);
+        chargeMaterials.push({ ...material, source: "charge" });
       }
-
-      if (this.remainingUntappedAfterSelectedDriveMaterials(player, chargeMaterials) < (card.cost || 0)) return false;
 
       fieldMaterials.forEach((entry) => {
         player.grave.push(entry.id);
@@ -1336,6 +1485,13 @@
     }
 
     async payDriveMaterialCostWithChoices(player, card) {
+      const selectedMaterials = await this.chooseDriveMaterialSelection(player, card);
+      if (!selectedMaterials) return false;
+      this.removeDriveMaterialSelection(player, selectedMaterials);
+      return true;
+    }
+
+    async chooseDriveMaterialSelection(player, card) {
       const selectedMaterials = [];
       const requirements = this.expandDriveRequirements(card.driveCost);
 
@@ -1346,9 +1502,54 @@
       }
 
       if (!this.driveSelectionFreesRequiredSlot(player, card, selectedMaterials)) return false;
+      return selectedMaterials;
+    }
 
-      this.removeDriveMaterialSelection(player, selectedMaterials);
-      return true;
+    selectLegacyDriveMaterialPlan(player, driveCost = {}, requiredFreedType = null) {
+      const field = driveCost.field || 0;
+      const charge = driveCost.charge || 0;
+      if (requiredFreedType && (baseDriveType(driveCost.type) !== requiredFreedType || field <= 0)) return null;
+      const fieldMaterials = this.fieldMaterialEntries(player, driveCost)
+        .slice(0, field)
+        .map((entry) => ({ ...entry, source: "field" }));
+      if (fieldMaterials.length < field) return null;
+      const chargeMaterials = this.driveChargeMaterialIndexes(player, driveCost)
+        .slice(0, charge)
+        .map((entry) => ({
+          id: entry.id,
+          key: `charge:${entry.index}`,
+          source: "charge",
+          originalIndex: entry.index,
+          tapped: Boolean(entry.tapped),
+        }));
+      if (chargeMaterials.length < charge) return null;
+      const selected = [...fieldMaterials, ...chargeMaterials];
+      if (!this.driveSelectionFreesRequiredSlot(player, { driveKind: null }, selected, requiredFreedType)) return null;
+      return selected;
+    }
+
+    async chooseLegacyDriveMaterialSelection(player, card) {
+      const driveCost = card?.driveCost || {};
+      const fieldRequired = driveCost.field || 0;
+      const chargeRequired = driveCost.charge || 0;
+      const fieldMaterials = [];
+      const chargeMaterials = [];
+
+      for (let i = 0; i < fieldRequired; i += 1) {
+        const material = await this.chooseDriveFieldMaterial(player, card, fieldMaterials, i + 1, fieldRequired);
+        if (!material) return false;
+        fieldMaterials.push({ ...material, source: "field" });
+      }
+
+      for (let i = 0; i < chargeRequired; i += 1) {
+        const material = await this.chooseDriveChargeMaterial(player, card, chargeMaterials, i + 1, chargeRequired);
+        if (!material) return false;
+        chargeMaterials.push(material);
+      }
+
+      const selected = [...fieldMaterials, ...chargeMaterials];
+      if (!this.driveSelectionFreesRequiredSlot(player, card, selected)) return false;
+      return selected;
     }
 
     async chooseDriveMaterial(player, card, requirement, selectedMaterials, step, total) {
@@ -1392,6 +1593,7 @@
       const candidates = this.driveChargeMaterialIndexes(player, card.driveCost)
         .map((entry) => ({
           ...entry,
+          source: "charge",
           originalIndex: entry.index,
           index: `charge:${entry.index}`,
         }))
@@ -1422,24 +1624,32 @@
       });
     }
 
-    selectDriveMaterials(player, driveCost = {}, cost = 0, requiredFreedType = null) {
+    selectDriveMaterials(player, driveCost = {}, cost = 0, requiredFreedType = null, chargeCostCard = null) {
       const requirements = this.expandDriveRequirements(driveCost);
-      const selected = [];
-      let entries = this.driveMaterialEntries(player);
+      const entries = this.driveMaterialEntries(player);
+      const search = (step, availableEntries, selected) => {
+        if (step >= requirements.length) {
+          if (!this.driveSelectionFreesRequiredSlot(player, { driveKind: null }, selected, requiredFreedType)) return null;
+          if (this.remainingUntappedAfterSelectedDriveMaterials(player, selected) < cost) return null;
+          if (chargeCostCard && !this.canPayDriveChargeCostAfterMaterials(player, chargeCostCard, selected)) return null;
+          return selected;
+        }
 
-      for (const requirement of requirements) {
-        const candidates = entries
+        const requirement = requirements[step];
+        const candidates = availableEntries
           .filter((entry) => this.matchesDriveRequirement(cards[entry.id], requirement, entry))
           .sort((a, b) => this.driveMaterialPriority(a, b, requiredFreedType));
-        const entry = candidates[0];
-        if (!entry) return null;
-        selected.push(entry);
-        entries = entries.filter((candidate) => candidate.key !== entry.key);
-      }
-
-      if (!this.driveSelectionFreesRequiredSlot(player, { driveKind: null }, selected, requiredFreedType)) return null;
-      if (this.remainingUntappedAfterSelectedDriveMaterials(player, selected) < cost) return null;
-      return selected;
+        for (const entry of candidates) {
+          const result = search(
+            step + 1,
+            availableEntries.filter((candidate) => candidate.key !== entry.key),
+            [...selected, entry]
+          );
+          if (result) return result;
+        }
+        return null;
+      };
+      return search(0, entries, []);
     }
 
     driveMaterialPriority(a, b, requiredFreedType = null) {

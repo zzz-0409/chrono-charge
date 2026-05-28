@@ -1027,6 +1027,18 @@
           if (await this.game.activateDriveCore(coreIndex) !== false) this.playPlaceSound();
         }, canActivate);
       }
+
+      if (this.selectedContext.zone === "grave") {
+        const card = cards[this.selectedCardId];
+        if (card?.driveKind !== "spell") return;
+        const graveIndex = this.selectedContext.index;
+        const canActivate = typeof this.game.canActivateSpellDriveGraveEffect === "function" &&
+          this.game.canActivateSpellDriveGraveEffect(this.game.player, graveIndex);
+        this.addAction("墓地効果", async () => {
+          this.selectedContext = null;
+          if (await this.game.activateSpellDriveGraveEffect(graveIndex) !== false) this.playPlaceSound();
+        }, canActivate);
+      }
     }
 
     renderWaitingActionNotice() {
@@ -1159,23 +1171,46 @@
           <div class="grave-list choice-list"></div>
           <div class="grave-focus choice-focus"></div>
         </div>
+        <div class="choice-actions grave-focus-actions">
+          <button class="primary-button" type="button">墓地効果</button>
+        </div>
       `;
       modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
       const focus = modal.querySelector(".grave-focus");
       focus.addEventListener("click", (event) => CardZoom.openFromEvent(event));
       const list = modal.querySelector(".grave-list");
+      const graveActionButton = modal.querySelector(".grave-focus-actions .primary-button");
+      let selectedGraveIndex = -1;
+      const updateGraveAction = () => {
+        const selectedCard = cards[player.grave[selectedGraveIndex]];
+        const canActivate = owner === "player" &&
+          typeof this.game.canActivateSpellDriveGraveEffect === "function" &&
+          this.game.canActivateSpellDriveGraveEffect(this.game.player, selectedGraveIndex);
+        graveActionButton.hidden = owner !== "player" || selectedCard?.driveKind !== "spell";
+        graveActionButton.disabled = !canActivate;
+      };
+      graveActionButton.addEventListener("click", async () => {
+        if (owner !== "player" || !this.game.canActivateSpellDriveGraveEffect?.(this.game.player, selectedGraveIndex)) return;
+        const index = selectedGraveIndex;
+        this.closeModal();
+        this.selectedContext = null;
+        if (await this.game.activateSpellDriveGraveEffect(index) !== false) this.playPlaceSound();
+      });
       const markSelectedListCard = (selectedIndex) => {
         list.querySelectorAll(".grave-list-card").forEach((card) => {
           card.classList.toggle("selected", card.dataset.listIndex === String(selectedIndex));
         });
       };
       const showGraveFocus = (id, originalIndex) => {
+        selectedGraveIndex = originalIndex;
         CardRenderer.focus(id, focus, { finish: this.finishFor(id) });
         this.selectCard(id, { zone: "grave", index: originalIndex, owner });
         markSelectedListCard(originalIndex);
+        updateGraveAction();
       };
       if (player.grave.length === 0) {
         list.innerHTML = `<div class="small-note">捨て札はありません</div>`;
+        updateGraveAction();
       } else {
         player.grave.slice().reverse().forEach((id, displayIndex) => {
           const originalIndex = player.grave.length - 1 - displayIndex;
