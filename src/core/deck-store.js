@@ -1196,15 +1196,16 @@
       const accountName = normalizeAccountName(remote.username || remote.name || this.activeAccount);
       const local = this.data.accounts[accountName] || this.defaultAccount(starterDeck, starterDriveDeck);
       const newer = accountUpdatedAt(remote) >= accountUpdatedAt(local) ? remote : local;
+      const loginBonusState = mergeLoginBonusState(local, remote);
       const merged = this.normalizeAccount(accountName, {
         ...local,
         ...remote,
         gems: newer.gems,
         dust: newer.dust,
         ranked: mergeRankedByUpdated(local.ranked, remote.ranked),
-        presents: newer.presents,
-        lastLoginBonusDate: newer.lastLoginBonusDate,
-        loginBonus: newer.loginBonus,
+        presents: loginBonusState.remoteHasNewerProgress ? remote.presents : newer.presents,
+        lastLoginBonusDate: loginBonusState.lastLoginBonusDate,
+        loginBonus: loginBonusState.loginBonus,
         collection: newer.collection,
         collectionRoyal: newer.collectionRoyal,
         updatedAt: newer.updatedAt,
@@ -1559,6 +1560,42 @@
     };
   }
 
+  function mergeLoginBonusState(local = {}, remote = {}) {
+    const localRecord = normalizeLoginBonusRecord(local.loginBonus);
+    const remoteRecord = normalizeLoginBonusRecord(remote.loginBonus);
+    const localDate = String(local.lastLoginBonusDate || "");
+    const remoteDate = String(remote.lastLoginBonusDate || "");
+    const localClaims = inferredLoginBonusClaims(localRecord, localDate);
+    const remoteClaims = inferredLoginBonusClaims(remoteRecord, remoteDate);
+    const useRemoteRecord = remoteClaims > localClaims || (
+      remoteClaims === localClaims &&
+      loginBonusUpdatedAt(remoteRecord, remote) >= loginBonusUpdatedAt(localRecord, local)
+    );
+
+    return {
+      remoteHasNewerProgress: remoteClaims > localClaims,
+      lastLoginBonusDate: latestLoginBonusDate(localDate, remoteDate),
+      loginBonus: useRemoteRecord ? remoteRecord : localRecord,
+    };
+  }
+
+  function inferredLoginBonusClaims(record = {}, lastLoginBonusDate = "") {
+    const clean = normalizeLoginBonusRecord(record);
+    const claims = Math.max(clean.totalClaims, clean.cycleDay);
+    return claims > 0 ? claims : (lastLoginBonusDate ? 1 : 0);
+  }
+
+  function latestLoginBonusDate(a = "", b = "") {
+    const left = String(a || "");
+    const right = String(b || "");
+    return right > left ? right : left;
+  }
+
+  function loginBonusUpdatedAt(record = {}, account = {}) {
+    const time = Date.parse(record.updatedAt || account.updatedAt || "");
+    return Number.isFinite(time) ? time : 0;
+  }
+
   function normalizeLoginBonusReward(source = {}) {
     if (!source || typeof source !== "object") return null;
     const type = source.type === PRESENT_TYPE_GEMS ? PRESENT_TYPE_GEMS : "";
@@ -1570,6 +1607,7 @@
       amount,
       date: String(source.date || ""),
       cycleDay: Math.max(1, Math.min(LOGIN_BONUS_CYCLE_DAYS, Math.floor(Number(source.cycleDay) || 1))),
+      totalClaims: Math.max(0, Math.floor(Number(source.totalClaims) || 0)),
       cycleDays: Math.max(1, Math.min(31, Math.floor(Number(source.cycleDays) || LOGIN_BONUS_CYCLE_DAYS))),
       resetHour: Math.max(0, Math.min(23, Math.floor(Number(source.resetHour) || 0))),
       timeZone: String(source.timeZone || "Asia/Tokyo"),

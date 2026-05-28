@@ -3142,6 +3142,7 @@ function sanitizeAccountRecord(name, account = {}) {
 function mergeAccountRecord(name, current, incoming) {
   if (!current) return incoming;
   const newer = accountUpdatedAt(incoming) >= accountUpdatedAt(current) ? incoming : current;
+  const loginBonusState = mergeLoginBonusState(current, incoming);
   return sanitizeAccountRecord(name, {
     ...current,
     ...incoming,
@@ -3150,9 +3151,9 @@ function mergeAccountRecord(name, current, incoming) {
     gems: newer.gems,
     dust: newer.dust,
     ranked: mergeRankedRecord(current.ranked, incoming.ranked),
-    presents: newer.presents,
-    lastLoginBonusDate: newer.lastLoginBonusDate,
-    loginBonus: newer.loginBonus,
+    presents: loginBonusState.currentHasNewerProgress ? current.presents : newer.presents,
+    lastLoginBonusDate: loginBonusState.lastLoginBonusDate,
+    loginBonus: loginBonusState.loginBonus,
     collection: newer.collection,
     collectionRoyal: newer.collectionRoyal,
     updatedAt: newer.updatedAt,
@@ -3264,9 +3265,11 @@ function hasRankedRecord(source) {
 function applyDailyLoginBonus(account) {
   const today = todayKeyJst();
   if (account.lastLoginBonusDate === today) return null;
-  account.loginBonus = sanitizeLoginBonusRecord(account.loginBonus);
-  const cycleDay = (account.loginBonus.cycleDay % LOGIN_BONUS_CYCLE_DAYS) + 1;
+  const previousLoginBonus = sanitizeLoginBonusRecord(account.loginBonus);
+  const previousClaims = inferredLoginBonusClaims(previousLoginBonus, account.lastLoginBonusDate);
+  const cycleDay = nextLoginBonusCycleDay(previousLoginBonus, account.lastLoginBonusDate);
   const presentId = `login_${today}_${makeId(6)}`;
+  const now = new Date().toISOString();
   account.presents = sanitizePresents(account.presents);
   account.presents.push({
     id: presentId,
@@ -3274,21 +3277,22 @@ function applyDailyLoginBonus(account) {
     amount: DAILY_LOGIN_BONUS_GEMS,
     title: "ログインボーナス",
     message: "本日の初回ログインボーナスです。",
-    createdAt: new Date().toISOString(),
+    createdAt: now,
   });
   account.loginBonus = {
     cycleDay,
-    totalClaims: account.loginBonus.totalClaims + 1,
-    updatedAt: new Date().toISOString(),
+    totalClaims: previousClaims + 1,
+    updatedAt: now,
   };
   account.lastLoginBonusDate = today;
-  account.updatedAt = new Date().toISOString();
+  account.updatedAt = now;
   return {
     id: presentId,
     type: "gems",
     amount: DAILY_LOGIN_BONUS_GEMS,
     date: today,
     cycleDay,
+    totalClaims: account.loginBonus.totalClaims,
     cycleDays: LOGIN_BONUS_CYCLE_DAYS,
     resetHour: 0,
     timeZone: "Asia/Tokyo",
@@ -3302,6 +3306,48 @@ function sanitizeLoginBonusRecord(source = {}) {
     totalClaims: Math.max(0, Math.floor(Number(record.totalClaims) || 0)),
     updatedAt: String(record.updatedAt || ""),
   };
+}
+
+function mergeLoginBonusState(current = {}, incoming = {}) {
+  const currentRecord = sanitizeLoginBonusRecord(current.loginBonus);
+  const incomingRecord = sanitizeLoginBonusRecord(incoming.loginBonus);
+  const currentDate = String(current.lastLoginBonusDate || "");
+  const incomingDate = String(incoming.lastLoginBonusDate || "");
+  const currentClaims = inferredLoginBonusClaims(currentRecord, currentDate);
+  const incomingClaims = inferredLoginBonusClaims(incomingRecord, incomingDate);
+  const useIncomingRecord = incomingClaims > currentClaims || (
+    incomingClaims === currentClaims &&
+    loginBonusUpdatedAt(incomingRecord, incoming) >= loginBonusUpdatedAt(currentRecord, current)
+  );
+
+  return {
+    currentHasNewerProgress: currentClaims > incomingClaims,
+    lastLoginBonusDate: latestLoginBonusDate(currentDate, incomingDate),
+    loginBonus: useIncomingRecord ? incomingRecord : currentRecord,
+  };
+}
+
+function inferredLoginBonusClaims(record = {}, lastLoginBonusDate = "") {
+  const clean = sanitizeLoginBonusRecord(record);
+  const claims = Math.max(clean.totalClaims, clean.cycleDay);
+  return claims > 0 ? claims : (lastLoginBonusDate ? 1 : 0);
+}
+
+function nextLoginBonusCycleDay(record = {}, lastLoginBonusDate = "") {
+  const clean = sanitizeLoginBonusRecord(record);
+  const previousCycleDay = clean.cycleDay || (inferredLoginBonusClaims(clean, lastLoginBonusDate) % LOGIN_BONUS_CYCLE_DAYS);
+  return (previousCycleDay % LOGIN_BONUS_CYCLE_DAYS) + 1;
+}
+
+function latestLoginBonusDate(a = "", b = "") {
+  const left = String(a || "");
+  const right = String(b || "");
+  return right > left ? right : left;
+}
+
+function loginBonusUpdatedAt(record = {}, account = {}) {
+  const time = Date.parse(record.updatedAt || account.updatedAt || "");
+  return Number.isFinite(time) ? time : 0;
 }
 
 function sanitizePresents(source = []) {

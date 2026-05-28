@@ -478,7 +478,11 @@
 
   function openLoginBonusModal(reward) {
     const cycleDays = Math.max(1, Math.min(10, Math.floor(Number(reward.cycleDays) || 10)));
-    const currentDay = Math.max(1, Math.min(cycleDays, Math.floor(Number(reward.cycleDay) || 1)));
+    const totalClaims = Math.max(0, Math.floor(Number(reward.totalClaims) || 0));
+    const claimedCycleDay = totalClaims > 0
+      ? ((totalClaims - 1) % cycleDays) + 1
+      : Math.floor(Number(reward.cycleDay) || 1);
+    const currentDay = Math.max(1, Math.min(cycleDays, claimedCycleDay));
     const modal = document.createElement("div");
     modal.className = "modal-dialog login-bonus-dialog";
     modal.innerHTML = `
