@@ -165,6 +165,16 @@
       this.els.packResultGrid?.replaceChildren();
     }
 
+    selectPackByTheme(theme) {
+      const pack = this.store.packDefinitions.find((entry) => entry.theme === theme);
+      if (!pack) return false;
+      this.selectedPackId = pack.id;
+      this.clearResults();
+      this.setView("pack");
+      this.render();
+      return true;
+    }
+
     schedulePackResultSounds(results) {
       results.forEach((entry, index) => {
         const timer = window.setTimeout(() => {

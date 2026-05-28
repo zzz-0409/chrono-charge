@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260529-sosai";
+const CACHE_VERSION = "chrono-drive-pwa-20260529-notice";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260528tapstart",
+  "/styles.css?v=20260529notice",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -28,19 +28,20 @@ const APP_SHELL_URLS = [
   "/assets/SE/shouri.mp3",
   "/assets/SE/haiboku.mp3",
   "/src/data/cards.js?v=20260529sosai",
+  "/src/data/notices.js?v=20260529notice",
   "/src/core/deck-store.js?v=20260529sosai",
   "/src/core/effect-resolver.js?v=20260529sosai",
   "/src/core/cpu-controller.js?v=20260525safeattack",
-  "/src/core/duel-game.js?v=20260528soundse",
+  "/src/core/duel-game.js?v=20260528rankedsystems",
   "/src/ui/scale-manager.js?v=20260524a",
   "/src/ui/card-renderer.js?v=20260529sosai",
   "/src/ui/sound-effects.js?v=20260528resultse",
   "/src/ui/card-zoom.js?v=20260522k",
-  "/src/ui/deck-builder-view.js?v=20260528title",
-  "/src/ui/pack-view.js?v=20260528packsound",
-  "/src/net/online-client.js?v=20260528soundse",
-  "/src/ui/duel-view.js?v=20260528resultse",
-  "/src/main.js?v=20260528tapstart"
+  "/src/ui/deck-builder-view.js?v=20260528loginbonusui",
+  "/src/ui/pack-view.js?v=20260529notice",
+  "/src/net/online-client.js?v=20260528rankedsystems",
+  "/src/ui/duel-view.js?v=20260528rankedsystems",
+  "/src/main.js?v=20260529notice"
 ];
 
 self.addEventListener("install", (event) => {

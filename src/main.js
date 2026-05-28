@@ -13,6 +13,9 @@
     OnlineGameProxy,
     SoundEffects,
     cards,
+    CardRenderer,
+    CardZoom,
+    notices: noticeEntries = [],
   } = window.Chrono;
 
   const els = {
@@ -986,6 +989,104 @@
     return `${present.amount}`;
   }
 
+  function openNoticeBox() {
+    const entries = Array.isArray(noticeEntries) ? noticeEntries.filter(Boolean) : [];
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog notice-dialog";
+    modal.innerHTML = `
+      <div class="notice-dialog-head">
+        <div>
+          <p class="eyebrow">Notice</p>
+          <h2>お知らせ</h2>
+        </div>
+      </div>
+      <div class="notice-list">
+        ${entries.length
+          ? entries.map((entry, index) => noticeEntryHtml(entry, index)).join("")
+          : '<p class="small-note notice-empty">現在のお知らせはありません。</p>'}
+      </div>
+      <div class="modal-actions modal-actions-row">
+        <button class="ghost-button" type="button" data-action="close">閉じる</button>
+      </div>
+    `;
+    renderNoticeCardGrids(modal, entries);
+    modal.querySelector(".notice-list")?.addEventListener("click", (event) => {
+      if (CardZoom?.openFromEvent?.(event)) return;
+      const packButton = event.target.closest("[data-notice-pack-theme]");
+      if (!packButton) return;
+      closeAppModal();
+      if (!packView.selectPackByTheme(packButton.dataset.noticePackTheme)) {
+        toast("対象のパックが見つかりません。");
+      }
+    });
+    modal.querySelector('[data-action="close"]').addEventListener("click", closeAppModal);
+    openAppModal(modal);
+  }
+
+  function noticeEntryHtml(entry, index) {
+    const story = entry.story?.paragraphs?.length
+      ? `
+        <section class="notice-story">
+          <strong>${escapeHtml(entry.story.title || "ストーリー")}</strong>
+          ${entry.story.paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+        </section>
+      `
+      : "";
+    const pack = entry.pack
+      ? `
+        <section class="notice-pack-note">
+          <div>
+            <strong>${escapeHtml(entry.pack.title || "パック更新")}</strong>
+            <p>${escapeHtml(entry.pack.text || "")}</p>
+          </div>
+          ${entry.pack.theme ? `<button class="primary-button" type="button" data-notice-pack-theme="${escapeHtml(entry.pack.theme)}">${escapeHtml(entry.pack.buttonLabel || "パックを見る")}</button>` : ""}
+        </section>
+      `
+      : "";
+    const cardCount = Array.isArray(entry.cardIds) ? entry.cardIds.filter((id) => cards[id]).length : 0;
+    const cardsHtml = cardCount > 0
+      ? `
+        <section class="notice-card-section">
+          <div class="notice-card-section-head">
+            <strong>追加カード</strong>
+            <small>${cardCount} cards</small>
+          </div>
+          <div class="notice-card-grid" data-notice-cards="${index}"></div>
+        </section>
+      `
+      : "";
+    return `
+      <article class="notice-entry">
+        <div class="notice-entry-head">
+          <div>
+            <div class="notice-meta">
+              <span>${escapeHtml(entry.date || "")}</span>
+              <span>${escapeHtml(entry.badge || "更新")}</span>
+            </div>
+            <h3>${escapeHtml(entry.title || "お知らせ")}</h3>
+            <p>${escapeHtml(entry.summary || "")}</p>
+          </div>
+        </div>
+        ${story}
+        ${pack}
+        ${cardsHtml}
+      </article>
+    `;
+  }
+
+  function renderNoticeCardGrids(modal, entries) {
+    modal.querySelectorAll("[data-notice-cards]").forEach((grid) => {
+      const entry = entries[Number(grid.dataset.noticeCards)];
+      const cardIds = Array.isArray(entry?.cardIds) ? entry.cardIds.filter((id) => cards[id]) : [];
+      cardIds.forEach((id) => {
+        const card = CardRenderer.tcgCard(id, { interactive: true });
+        card.classList.add("notice-card");
+        card.setAttribute("aria-label", `${cards[id].name}を拡大表示`);
+        grid.append(card);
+      });
+    });
+  }
+
   const openRankedLeaderboard = async () => {
     if (!canUseOnline()) return;
     try {
@@ -1087,6 +1188,10 @@
     button.addEventListener("click", () => {
       if (button.dataset.shellAction === "gift") {
         openPresentBox();
+        return;
+      }
+      if (button.dataset.shellAction === "notice") {
+        openNoticeBox();
         return;
       }
       const label = shellActionLabels[button.dataset.shellAction] || "この機能";
