@@ -1,6 +1,36 @@
 (function () {
   "use strict";
 
+  const SOSAI_PAIRS = [
+    ["sosai_hikari", "sosai_mint"],
+    ["sosai_nene", "sosai_ruri"],
+    ["sosai_coco", "sosai_luna"],
+  ];
+
+  function fieldUnitIds(player) {
+    return new Set(player.units.filter(Boolean).map((unit) => unit.id));
+  }
+
+  function missingSosaiPartnerIds(player) {
+    const controlled = fieldUnitIds(player);
+    const ids = new Set();
+    SOSAI_PAIRS.forEach(([first, second]) => {
+      if (controlled.has(first) && !controlled.has(second)) ids.add(second);
+      if (controlled.has(second) && !controlled.has(first)) ids.add(first);
+    });
+    return ids;
+  }
+
+  function fieldSosaiPartnerIds(player) {
+    const controlled = fieldUnitIds(player);
+    const ids = new Set();
+    SOSAI_PAIRS.forEach(([first, second]) => {
+      if (controlled.has(first)) ids.add(second);
+      if (controlled.has(second)) ids.add(first);
+    });
+    return ids;
+  }
+
   class EffectResolver {
     constructor(game) {
       this.game = game;
@@ -547,6 +577,25 @@
         case "sosaiPopStage":
           this.game.drawCards(player, 1);
           break;
+        case "sosaiPartnerCallAi": {
+          const partnerIds = missingSosaiPartnerIds(player);
+          await this.game.addFromDeck(player, (card) => partnerIds.has(card.id), {
+            title: "双彩の相方をサーチ",
+            message: "自分フィールドに片方だけがいる「双彩」ペアのもう片方を選んでください。",
+          });
+          break;
+        }
+        case "sosaiBackstageCall": {
+          const partnerIds = fieldSosaiPartnerIds(player);
+          if (await this.game.addFromGrave(player, (card) => partnerIds.has(card.id), {
+            title: "双彩の相方を回収",
+            message: "ロストゾーンから自分フィールドの「双彩」ユニットの相方を選んでください。",
+          }) && await this.optionalAdditional(player, sourceCard, "相方を戻しました。追加で自分のタップ済みチャージ1枚をアクティブにしますか？")) {
+            await this.game.afterEffectStep();
+            this.game.untapOneCharge(player);
+          }
+          break;
+        }
         case "drawDiscard":
           this.game.drawCards(player, 2);
           await this.game.afterEffectStep(560);
@@ -589,6 +638,16 @@
             await this.game.moveHandCardToCharge(player, () => true, {
               title: "手札をチャージ",
               message: "手札からチャージに置くカードを選んでください。",
+            });
+          }
+          break;
+        case "genericRearguardAide":
+          if (player.units.filter(Boolean).length > 1) {
+            this.game.drawCards(player, 1);
+            await this.game.afterEffectStep(560);
+            await this.game.discardFromHand(player, {
+              title: "手札を1枚捨てる",
+              message: "ロストゾーンに送るカードを選んでください。",
             });
           }
           break;

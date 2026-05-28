@@ -2222,6 +2222,26 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "sosaiPopStage":
       drawCards(player, 1, game);
       break;
+    case "sosaiPartnerCallAi": {
+      const partnerIds = missingSosaiPartnerIds(player);
+      return chooseFromDeck(game, player, (card) => partnerIds.has(card.id), {
+        title: "双彩の相方をサーチ",
+        message: "自分フィールドに片方だけがいる「双彩」ペアのもう片方を選んでください。",
+      });
+    }
+    case "sosaiBackstageCall": {
+      const partnerIds = fieldSosaiPartnerIds(player);
+      return chooseFromGrave(game, player, (card) => partnerIds.has(card.id), {
+        title: "双彩の相方を回収",
+        message: "ロストゾーンから自分フィールドの「双彩」ユニットの相方を選んでください。",
+      }, (moved) => {
+        if (moved) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "相方を戻しました。追加で自分のタップ済みチャージ1枚をアクティブにしますか？", () => {
+            untapOneCharge(player);
+          });
+        }
+      });
+    }
     case "drawDiscard":
       drawCards(player, 2, game);
       return chooseDiscardFromHand(game, player, {
@@ -2259,6 +2279,16 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
             title: "手札をチャージ",
             message: "手札からチャージに置くカードを選んでください。",
           });
+        });
+      }
+      break;
+    case "genericRearguardAide":
+      if (player.units.filter(Boolean).length > 1) {
+        drawCards(player, 1, game);
+        return chooseDiscardFromHand(game, player, {
+          title: "手札を1枚捨てる",
+          message: "ロストゾーンに送るカードを選んでください。",
+          delayBeforeOpenMs: 560,
         });
       }
       break;
@@ -2528,6 +2558,30 @@ function countThemeUnits(player, theme) {
 
 function controlsCard(player, id) {
   return player.units.some((unit) => unit?.id === id);
+}
+
+function fieldUnitIds(player) {
+  return new Set(player.units.filter(Boolean).map((unit) => unit.id));
+}
+
+function missingSosaiPartnerIds(player) {
+  const controlled = fieldUnitIds(player);
+  const ids = new Set();
+  SOSAI_PAIRS.forEach(([first, second]) => {
+    if (controlled.has(first) && !controlled.has(second)) ids.add(second);
+    if (controlled.has(second) && !controlled.has(first)) ids.add(first);
+  });
+  return ids;
+}
+
+function fieldSosaiPartnerIds(player) {
+  const controlled = fieldUnitIds(player);
+  const ids = new Set();
+  SOSAI_PAIRS.forEach(([first, second]) => {
+    if (controlled.has(first)) ids.add(second);
+    if (controlled.has(second)) ids.add(first);
+  });
+  return ids;
 }
 
 function hasSosaiPair(player) {
