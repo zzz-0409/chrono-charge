@@ -39,6 +39,9 @@
       this.peekedModalContent = null;
       this.lastPlaceSoundAt = 0;
       this.lastDrawSoundAt = 0;
+      this.lastDamageSoundAt = 0;
+      this.lastDestroySoundAt = 0;
+      this.lastActivationSoundAt = 0;
       this.handleHandPointerMove = (event) => this.moveHandPointerDrag(event);
       this.handleHandPointerUp = (event) => this.finishHandPointerDrag(event);
       this.handleHandPointerCancel = () => this.cancelHandPointerDrag();
@@ -112,6 +115,7 @@
         requestReaction: (options, event) => this.requestReactionChoice(options, event),
         requestCardChoice: (choice) => this.requestCardChoice(choice),
         showActivation: (activation) => this.showActivation(activation),
+        onSoundEvent: (event) => this.handleSoundEvent(event),
       });
       this.game.start();
       this.setView("duel");
@@ -144,6 +148,7 @@
       this.game.onResult = (won) => this.showResult(won);
       this.game.requestCardChoice = (choice) => this.requestCardChoice(choice);
       this.game.showActivation = (activation) => this.showActivation(activation);
+      this.game.onSoundEvent = (event) => this.handleSoundEvent(event);
       this.game.start();
       this.setView("duel");
     }
@@ -921,6 +926,32 @@
       this.sounds?.play("place", { volume: 0.72 });
     }
 
+    handleSoundEvent(event = {}) {
+      if (event.type === "damage") this.playDamageSound();
+      if (event.type === "destroy") this.playDestroySound();
+    }
+
+    playDamageSound() {
+      const now = performance.now();
+      if (now - this.lastDamageSoundAt < 90) return;
+      this.lastDamageSoundAt = now;
+      this.sounds?.play("damage", { volume: 0.78 });
+    }
+
+    playDestroySound() {
+      const now = performance.now();
+      if (now - this.lastDestroySoundAt < 90) return;
+      this.lastDestroySoundAt = now;
+      this.sounds?.play("destroy", { volume: 0.74 });
+    }
+
+    playActivationSound() {
+      const now = performance.now();
+      if (now - this.lastActivationSoundAt < 90) return;
+      this.lastActivationSoundAt = now;
+      this.sounds?.play("activation", { volume: 0.7 });
+    }
+
     selectCard(id, context) {
       this.selectedCardId = id;
       this.selectedContext = context;
@@ -1460,6 +1491,7 @@
     showActivation(activation = {}) {
       const id = activation.id;
       if (!id || !cards[id]) return Promise.resolve();
+      this.playActivationSound();
 
       return new Promise((resolve) => {
         this.activationOverlay?.remove();

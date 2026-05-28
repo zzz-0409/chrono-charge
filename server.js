@@ -352,6 +352,7 @@ function startRoomGame(room) {
     openingTurn: true,
     completedTurns: 0,
     activationEvents: [],
+    soundEvents: [],
     finished: false,
     winner: null,
     pendingChoice: null,
@@ -613,16 +614,16 @@ function resolveAttack(game, player, opponent, attackerIndex, targetIndex) {
   const defenderAtk = getUnitAtk(opponent, defender, game);
   const diff = Math.abs(attackerAtk - defenderAtk);
   if (attackerAtk > defenderAtk) {
-    destroyUnit(opponent, targetIndex);
+    destroyUnit(opponent, targetIndex, game);
     const dealt = damage(game, opponent, diff);
     log(game, `${attackerCard.name}が${defenderCard.name}を破壊。${dealt}ダメージ。`);
   } else if (attackerAtk < defenderAtk) {
-    destroyUnit(player, attackerIndex);
+    destroyUnit(player, attackerIndex, game);
     const dealt = damage(game, player, diff);
     log(game, `${attackerCard.name}は戦闘で破壊された。${dealt}ダメージ。`);
   } else {
-    destroyUnit(player, attackerIndex);
-    destroyUnit(opponent, targetIndex);
+    destroyUnit(player, attackerIndex, game);
+    destroyUnit(opponent, targetIndex, game);
     log(game, `${attackerCard.name}と${defenderCard.name}は相打ち。`);
   }
   return true;
@@ -758,7 +759,7 @@ function applyReactionEffect(game, card, player, opponent, event = {}, after = n
       const targetName = cards[opponent.units[targetIndex].id].name;
       if (countThemeInCharge(player, "断刃") >= 3) {
         queueOptionalAdditionalEffect(game, player, card, "チャージに「断刃」が3枚以上あります。追加でそのユニットを破壊しますか？", () => {
-          destroyUnit(opponent, targetIndex);
+          destroyUnit(opponent, targetIndex, game);
           log(game, `${card.name}で${targetName}を破壊。`);
           finishReaction({ negates: true });
         }, () => {
@@ -955,7 +956,7 @@ function chooseDestroyUnit(game, chooser, targetPlayer, after = () => {}) {
     message: "破壊する相手ユニットを選んでください。",
     confirmLabel: "決定",
   }, (candidate) => {
-    destroyUnit(targetPlayer, candidate.index);
+    destroyUnit(targetPlayer, candidate.index, game);
     after(true);
   }, () => after(false));
 }
@@ -982,7 +983,7 @@ function chooseDestroyExhaustedUnit(game, chooser, targetPlayer, after = () => {
     confirmLabel: "決定",
   }, (candidate) => {
     const targetName = cards[targetPlayer.units[candidate.index].id].name;
-    destroyUnit(targetPlayer, candidate.index);
+    destroyUnit(targetPlayer, candidate.index, game);
     log(game, `${targetName}を破壊した。`);
     after(true);
   }, () => after(false));
@@ -1933,7 +1934,7 @@ function destroyBestExhaustedUnit(game, player) {
     .sort((a, b) => getUnitAtk(player, b.unit, game) - getUnitAtk(player, a.unit, game))[0];
   if (!target) return false;
   const targetName = cards[target.unit.id].name;
-  destroyUnit(player, target.index);
+  destroyUnit(player, target.index, game);
   log(game, `${targetName}を破壊した。`);
   return true;
 }
@@ -1957,11 +1958,13 @@ function hasSetReaction(player) {
   return player.reactions.some((entry) => reactionId(entry));
 }
 
-function destroyUnit(player, index) {
+function destroyUnit(player, index, game = null) {
   const unit = player.units[index];
   if (!unit) return false;
-  player.grave.push(unit.id);
+  const id = unit.id;
+  player.grave.push(id);
   player.units[index] = null;
+  if (game) addSoundEvent(game, "destroy", player, { id });
   return true;
 }
 
@@ -2043,6 +2046,7 @@ function cardHasTheme(card, theme) {
 function damage(game, player, amount) {
   const dealt = amount;
   player.lp = Math.max(0, player.lp - dealt);
+  if (dealt > 0) addSoundEvent(game, "damage", player, { amount: dealt });
   return dealt;
 }
 
@@ -2085,6 +2089,7 @@ function roomSnapshot(room, seat) {
     pendingChoice: publicPendingChoice(game.pendingChoice, seat),
     waitingChoice: publicWaitingChoice(game.pendingChoice, seat),
     activationEvents: publicActivationEvents(game.activationEvents, seat),
+    soundEvents: publicSoundEvents(game.soundEvents, seat),
     player,
     enemy,
     logItems: game.logItems.slice(),
@@ -2126,6 +2131,16 @@ function publicActivationEvents(events = [], seat) {
   }));
 }
 
+function publicSoundEvents(events = [], seat) {
+  return events.map((event) => ({
+    eventId: event.eventId,
+    type: event.type,
+    id: event.cardId,
+    amount: event.amount,
+    owner: event.seat === seat ? "player" : "enemy",
+  }));
+}
+
 function publicDuelist(player, includeHand) {
   return {
     name: player.name,
@@ -2163,6 +2178,19 @@ function addActivation(game, card, seat, kind) {
     kind,
   });
   if (game.activationEvents.length > 40) game.activationEvents.shift();
+}
+
+function addSoundEvent(game, type, player, payload = {}) {
+  if (!game || !type) return;
+  game.soundEvents = game.soundEvents || [];
+  game.soundEvents.push({
+    eventId: makeId(8),
+    type,
+    seat: seatOf(game, player),
+    cardId: payload.id,
+    amount: payload.amount,
+  });
+  if (game.soundEvents.length > 40) game.soundEvents.shift();
 }
 
 function log(game, message) {

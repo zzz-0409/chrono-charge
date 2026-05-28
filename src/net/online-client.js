@@ -79,6 +79,7 @@
       this.onResult = options.onResult || (() => {});
       this.requestCardChoice = options.requestCardChoice || (async () => null);
       this.showActivation = options.showActivation || (async () => {});
+      this.onSoundEvent = options.onSoundEvent || (() => {});
       this.isOnline = true;
       this.status = "waiting";
       this.turn = 1;
@@ -97,6 +98,7 @@
       this.fetching = false;
       this.reportedResult = false;
       this.seenActivationEvents = new Set();
+      this.seenSoundEvents = new Set();
       this.activationQueue = Promise.resolve();
     }
 
@@ -191,6 +193,7 @@
         this.logItems = snapshot.logItems || [];
       }
 
+      this.queueSoundEvents(snapshot.soundEvents || []);
       const animationReady = this.queueActivationEvents(snapshot.activationEvents || []);
       this.onChange(this);
       if (this.pendingChoice) {
@@ -219,6 +222,19 @@
         }
       });
       return this.activationQueue;
+    }
+
+    queueSoundEvents(events) {
+      events.forEach((event) => {
+        if (!event?.eventId || this.seenSoundEvents.has(event.eventId)) return;
+        this.seenSoundEvents.add(event.eventId);
+        this.onSoundEvent({
+          type: event.type,
+          owner: event.owner,
+          id: event.id,
+          amount: event.amount,
+        });
+      });
     }
 
     async handlePendingChoice(choice) {

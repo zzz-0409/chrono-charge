@@ -71,6 +71,7 @@
         requestReaction: async () => null,
         requestCardChoice: async () => null,
         showActivation: async () => {},
+        onSoundEvent: () => {},
         delayMs: 360,
         ...options,
       };
@@ -460,6 +461,11 @@
     async showActivation(card, owner, kind) {
       if (!card) return;
       await this.options.showActivation?.({ id: card.id, owner, kind, card });
+    }
+
+    emitSoundEvent(type, player, payload = {}) {
+      const owner = player === this.player ? "player" : player === this.enemy ? "enemy" : null;
+      this.options.onSoundEvent?.({ type, owner, ...payload });
     }
 
     async confirmEffectActivation(player, card, choice = {}) {
@@ -1137,6 +1143,7 @@
       if (coreIndex !== -1) {
         player.cores[coreIndex] = null;
         player.grave.push(sourceId);
+        this.emitSoundEvent("destroy", player, { id: sourceId, zone: "core" });
         this.log(`${cards[sourceId].name}を破壊した。`);
         return true;
       }
@@ -1144,6 +1151,7 @@
       if (reactionIndex !== -1) {
         player.reactions[reactionIndex] = null;
         player.grave.push(sourceId);
+        this.emitSoundEvent("destroy", player, { id: sourceId, zone: "reaction" });
         this.log(`${cards[sourceId].name}を破壊した。`);
         return true;
       }
@@ -2152,6 +2160,7 @@
       const id = player.cores[index];
       player.cores[index] = null;
       player.grave.push(id);
+      this.emitSoundEvent("destroy", player, { id, zone: "core" });
       this.log(`${cards[id].name}を破壊した。`);
       return true;
     }
@@ -2245,13 +2254,16 @@
     destroyUnit(player, index) {
       const unit = player.units[index];
       if (!unit) return;
-      player.grave.push(unit.id);
+      const id = unit.id;
+      player.grave.push(id);
       player.units[index] = null;
+      this.emitSoundEvent("destroy", player, { id, zone: "unit" });
     }
 
     damage(player, amount, options = {}) {
       const dealt = amount;
       player.lp = Math.max(0, player.lp - dealt);
+      if (dealt > 0) this.emitSoundEvent("damage", player, { amount: dealt });
       if (options.log !== false) {
         this.log(`${player.name}に${dealt}ダメージ。`);
       }

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260528-battlefix";
+const CACHE_VERSION = "chrono-drive-pwa-20260528-soundse";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -19,19 +19,24 @@ const APP_SHELL_URLS = [
   "/assets/ui/duel-menu/shell-icons.png",
   "/assets/home/home-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
+  "/assets/SE/doro-.mp3",
+  "/assets/SE/ka-dohaiti.mp3",
+  "/assets/SE/dame-ji.mp3",
+  "/assets/SE/hakai.mp3",
+  "/assets/SE/koukahatudou.mp3",
   "/src/data/cards.js?v=20260528abyss",
   "/src/core/deck-store.js?v=20260528keikan",
   "/src/core/effect-resolver.js?v=20260528abyss",
   "/src/core/cpu-controller.js?v=20260525safeattack",
-  "/src/core/duel-game.js?v=20260528battlefix",
+  "/src/core/duel-game.js?v=20260528soundse",
   "/src/ui/scale-manager.js?v=20260524a",
   "/src/ui/card-renderer.js?v=20260528abyss",
-  "/src/ui/sound-effects.js?v=20260522h",
+  "/src/ui/sound-effects.js?v=20260528soundse",
   "/src/ui/card-zoom.js?v=20260522k",
   "/src/ui/deck-builder-view.js?v=20260527pointerdnd",
   "/src/ui/pack-view.js?v=20260526packResultFlow",
-  "/src/net/online-client.js?v=20260528abyss",
-  "/src/ui/duel-view.js?v=20260528abyss",
+  "/src/net/online-client.js?v=20260528soundse",
+  "/src/ui/duel-view.js?v=20260528soundse",
   "/src/main.js?v=20260528abyss"
 ];
 
