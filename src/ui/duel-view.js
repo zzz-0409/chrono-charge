@@ -127,11 +127,7 @@
         ? cpuDecks
         : [{ name: "CPU: 黒機", deck: cpuDeck, driveDeck: cpuDriveDeck }];
       const requested = String(mode || "random");
-      if (requested === "mirror") {
-        const playerTheme = dominantTheme(playerDeckList);
-        const mirrored = options.find((entry) => dominantTheme(expandDeck(entry.deck)) === playerTheme);
-        if (mirrored) return mirrored;
-      } else if (requested !== "random") {
+      if (requested !== "random") {
         const themed = options.find((entry) => dominantTheme(expandDeck(entry.deck)) === requested);
         if (themed) return themed;
       }

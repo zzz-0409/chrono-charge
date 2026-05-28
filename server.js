@@ -479,6 +479,7 @@ async function handleRankedLeaderboardApi(req, res) {
         updatedAt: ranked.updatedAt,
       };
     })
+    .filter((entry) => entry.wins + entry.losses > 0)
     .sort((a, b) => (
       b.points - a.points ||
       b.wins - a.wins ||
