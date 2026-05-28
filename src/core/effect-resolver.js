@@ -40,7 +40,7 @@
         case "starMira":
           if (!await this.game.addFromGrave(player, (card) => card.type === "スペル" && card.name.includes("星導"), {
             title: "星導スペルを回収",
-            message: "墓地から手札に戻すカードを選んでください。",
+            message: "ロストゾーンから手札に戻すカードを選んでください。",
           })) this.game.drawCards(player, 1);
           break;
         case "starKai":
@@ -82,7 +82,7 @@
         case "starReignite":
           await this.game.addFromGrave(player, (card) => card.name.includes("星導"), {
             title: "星導カードを回収",
-            message: "墓地から手札に戻すカードを選んでください。",
+            message: "ロストゾーンから手札に戻すカードを選んでください。",
           });
           await this.game.afterEffectStep();
           this.game.untapOneCharge(player, (card) => card.name.includes("星導"));
@@ -102,7 +102,7 @@
         case "starChart":
           if (await this.game.moveGraveCardToCharge(player, (card) => card.name.includes("星導"), {
             title: "星導カードをチャージ",
-            message: "墓地からチャージに置く「星導」カードを選んでください。",
+            message: "ロストゾーンからチャージに置く「星導」カードを選んでください。",
           }) && this.game.controlsThemeUnit(player, "星導") &&
             await this.optionalAdditional(player, sourceCard, "自分フィールドに「星導」ユニットがいます。追加でチャージをアクティブにしますか？")) {
             await this.game.afterEffectStep();
@@ -278,7 +278,7 @@
           await this.game.afterEffectStep(560);
           await this.game.discardFromHand(player, {
             title: "手札を1枚捨てる",
-            message: "墓地に送るカードを選んでください。",
+            message: "ロストゾーンに送るカードを選んでください。",
           });
           await this.game.afterEffectStep();
           await this.game.removeRevealedReaction(opponent);
@@ -397,7 +397,7 @@
           if (this.game.countThemeChargeTypes(player, "契環") >= 3) {
             await this.game.addFromGrave(player, (card) => card.theme === "契環", {
               title: "契環カードを回収",
-              message: "墓地から手札に戻す「契環」カードを選んでください。",
+              message: "ロストゾーンから手札に戻す「契環」カードを選んでください。",
             });
             await this.game.afterEffectStep();
             await this.game.exhaustBestUnit(opponent);
@@ -437,7 +437,7 @@
         case "keikanSealExchange":
           if (await this.game.moveGraveCardToCharge(player, (card) => card.theme === "契環", {
             title: "契環カードをチャージ",
-            message: "墓地からチャージに置く「契環」カードを選んでください。",
+            message: "ロストゾーンからチャージに置く「契環」カードを選んでください。",
           }) && this.game.countThemeChargeTypes(player, "契環") >= 3 &&
             await this.optionalAdditional(player, sourceCard, "チャージに「契環」のカード種類が3種類以上あります。追加で1枚ドローしますか？")) {
             await this.game.afterEffectStep();
@@ -465,7 +465,7 @@
           if (revealed > 0) await this.game.afterEffectStep();
           if (
             this.game.controlsCard(player, "sosai_hikari") &&
-            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩のヒカリ」がいます。追加で表向きリアクションを墓地に送りますか？")
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩のヒカリ」がいます。追加で表向きリアクションをロストゾーンに送りますか？")
           ) await this.game.removeRevealedReaction(opponent);
           break;
         }
@@ -552,7 +552,7 @@
           await this.game.afterEffectStep(560);
           await this.game.discardFromHand(player, {
             title: "手札を1枚捨てる",
-            message: "墓地に送るカードを選んでください。",
+            message: "ロストゾーンに送るカードを選んでください。",
           });
           break;
         case "genericFieldNotes":
@@ -600,7 +600,7 @@
         case "recallUnit":
           await this.game.addFromGrave(player, (card) => card.type === "ユニット", {
             title: "ユニットを回収",
-            message: "墓地から手札に戻すユニットを選んでください。",
+            message: "ロストゾーンから手札に戻すユニットを選んでください。",
           });
           break;
         case "zeroCore":

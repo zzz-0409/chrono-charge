@@ -12,21 +12,21 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
-    <link rel="stylesheet" href="styles.css?v=20260527driveidentity">
-    <script defer src="src/data/cards.js?v=20260528drivewording"></script>
+    <link rel="stylesheet" href="styles.css?v=20260528abyss">
+    <script defer src="src/data/cards.js?v=20260528abyss"></script>
     <script defer src="src/core/deck-store.js?v=20260528keikan"></script>
-    <script defer src="src/core/effect-resolver.js?v=20260528keikan"></script>
+    <script defer src="src/core/effect-resolver.js?v=20260528abyss"></script>
     <script defer src="src/core/cpu-controller.js?v=20260525safeattack"></script>
-    <script defer src="src/core/duel-game.js?v=20260528driverules"></script>
+    <script defer src="src/core/duel-game.js?v=20260528abyss"></script>
     <script defer src="src/ui/scale-manager.js?v=20260524a"></script>
-    <script defer src="src/ui/card-renderer.js?v=20260528keikan"></script>
+    <script defer src="src/ui/card-renderer.js?v=20260528abyss"></script>
     <script defer src="src/ui/sound-effects.js?v=20260522h"></script>
     <script defer src="src/ui/card-zoom.js?v=20260522k"></script>
     <script defer src="src/ui/deck-builder-view.js?v=20260527pointerdnd"></script>
     <script defer src="src/ui/pack-view.js?v=20260526packResultFlow"></script>
-    <script defer src="src/net/online-client.js?v=20260525openingattack"></script>
-    <script defer src="src/ui/duel-view.js?v=20260528driverules"></script>
-    <script defer src="src/main.js?v=20260527duelmenu"></script>
+    <script defer src="src/net/online-client.js?v=20260528abyss"></script>
+    <script defer src="src/ui/duel-view.js?v=20260528abyss"></script>
+    <script defer src="src/main.js?v=20260528abyss"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -571,9 +571,10 @@
                 <div id="enemyCoreZones" class="zone-row core-row"></div>
                 <div id="enemyUnitZones" class="zone-row unit-row"></div>
                 <div id="enemyReactionZones" class="zone-row reaction-row"></div>
-                <div class="pile-zones opponent-piles" aria-label="相手の山札と捨て札">
+                <div class="pile-zones opponent-piles" aria-label="相手の山札、ロストゾーン、アビスゾーン">
                   <div id="enemyDeckPile" class="pile-slot deck-pile" role="img" aria-label="相手の山札"></div>
-                  <div id="enemyGravePile" class="pile-slot grave-pile" role="img" aria-label="相手の捨て札"></div>
+                  <div id="enemyGravePile" class="pile-slot grave-pile" role="img" aria-label="相手のロストゾーン"></div>
+                  <div id="enemyAbyssPile" class="pile-slot abyss-pile" role="img" aria-label="相手のアビスゾーン"></div>
                 </div>
               </div>
 
@@ -592,9 +593,10 @@
                 <div id="playerCoreZones" class="zone-row core-row"></div>
                 <div id="playerCharge" class="charge-row"></div>
                 <div id="playerDrivePile" class="drive-pile-field player-drive-pile" role="button" tabindex="0" aria-label="自分のドライブデッキ"></div>
-                <div class="pile-zones player-piles" aria-label="自分の山札と捨て札">
+                <div class="pile-zones player-piles" aria-label="自分の山札、ロストゾーン、アビスゾーン">
                   <div id="playerDeckPile" class="pile-slot deck-pile" role="img" aria-label="自分の山札"></div>
-                  <div id="playerGravePile" class="pile-slot grave-pile" role="img" aria-label="自分の捨て札"></div>
+                  <div id="playerGravePile" class="pile-slot grave-pile" role="img" aria-label="自分のロストゾーン"></div>
+                  <div id="playerAbyssPile" class="pile-slot abyss-pile" role="img" aria-label="自分のアビスゾーン"></div>
                 </div>
               </div>
 

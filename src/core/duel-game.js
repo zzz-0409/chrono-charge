@@ -32,6 +32,7 @@
       this.driveUsed = [];
       this.hand = [];
       this.grave = [];
+      this.abyss = [];
       this.charge = [];
       this.units = Array(UNIT_ZONES).fill(null);
       this.cores = Array(CORE_ZONES).fill(null);
@@ -289,20 +290,21 @@
       const wasBusy = this.busy;
       if (player === this.player) {
         const activates = await this.confirmEffectActivation(player, card, {
-          title: `${card.name}の墓地効果`,
-          message: `${card.name}の墓地効果を発動しますか？`,
+          title: `${card.name}のロスト効果`,
+          message: `${card.name}のロスト効果を発動しますか？`,
         });
         if (!activates) return false;
       }
       if (player === this.player) this.busy = true;
       try {
         const [removed] = player.grave.splice(graveIndex, 1);
-        player.driveUsed.push(removed);
-        this.log(`${card.name}の墓地効果を発動。`);
+        if (!Array.isArray(player.abyss)) player.abyss = [];
+        player.abyss.push(removed);
+        this.log(`${card.name}のロスト効果を発動。`);
         this.notify();
         await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
         const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
-        if (negated) this.log(`${card.name}の墓地効果は無効化された。`);
+        if (negated) this.log(`${card.name}のロスト効果は無効化された。`);
         else await this.applySpellDriveGraveEffect(card, player, opponent);
         this.checkGameEnd();
         return true;
@@ -914,7 +916,7 @@
         case "driveSosaiSpell":
           await this.addFromGrave(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩", {
             title: "双彩ユニットを回収",
-            message: "墓地から双彩ユニットを1枚選んでください。",
+            message: "ロストゾーンから双彩ユニットを1枚選んでください。",
           });
           if (await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩" && candidate.cost <= 3, {
             title: "双彩ユニットを追加召喚",
@@ -951,7 +953,7 @@
           this.drawCards(player, 2);
           await this.discardFromHand(player, {
             title: "手札を1枚捨てる",
-            message: "クロノ炉で墓地に送るカードを選んでください。",
+            message: "クロノ炉でロストゾーンに送るカードを選んでください。",
           });
           return;
         case "driveGenericSpell":
@@ -983,7 +985,7 @@
         case "driveStarSpell":
           if (!await this.moveGraveCardToCharge(player, (candidate) => cardHasTheme(candidate, "星導"), {
             title: "星導カードをチャージ",
-            message: "墓地からチャージに置く星導カードを選んでください。",
+            message: "ロストゾーンからチャージに置く星導カードを選んでください。",
           })) this.drawCards(player, 1);
           return;
         case "driveBlackSpell":
@@ -999,14 +1001,14 @@
         case "driveSosaiSpell":
           if (!await this.addFromGrave(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "双彩", {
             title: "双彩ユニットを回収",
-            message: "墓地から双彩ユニットを1枚選んでください。",
+            message: "ロストゾーンから双彩ユニットを1枚選んでください。",
           })) this.drawCards(player, 1);
           return;
         case "driveGenericSpell":
           this.drawCards(player, 1);
           await this.discardFromHand(player, {
             title: "手札を1枚捨てる",
-            message: "時空圧縮の墓地効果で墓地に送るカードを選んでください。",
+            message: "時空圧縮のロスト効果でロストゾーンに送るカードを選んでください。",
           });
           return;
         default:
@@ -1039,7 +1041,7 @@
         case "driveKeikanCore":
           await this.moveGraveCardToCharge(player, (candidate) => candidate.theme === "契環", {
             title: "契環カードをチャージ",
-            message: "墓地からチャージに置く「契環」カードを選んでください。",
+            message: "ロストゾーンからチャージに置く「契環」カードを選んでください。",
           });
           this.log(`${card.name}が起動。`);
           return;
@@ -1047,7 +1049,7 @@
           this.drawCards(player, 1);
           await this.discardFromHand(player, {
             title: "手札を1枚捨てる",
-            message: "クロノ炉の起動効果で墓地に送るカードを選んでください。",
+            message: "クロノ炉の起動効果でロストゾーンに送るカードを選んでください。",
           });
           this.log(`${card.name}が起動。`);
           return;
@@ -1167,7 +1169,7 @@
         await this.afterEffectStep(560);
         await this.discardFromHand(player, {
           title: "手札を1枚捨てる",
-          message: "ゼロシフト装置で墓地に送るカードを選んでください。",
+          message: "ゼロシフト装置でロストゾーンに送るカードを選んでください。",
         });
         this.log("ゼロシフト装置が起動。");
       }
@@ -1375,8 +1377,8 @@
         zone: "drivePayment",
         title: `${card.name}のドライブ支払い`,
         message: card.theme
-          ? `素材を墓地に送るか、チャージゾーンに「${card.theme}」が${card.cost}枚以上あるならチャージ${card.cost}を支払えます。`
-          : `素材を墓地に送るか、チャージゾーンに${baseDriveType(card.type)}が${card.cost}枚以上あるならチャージ${card.cost}を支払えます。`,
+          ? `素材をロストゾーンに送るか、チャージゾーンに「${card.theme}」が${card.cost}枚以上あるならチャージ${card.cost}を支払えます。`
+          : `素材をロストゾーンに送るか、チャージゾーンに${baseDriveType(card.type)}が${card.cost}枚以上あるならチャージ${card.cost}を支払えます。`,
         candidates: [{ id: card.id, index: "charge" }],
         allowPass: true,
         confirmLabel: "チャージで支払う",
@@ -1562,7 +1564,7 @@
       const selected = await this.options.requestCardChoice({
         zone: "driveMaterial",
         title: `${card.name}の素材`,
-        message: `${this.driveRequirementLabel(requirement)}を墓地に送ってください。${step}/${total}`,
+        message: `${this.driveRequirementLabel(requirement)}をロストゾーンに送ってください。${step}/${total}`,
         candidates,
         confirmLabel: "素材にする",
       }, this);
@@ -1581,7 +1583,7 @@
       const selected = await this.options.requestCardChoice({
         zone: "driveMaterial",
         title: `${card.name}の場素材`,
-        message: `墓地に送る場の素材を選んでください。${step}/${total}`,
+        message: `ロストゾーンに送る場の素材を選んでください。${step}/${total}`,
         candidates,
         confirmLabel: "素材にする",
       }, this);
@@ -1602,7 +1604,7 @@
       const selected = await this.options.requestCardChoice({
         zone: "driveMaterial",
         title: `${card.name}のチャージ素材`,
-        message: `墓地に送るチャージの素材を選んでください。${step}/${total}`,
+        message: `ロストゾーンに送るチャージの素材を選んでください。${step}/${total}`,
         candidates,
         confirmLabel: "素材にする",
       }, this);
@@ -1844,12 +1846,12 @@
 
     async addFromGrave(player, predicate, choice = {}) {
       const index = await this.chooseGraveIndex(player, predicate, {
-        title: choice.title || "墓地から回収",
+        title: choice.title || "ロストゾーンから回収",
         message: choice.message || "手札に戻すカードを選んでください。",
       });
       if (index === -1) return false;
       const [id] = player.grave.splice(index, 1);
-      this.returnCardToHandOrDriveDeck(player, id, "墓地から");
+      this.returnCardToHandOrDriveDeck(player, id, "ロストゾーンから");
       return true;
     }
 
@@ -1867,25 +1869,25 @@
 
     async moveGraveCardToCharge(player, predicate, choice = {}) {
       const index = await this.chooseGraveIndex(player, predicate, {
-        title: choice.title || "墓地をチャージ",
+        title: choice.title || "ロストゾーンをチャージ",
         message: choice.message || "チャージに置くカードを選んでください。",
       });
       if (index === -1) return false;
       const [id] = player.grave.splice(index, 1);
       player.charge.push({ id, tapped: false });
-      this.log(`${cards[id].name}を墓地からチャージに置いた。`);
+      this.log(`${cards[id].name}をロストゾーンからチャージに置いた。`);
       return true;
     }
 
     async discardFromHand(player, choice = {}) {
       const index = await this.chooseHandIndex(player, () => true, {
         title: choice.title || "手札を捨てる",
-        message: choice.message || "墓地に送るカードを選んでください。",
+        message: choice.message || "ロストゾーンに送るカードを選んでください。",
       });
       if (index === -1) return this.discardLowestImpact(player);
       const [id] = player.hand.splice(index, 1);
       player.grave.push(id);
-      this.log(`${cards[id].name}を墓地に送った。`);
+      this.log(`${cards[id].name}をロストゾーンに送った。`);
       return true;
     }
 
@@ -1933,7 +1935,7 @@
       });
       const [id] = player.hand.splice(index, 1);
       player.grave.push(id);
-      this.log(`${cards[id].name}を墓地に送った。`);
+      this.log(`${cards[id].name}をロストゾーンに送った。`);
       return true;
     }
 
@@ -2041,14 +2043,14 @@
 
     async removeRevealedReaction(player) {
       const index = await this.chooseReactionTargetIndex(player, (entry) => reactionId(entry) && reactionRevealed(entry), {
-        title: "墓地に送るリアクションを選択",
-        message: "墓地に送る相手の公開リアクションを選んでください。",
+        title: "ロストゾーンに送るリアクションを選択",
+        message: "ロストゾーンに送る相手の公開リアクションを選んでください。",
       });
       if (index === -1) return false;
       const id = reactionId(player.reactions[index]);
       player.reactions[index] = null;
       player.grave.push(id);
-      this.log(`${cards[id].name}は墓地に送られた。`);
+      this.log(`${cards[id].name}はロストゾーンに送られた。`);
       return true;
     }
 

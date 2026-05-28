@@ -3288,7 +3288,7 @@ select {
 .side-board {
   position: relative;
   display: grid;
-  grid-template-columns: 176px minmax(0, 1fr) 140px;
+  grid-template-columns: 176px minmax(0, 1fr) 188px;
   grid-template-rows: 58px 90px 58px;
   align-items: center;
   gap: 14px 8px;
@@ -3303,7 +3303,7 @@ select {
 
 .side-board.opponent-side {
   grid-row: 1;
-  grid-template-columns: 140px minmax(0, 1fr) 176px;
+  grid-template-columns: 188px minmax(0, 1fr) 176px;
   grid-template-rows: 66px 58px 90px 58px;
   row-gap: 6px;
   background: transparent;
@@ -3764,14 +3764,14 @@ select {
   grid-column: 3;
   grid-row: 1 / 4;
   display: grid;
-  grid-template-columns: repeat(2, 56px);
+  grid-template-columns: repeat(3, var(--card-field-width));
   gap: 8px;
   justify-content: center;
   align-items: center;
 }
 
 .player-piles {
-  grid-template-columns: repeat(2, var(--card-field-width));
+  grid-template-columns: repeat(3, var(--card-field-width));
   grid-template-rows: auto var(--card-field-height);
   align-content: center;
 }
@@ -3792,7 +3792,7 @@ select {
 
 .player-piles .turn-command-field {
   position: static;
-  grid-column: 1;
+  grid-column: 1 / -1;
   grid-row: 1;
   justify-self: center;
   transform: none;
@@ -3805,6 +3805,11 @@ select {
 
 .player-piles #playerGravePile {
   grid-column: 2;
+  grid-row: 2;
+}
+
+.player-piles #playerAbyssPile {
+  grid-column: 3;
   grid-row: 2;
 }
 
@@ -3864,7 +3869,8 @@ select {
   opacity: 0.5;
 }
 
-.grave-pile.has-cards::before {
+.grave-pile.has-cards::before,
+.abyss-pile.has-cards::before {
   display: none;
 }
 
@@ -3879,8 +3885,37 @@ select {
   box-shadow: none;
 }
 
-.grave-pile {
+.grave-pile,
+.abyss-pile {
   cursor: pointer;
+}
+
+.abyss-pile {
+  border-color: rgba(173, 139, 255, 0.64);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(173, 139, 255, 0.24), rgba(4, 9, 13, 0.18) 58%),
+    rgba(4, 9, 13, 0.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    inset 0 0 18px rgba(173, 139, 255, 0.12),
+    0 0 16px rgba(173, 139, 255, 0.12);
+}
+
+.abyss-pile::after {
+  content: "ABYSS";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(235, 225, 255, 0.78);
+  font-size: 0.48rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
+.abyss-pile.has-cards::after {
+  display: none;
 }
 
 .center-command {

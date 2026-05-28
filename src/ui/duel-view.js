@@ -50,6 +50,8 @@
       this.els.restartDuelButton.addEventListener("click", () => this.restart?.());
       this.els.playerGravePile.addEventListener("click", () => this.openGraveList("player"));
       this.els.enemyGravePile.addEventListener("click", () => this.openGraveList("enemy"));
+      this.els.playerAbyssPile?.addEventListener("click", () => this.openAbyssList("player"));
+      this.els.enemyAbyssPile?.addEventListener("click", () => this.openAbyssList("enemy"));
       this.els.playerDrivePile?.addEventListener("click", () => this.openDriveDeck({ showAll: true }));
       this.els.playerDrivePile?.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
@@ -165,8 +167,10 @@
       this.els.phaseBadge.classList.toggle("is-waiting", Boolean(this.game.pendingChoice || this.game.waitingChoice));
       this.els.endTurnButton.disabled = !this.game.canPlayerAct();
       this.els.restartDuelButton.disabled = Boolean(this.game.isOnline);
-      this.els.playerDeckInfo.textContent = `山札 ${this.game.player.deck.length} / 墓地 ${this.game.player.grave.length}`;
-      this.els.enemyDeckInfo.textContent = `山札 ${this.game.enemy.deck.length} / 墓地 ${this.game.enemy.grave.length}`;
+      const playerAbyss = this.game.player.abyss || [];
+      const enemyAbyss = this.game.enemy.abyss || [];
+      this.els.playerDeckInfo.textContent = `山札 ${this.game.player.deck.length} / ロスト ${this.game.player.grave.length} / アビス ${playerAbyss.length}`;
+      this.els.enemyDeckInfo.textContent = `山札 ${this.game.enemy.deck.length} / ロスト ${this.game.enemy.grave.length} / アビス ${enemyAbyss.length}`;
       this.els.handInfo.textContent = `${this.game.player.hand.length}枚`;
     }
 
@@ -218,8 +222,10 @@
     renderPiles() {
       this.updateDeckPile(this.els.playerDeckPile, this.game.player.deck.length, "自分の山札");
       this.updateDeckPile(this.els.enemyDeckPile, this.game.enemy.deck.length, "相手の山札");
-      this.updateGravePile(this.els.playerGravePile, this.game.player.grave, "自分の捨て札");
-      this.updateGravePile(this.els.enemyGravePile, this.game.enemy.grave, "相手の捨て札");
+      this.updateGravePile(this.els.playerGravePile, this.game.player.grave, "自分のロストゾーン");
+      this.updateGravePile(this.els.enemyGravePile, this.game.enemy.grave, "相手のロストゾーン");
+      this.updateGravePile(this.els.playerAbyssPile, this.game.player.abyss || [], "自分のアビスゾーン");
+      this.updateGravePile(this.els.enemyAbyssPile, this.game.enemy.abyss || [], "相手のアビスゾーン");
       this.updateDrivePile(this.els.playerDrivePile, this.game.player, "自分のドライブデッキ", true);
       this.updateDrivePile(this.els.enemyDrivePile, this.game.enemy, "相手のドライブデッキ", false);
     }
@@ -1034,7 +1040,7 @@
         const graveIndex = this.selectedContext.index;
         const canActivate = typeof this.game.canActivateSpellDriveGraveEffect === "function" &&
           this.game.canActivateSpellDriveGraveEffect(this.game.player, graveIndex);
-        this.addAction("墓地効果", async () => {
+        this.addAction("ロスト効果", async () => {
           this.selectedContext = null;
           if (await this.game.activateSpellDriveGraveEffect(graveIndex) !== false) this.playPlaceSound();
         }, canActivate);
@@ -1159,7 +1165,7 @@
     openGraveList(owner) {
       if (!this.game) return;
       const player = owner === "player" ? this.game.player : this.game.enemy;
-      const title = owner === "player" ? "自分の捨て札" : "相手の捨て札";
+      const title = owner === "player" ? "自分のロストゾーン" : "相手のロストゾーン";
       const modal = document.createElement("div");
       modal.className = "modal-dialog choice-dialog grave-dialog";
       modal.innerHTML = `
@@ -1172,7 +1178,7 @@
           <div class="grave-focus choice-focus"></div>
         </div>
         <div class="choice-actions grave-focus-actions">
-          <button class="primary-button" type="button">墓地効果</button>
+          <button class="primary-button" type="button">ロスト効果</button>
         </div>
       `;
       modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
@@ -1209,7 +1215,7 @@
         updateGraveAction();
       };
       if (player.grave.length === 0) {
-        list.innerHTML = `<div class="small-note">捨て札はありません</div>`;
+        list.innerHTML = `<div class="small-note">ロストゾーンにカードはありません</div>`;
         updateGraveAction();
       } else {
         player.grave.slice().reverse().forEach((id, displayIndex) => {
@@ -1223,6 +1229,55 @@
           list.append(card);
         });
         showGraveFocus(player.grave[player.grave.length - 1], player.grave.length - 1);
+      }
+      this.openModal(modal);
+    }
+
+    openAbyssList(owner) {
+      if (!this.game) return;
+      const player = owner === "player" ? this.game.player : this.game.enemy;
+      const abyss = player.abyss || [];
+      const title = owner === "player" ? "自分のアビスゾーン" : "相手のアビスゾーン";
+      const modal = document.createElement("div");
+      modal.className = "modal-dialog choice-dialog grave-dialog abyss-dialog";
+      modal.innerHTML = `
+        <div class="grave-dialog-head">
+          <h2>${title}</h2>
+          <button class="ghost-button" type="button">閉じる</button>
+        </div>
+        <div class="choice-body">
+          <div class="grave-list choice-list abyss-list"></div>
+          <div class="grave-focus choice-focus"></div>
+        </div>
+      `;
+      modal.querySelector(".ghost-button").addEventListener("click", () => this.closeModal());
+      const focus = modal.querySelector(".grave-focus");
+      focus.addEventListener("click", (event) => CardZoom.openFromEvent(event));
+      const list = modal.querySelector(".abyss-list");
+      const markSelectedListCard = (selectedIndex) => {
+        list.querySelectorAll(".grave-list-card").forEach((card) => {
+          card.classList.toggle("selected", card.dataset.listIndex === String(selectedIndex));
+        });
+      };
+      const showAbyssFocus = (id, originalIndex) => {
+        CardRenderer.focus(id, focus, { finish: this.finishFor(id) });
+        this.selectCard(id, { zone: "abyss", index: originalIndex, owner });
+        markSelectedListCard(originalIndex);
+      };
+      if (abyss.length === 0) {
+        list.innerHTML = `<div class="small-note">アビスゾーンにカードはありません</div>`;
+      } else {
+        abyss.slice().reverse().forEach((id, displayIndex) => {
+          const originalIndex = abyss.length - 1 - displayIndex;
+          const card = CardRenderer.tcgCard(id, { interactive: true, finish: this.finishFor(id) });
+          card.classList.add("grave-list-card", "abyss-list-card");
+          card.dataset.listIndex = String(originalIndex);
+          card.addEventListener("click", () => {
+            showAbyssFocus(id, originalIndex);
+          });
+          list.append(card);
+        });
+        showAbyssFocus(abyss[abyss.length - 1], abyss.length - 1);
       }
       this.openModal(modal);
     }

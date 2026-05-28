@@ -378,6 +378,7 @@ function newDuelist(name, deck, driveDeck = []) {
     driveUsed: [],
     hand: [],
     grave: [],
+    abyss: [],
     charge: [],
     units: Array(UNIT_ZONES).fill(null),
     cores: Array(CORE_ZONES).fill(null),
@@ -1040,14 +1041,14 @@ function chooseRevealReaction(game, chooser, targetPlayer, after = () => {}) {
 
 function chooseRemoveRevealedReaction(game, chooser, targetPlayer, after = () => {}) {
   return queueReactionTargetChoice(game, chooser, targetPlayer, (entry) => reactionId(entry) && reactionRevealed(entry), {
-    title: "墓地に送るリアクションを選択",
-    message: "墓地に送る相手の公開リアクションを選んでください。",
+    title: "ロストゾーンに送るリアクションを選択",
+    message: "ロストゾーンに送る相手の公開リアクションを選んでください。",
     confirmLabel: "決定",
   }, (candidate) => {
     const id = reactionId(targetPlayer.reactions[candidate.index]);
     targetPlayer.reactions[candidate.index] = null;
     targetPlayer.grave.push(id);
-    log(game, `${cards[id].name}を墓地に送った。`);
+    log(game, `${cards[id].name}をロストゾーンに送った。`);
     after(true);
   }, () => after(false));
 }
@@ -1066,7 +1067,7 @@ function chooseFromGrave(game, player, predicate, choice, after = () => {}) {
   return queueChoice(game, player, "grave", player.grave, predicate, choice, (candidate) => {
     const [id] = player.grave.splice(candidate.index, 1);
     player.hand.push(id);
-    log(game, `${cards[id].name}を墓地から戻した。`);
+    log(game, `${cards[id].name}をロストゾーンから戻した。`);
     after(true);
   }, () => after(false));
 }
@@ -1084,7 +1085,7 @@ function chooseFromGraveToCharge(game, player, predicate, choice, after = () => 
   return queueChoice(game, player, "grave", player.grave, predicate, choice, (candidate) => {
     const [id] = player.grave.splice(candidate.index, 1);
     player.charge.push({ id, tapped: false });
-    log(game, `${cards[id].name}を墓地からチャージに置いた。`);
+    log(game, `${cards[id].name}をロストゾーンからチャージに置いた。`);
     after(true);
   }, () => after(false));
 }
@@ -1136,7 +1137,7 @@ function chooseDiscardFromHand(game, player, choice, after = () => {}) {
   return queueChoice(game, player, "hand", player.hand, () => true, choice, (candidate) => {
     const [id] = player.hand.splice(candidate.index, 1);
     player.grave.push(id);
-    log(game, `${cards[id].name}を墓地に送った。`);
+    log(game, `${cards[id].name}をロストゾーンに送った。`);
     after(true);
   }, () => {
     after(false);
@@ -1183,7 +1184,7 @@ function removeRevealedReaction(game, player) {
   const id = reactionId(player.reactions[index]);
   player.reactions[index] = null;
   player.grave.push(id);
-  log(game, `${cards[id].name}は墓地に送られた。`);
+  log(game, `${cards[id].name}はロストゾーンに送られた。`);
   return true;
 }
 
@@ -1226,7 +1227,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "starMira":
       return chooseFromGrave(game, player, (card) => card.type === "スペル" && card.name.includes("星導"), {
         title: "星導スペルを回収",
-        message: "墓地から手札に戻すカードを選んでください。",
+        message: "ロストゾーンから手札に戻すカードを選んでください。",
       }, (moved) => {
         if (!moved) drawCards(player, 1, game);
       });
@@ -1267,7 +1268,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "starReignite":
       return chooseFromGrave(game, player, (card) => card.name.includes("星導"), {
         title: "星導カードを回収",
-        message: "墓地から手札に戻すカードを選んでください。",
+        message: "ロストゾーンから手札に戻すカードを選んでください。",
       }, () => {
         untapOneCharge(player, (card) => card.name.includes("星導"));
       });
@@ -1285,7 +1286,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "starChart":
       return chooseFromGraveToCharge(game, player, (card) => card.name.includes("星導"), {
         title: "星導カードをチャージ",
-        message: "墓地からチャージに置く「星導」カードを選んでください。",
+        message: "ロストゾーンからチャージに置く「星導」カードを選んでください。",
       }, () => {
         if (controlsThemeUnit(player, "星導")) {
           queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「星導」ユニットがいます。追加でチャージをアクティブにしますか？", () => {
@@ -1442,7 +1443,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       drawCards(player, 2, game);
       return chooseDiscardFromHand(game, player, {
         title: "手札を1枚捨てる",
-        message: "墓地に送るカードを選んでください。",
+        message: "ロストゾーンに送るカードを選んでください。",
         delayBeforeOpenMs: 560,
       }, () => {
         chooseRemoveRevealedReaction(game, player, opponent);
@@ -1553,7 +1554,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       if (countThemeChargeTypes(player, "契環") >= 3) {
         return chooseFromGrave(game, player, (card) => card.theme === "契環", {
           title: "契環カードを回収",
-          message: "墓地から手札に戻す「契環」カードを選んでください。",
+          message: "ロストゾーンから手札に戻す「契環」カードを選んでください。",
         }, () => {
           chooseExhaustUnit(game, player, opponent);
         });
@@ -1590,7 +1591,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "keikanSealExchange":
       return chooseFromGraveToCharge(game, player, (card) => card.theme === "契環", {
         title: "契環カードをチャージ",
-        message: "墓地からチャージに置く「契環」カードを選んでください。",
+        message: "ロストゾーンからチャージに置く「契環」カードを選んでください。",
       }, (moved) => {
         if (moved && countThemeChargeTypes(player, "契環") >= 3) {
           queueOptionalAdditionalEffect(game, player, sourceCard, "チャージに「契環」のカード種類が3種類以上あります。追加で1枚ドローしますか？", () => {
@@ -1615,7 +1616,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "sosaiMint":
       return chooseRevealReaction(game, player, opponent, () => {
         if (controlsCard(player, "sosai_hikari")) {
-          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩のヒカリ」がいます。追加で表向きリアクションを墓地に送りますか？", () => {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩のヒカリ」がいます。追加で表向きリアクションをロストゾーンに送りますか？", () => {
             chooseRemoveRevealedReaction(game, player, opponent);
           });
         }
@@ -1692,7 +1693,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       drawCards(player, 2, game);
       return chooseDiscardFromHand(game, player, {
         title: "手札を1枚捨てる",
-        message: "墓地に送るカードを選んでください。",
+        message: "ロストゾーンに送るカードを選んでください。",
         delayBeforeOpenMs: 560,
       });
     case "genericFieldNotes":
@@ -1735,7 +1736,7 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "recallUnit":
       return chooseFromGrave(game, player, (card) => card.type === "ユニット", {
         title: "ユニットを回収",
-        message: "墓地から手札に戻すユニットを選んでください。",
+        message: "ロストゾーンから手札に戻すユニットを選んでください。",
       });
     case "zeroCore":
       drawCards(player, 1, game);
@@ -1836,7 +1837,7 @@ function addFromGrave(game, player, predicate) {
   if (index === -1) return false;
   const [id] = player.grave.splice(index, 1);
   player.hand.push(id);
-  log(game, `${cards[id].name}を墓地から戻した。`);
+  log(game, `${cards[id].name}をロストゾーンから戻した。`);
   return true;
 }
 
@@ -1852,7 +1853,7 @@ function discardLowestImpact(game, player) {
   });
   const [id] = player.hand.splice(index, 1);
   player.grave.push(id);
-  log(game, `${cards[id].name}を墓地に送った。`);
+  log(game, `${cards[id].name}をロストゾーンに送った。`);
   return true;
 }
 
@@ -1870,7 +1871,7 @@ function triggerChargeCore(game, player) {
     drawCards(player, 1, game);
     chooseDiscardFromHand(game, player, {
       title: "手札を1枚捨てる",
-      message: "ゼロシフト装置で墓地に送るカードを選んでください。",
+      message: "ゼロシフト装置でロストゾーンに送るカードを選んでください。",
       delayBeforeOpenMs: 560,
     });
     log(game, "ゼロシフト装置が起動。");
@@ -2134,6 +2135,7 @@ function publicDuelist(player, includeHand) {
     driveUsed: player.driveUsed.slice(),
     hand: includeHand ? player.hand.slice() : Array(player.hand.length).fill(null),
     grave: player.grave.slice(),
+    abyss: (player.abyss || []).slice(),
     charge: player.charge.map((entry) => ({ ...entry })),
     units: player.units.map((unit) => (unit ? { ...unit } : null)),
     cores: player.cores.slice(),
