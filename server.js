@@ -727,9 +727,22 @@ function actionSlotIndex(action) {
 async function advanceRankedCpu(room) {
   if (!room?.ranked || !room.game || room.game.finished) return;
   const cpuSeat = room.ranked.cpuSeat;
-  if (!cpuSeat || room.game.active !== cpuSeat) return;
-
+  if (!cpuSeat) return;
   const game = room.game;
+
+  if (game.pendingChoice) {
+    if (game.pendingChoice.seat !== cpuSeat) return;
+    resolveCpuPendingChoice(room);
+    checkGameEnd(game);
+    if (game.finished || game.pendingChoice || game.active !== cpuSeat) {
+      await finalizeRankedRoom(room);
+      room.version += 1;
+      return;
+    }
+  }
+
+  if (game.active !== cpuSeat) return;
+
   let safety = 0;
   while (!game.finished && game.active === cpuSeat && safety < 60) {
     safety += 1;
