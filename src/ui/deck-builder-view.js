@@ -131,7 +131,14 @@
           </button>
         `;
         modal.querySelector('[data-action="cancel"]').addEventListener("click", () => this.closeAppModal());
-        modal.querySelector('[data-action="guest"]')?.addEventListener("click", () => {
+        const guestButton = modal.querySelector('[data-action="guest"]');
+        if (guestButton) {
+          guestButton.disabled = true;
+          window.setTimeout(() => {
+            if (modal.isConnected && modal.dataset.authSubmitting !== "true") guestButton.disabled = false;
+          }, 500);
+        }
+        guestButton?.addEventListener("click", () => {
           this.closeAppModal();
           options.onGuest?.();
         });
@@ -151,6 +158,11 @@
     }
 
     async submitAuthDialog(modal, mode, options = {}) {
+      if (modal.dataset.authSubmitting === "true") return;
+      modal.dataset.authSubmitting = "true";
+      modal.querySelectorAll("button").forEach((button) => {
+        button.disabled = true;
+      });
       const username = modal.querySelector('[data-field="username"]')?.value || "";
       const password = modal.querySelector('[data-field="password"]')?.value || "";
       const errorEl = modal.querySelector("[data-auth-error]");
@@ -166,6 +178,12 @@
         this.toast(mode === "register" ? "登録しました。" : `${this.store.displayName}でログインしました。`);
       } catch (error) {
         if (errorEl) errorEl.textContent = this.authErrorMessage(error);
+        if (modal.isConnected) {
+          modal.dataset.authSubmitting = "false";
+          modal.querySelectorAll("button").forEach((button) => {
+            button.disabled = false;
+          });
+        }
       }
     }
 
