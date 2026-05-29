@@ -1485,7 +1485,6 @@
     }
 
     drivePaymentRule(card) {
-      if (card?.driveKind === "unit" || card?.driveKind === "core") return "materialsAndCharge";
       return "materialsOrCharge";
     }
 
