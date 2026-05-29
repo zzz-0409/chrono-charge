@@ -15,6 +15,7 @@
     victory: "assets/SE/shouri.mp3",
     defeat: "assets/SE/haiboku.mp3",
   };
+  const SOUND_ENABLED_KEY = "chrono.soundEffects.enabled.v1";
 
   const BUTTON_SOUND_EXCLUDE_SELECTOR = [
     ".tcg-card",
@@ -37,13 +38,32 @@
     return Boolean(coarsePointer || lowMemory);
   }
 
+  function prefersMobileSilentSafety() {
+    const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
+    const touchPoints = Number(navigator.maxTouchPoints || 0) > 0;
+    const mobileAgent = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+    return Boolean(coarsePointer || touchPoints || mobileAgent);
+  }
+
+  function configureAmbientAudioSession() {
+    try {
+      if (navigator.audioSession && "type" in navigator.audioSession) {
+        navigator.audioSession.type = "ambient";
+      }
+    } catch {
+      // Some browsers expose AudioSession as read-only or partial.
+    }
+  }
+
   class SoundEffects {
     constructor() {
+      this.mobileSilentSafety = prefersMobileSilentSafety();
       this.volume = 0.72;
-      this.enabled = true;
+      this.enabled = this.loadEnabledPreference();
       this.lastPlayedAt = {};
       this.minIntervalMs = 70;
       this.liteAudio = prefersLiteAudio();
+      configureAmbientAudioSession();
       this.audio = Object.fromEntries(Object.entries(SOUND_FILES).map(([key, src]) => {
         const audio = new Audio(src);
         audio.preload = this.liteAudio ? "metadata" : "auto";
@@ -52,6 +72,39 @@
       this.unlocked = false;
       this.installUnlockHandlers();
       this.installButtonSoundHandler();
+    }
+
+    loadEnabledPreference() {
+      try {
+        const saved = window.localStorage?.getItem(SOUND_ENABLED_KEY);
+        if (saved === "true") return true;
+        if (saved === "false") return false;
+      } catch {
+        // Storage may be unavailable in private browsing modes.
+      }
+      return !this.mobileSilentSafety;
+    }
+
+    isEnabled() {
+      return Boolean(this.enabled);
+    }
+
+    setEnabled(enabled) {
+      this.enabled = Boolean(enabled);
+      try {
+        window.localStorage?.setItem(SOUND_ENABLED_KEY, String(this.enabled));
+      } catch {
+        // Sound still changes for the current session if storage fails.
+      }
+      if (this.enabled) {
+        configureAmbientAudioSession();
+        this.unlock();
+      }
+      if (typeof window.CustomEvent === "function") {
+        window.dispatchEvent?.(new window.CustomEvent("chrono:sound-setting-change", {
+          detail: { enabled: this.enabled },
+        }));
+      }
     }
 
     installUnlockHandlers() {
@@ -79,8 +132,9 @@
     }
 
     unlock() {
-      if (this.unlocked) return;
+      if (!this.enabled || this.unlocked) return;
       this.unlocked = true;
+      if (this.mobileSilentSafety) return;
       const audioList = Object.values(this.audio);
       const unlockList = this.liteAudio ? audioList.slice(0, 1) : audioList;
       unlockList.forEach((audio) => {
@@ -106,6 +160,7 @@
 
     play(name, options = {}) {
       if (!this.enabled || !this.audio[name]) return;
+      configureAmbientAudioSession();
       const now = performance.now();
       if (now - (this.lastPlayedAt[name] || 0) < this.minIntervalMs) return;
       this.lastPlayedAt[name] = now;

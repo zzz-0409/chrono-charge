@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260529-recoverchoice";
+const CACHE_VERSION = "chrono-drive-pwa-20260529-soundtoggle";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260529duelperf",
+  "/styles.css?v=20260529soundtoggle",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -38,13 +38,13 @@ const APP_SHELL_URLS = [
   "/src/core/duel-game.js?v=20260529duelrecover",
   "/src/ui/scale-manager.js?v=20260524a",
   "/src/ui/card-renderer.js?v=20260529duelrecover",
-  "/src/ui/sound-effects.js?v=20260529recoverchoice",
+  "/src/ui/sound-effects.js?v=20260529soundtoggle",
   "/src/ui/card-zoom.js?v=20260522k",
   "/src/ui/deck-builder-view.js?v=20260528loginbonusui",
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
   "/src/ui/duel-view.js?v=20260529recoverchoice",
-  "/src/main.js?v=20260529recoverchoice"
+  "/src/main.js?v=20260529soundtoggle"
 ];
 
 self.addEventListener("install", (event) => {

@@ -594,6 +594,33 @@
     }
   }
 
+  function openSettingsModal() {
+    const soundEnabled = typeof SoundEffects?.isEnabled === "function"
+      ? SoundEffects.isEnabled()
+      : Boolean(SoundEffects?.enabled);
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog app-settings-dialog";
+    modal.innerHTML = `
+      <h2>設定</h2>
+      <div class="settings-list">
+        <label class="settings-toggle-row">
+          <span>SE</span>
+          <input id="soundEffectsToggle" type="checkbox"${soundEnabled ? " checked" : ""}>
+        </label>
+      </div>
+      <div class="modal-actions modal-actions-row">
+        <button class="ghost-button" type="button" data-action="close">閉じる</button>
+      </div>
+    `;
+    const toggle = modal.querySelector("#soundEffectsToggle");
+    toggle?.addEventListener("change", () => {
+      SoundEffects?.setEnabled?.(toggle.checked);
+      toast(toggle.checked ? "SEをオンにしました。" : "SEをオフにしました。");
+    });
+    modal.querySelector('[data-action="close"]').addEventListener("click", closeAppModal);
+    openAppModal(modal);
+  }
+
   function showLoginBonusIfReady() {
     if (els.appShell?.classList.contains("title-active")) return;
     const reward = store.takeLoginBonusReward();
@@ -1315,6 +1342,10 @@
       }
       if (button.dataset.shellAction === "notice") {
         openNoticeBox();
+        return;
+      }
+      if (button.dataset.shellAction === "settings") {
+        openSettingsModal();
         return;
       }
       const label = shellActionLabels[button.dataset.shellAction] || "この機能";

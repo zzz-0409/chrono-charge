@@ -6015,8 +6015,35 @@ select {
 }
 
 .app-confirm-dialog,
-.app-input-dialog {
+.app-input-dialog,
+.app-settings-dialog {
   width: min(520px, calc(100% - 24px));
+}
+
+.settings-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 6px;
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-weight: 900;
+}
+
+.settings-toggle-row input {
+  width: 42px;
+  height: 24px;
+  accent-color: #55c7bb;
 }
 
 .toast {
