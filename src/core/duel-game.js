@@ -28,6 +28,9 @@
   const CPU_CARD_PLAY_DELAY_MS = 720;
   const CPU_SET_REACTION_DELAY_MS = 420;
   const CPU_ATTACK_DELAY_MS = 680;
+  const CPU_MIN_TURN_MS = 2600;
+  const CPU_OPENING_MIN_TURN_MS = 1800;
+  const CPU_TURN_END_DELAY_MS = 650;
 
   class Duelist {
     constructor(name, deck, driveDeck = []) {
@@ -150,6 +153,9 @@
         cpuCardPlayDelayMs: CPU_CARD_PLAY_DELAY_MS,
         cpuSetReactionDelayMs: CPU_SET_REACTION_DELAY_MS,
         cpuAttackDelayMs: CPU_ATTACK_DELAY_MS,
+        cpuMinTurnMs: CPU_MIN_TURN_MS,
+        cpuOpeningMinTurnMs: CPU_OPENING_MIN_TURN_MS,
+        cpuTurnEndDelayMs: CPU_TURN_END_DELAY_MS,
         ...options,
       };
       this.turn = 1;
@@ -220,6 +226,16 @@
     async waitAfterCpuAction(delayMs = this.options.cpuActionDelayMs, fallback = CPU_ACTION_DELAY_MS) {
       if (this.finished || this.active !== "enemy") return;
       await pause(this.normalizeCpuDelay(delayMs, fallback));
+    }
+
+    async waitForCpuTurnPacing(startedAt, openingTurn = false) {
+      if (this.finished || this.active !== "enemy") return;
+      const minFallback = openingTurn ? CPU_OPENING_MIN_TURN_MS : CPU_MIN_TURN_MS;
+      const minTurnMs = this.normalizeCpuDelay(openingTurn ? this.options.cpuOpeningMinTurnMs : this.options.cpuMinTurnMs, minFallback);
+      const endDelayMs = this.normalizeCpuDelay(this.options.cpuTurnEndDelayMs, CPU_TURN_END_DELAY_MS);
+      const elapsedMs = Math.max(0, Date.now() - startedAt);
+      const remainingMs = Math.max(endDelayMs, minTurnMs - elapsedMs);
+      if (remainingMs > 0) await pause(remainingMs);
     }
 
     finishEnemyTurn(openingTurn = false) {
@@ -476,6 +492,7 @@
     async runEnemyTurn(options = {}) {
       if (this.finished || this.enemyTurnRunning) return;
       const openingTurn = Boolean(options.opening);
+      const turnStartedAt = Date.now();
       this.enemyTurnRunning = true;
       this.busy = true;
       this.cpuThinking = false;
@@ -565,6 +582,9 @@
         this.log("相手の行動処理を安全に終了しました。");
       } finally {
         this.cpuThinking = false;
+        if (!this.finished && this.active === "enemy") {
+          await this.waitForCpuTurnPacing(turnStartedAt, openingTurn);
+        }
         this.enemyTurnRunning = false;
         if (!this.finished && this.active === "enemy") {
           this.finishEnemyTurn(openingTurn);
