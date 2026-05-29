@@ -1308,7 +1308,7 @@
             <h2>ドライブデッキ</h2>
             <p class="small-note">残りドライブカード一覧です。リアクションドライブは発動タイミングで選択します。</p>
           </div>
-          <button class="ghost-button" type="button">閉じる</button>
+          <button class="ghost-button" type="button" data-cancel-sound="true">閉じる</button>
         </div>
         <div class="choice-body drive-deck-body">
           <div class="grave-list choice-list drive-deck-list"></div>
@@ -1388,7 +1388,7 @@
       modal.innerHTML = `
         <div class="grave-dialog-head">
           <h2>${title}</h2>
-          <button class="ghost-button" type="button">閉じる</button>
+          <button class="ghost-button" type="button" data-cancel-sound="true">閉じる</button>
         </div>
         <div class="choice-body">
           <div class="grave-list choice-list"></div>
@@ -1460,7 +1460,7 @@
       modal.innerHTML = `
         <div class="grave-dialog-head">
           <h2>${title}</h2>
-          <button class="ghost-button" type="button">閉じる</button>
+          <button class="ghost-button" type="button" data-cancel-sound="true">閉じる</button>
         </div>
         <div class="choice-body">
           <div class="grave-list choice-list abyss-list"></div>
@@ -1513,7 +1513,7 @@
             <h2>${title}</h2>
             <span class="charge-dialog-count">${activeCount} / ${totalCount}</span>
           </div>
-          <button class="ghost-button" type="button">閉じる</button>
+          <button class="ghost-button" type="button" data-cancel-sound="true">閉じる</button>
         </div>
         <div class="choice-body">
           <div class="grave-list choice-list charge-list"></div>

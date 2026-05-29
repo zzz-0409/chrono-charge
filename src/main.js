@@ -272,8 +272,32 @@
     }
   }
 
-  function resumeRecoveredCpuDuel() {
-    const payload = loadCpuDuelRecovery();
+  const askCpuDuelRecovery = (payload) => new Promise((resolve) => {
+    const savedAt = Number(payload?.savedAt || payload?.game?.savedAt || 0);
+    const savedTime = savedAt
+      ? new Date(savedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+      : "";
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog app-confirm-dialog";
+    modal.innerHTML = `
+      <h2>中断された対戦があります</h2>
+      <p>${savedTime ? `${escapeHtml(savedTime)}に保存された` : "保存された"}CPU対戦を復帰しますか？</p>
+      <div class="modal-actions modal-actions-row">
+        <button class="ghost-button danger" type="button" data-choice="discard" data-cancel-sound="true">復帰しない</button>
+        <button class="primary-button" type="button" data-choice="resume">復帰する</button>
+      </div>
+    `;
+    modal.querySelectorAll("[data-choice]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const choice = button.dataset.choice;
+        closeAppModal();
+        resolve(choice);
+      });
+    });
+    openAppModal(modal);
+  });
+
+  function resumeRecoveredCpuDuel(payload = loadCpuDuelRecovery()) {
     if (!payload) return false;
     try {
       const game = DuelGame.fromSnapshot(payload.game);
@@ -289,6 +313,16 @@
       clearCpuDuelRecovery();
       return false;
     }
+  }
+
+  async function promptRecoveredCpuDuel() {
+    const payload = loadCpuDuelRecovery();
+    if (!payload) return false;
+    const choice = await askCpuDuelRecovery(payload);
+    if (choice === "resume") return resumeRecoveredCpuDuel(payload);
+    clearCpuDuelRecovery();
+    toast("中断された対戦を破棄しました。");
+    return false;
   }
 
   const openAppModal = (content) => {
@@ -1289,12 +1323,12 @@
   });
 
   setView("home");
-  store.syncActiveAccount().finally(() => {
+  store.syncActiveAccount().finally(async () => {
     builderView.render();
     packView.render();
     renderRankedStatus();
     renderShellResources();
-    if (!resumeRecoveredCpuDuel()) {
+    if (!(await promptRecoveredCpuDuel())) {
       showLoginBonusIfReady();
       checkRankedResume();
     }

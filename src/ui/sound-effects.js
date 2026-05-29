@@ -6,6 +6,7 @@
   const SOUND_FILES = {
     button: "assets/SE/botan.mp3",
     menu: "assets/SE/menyu-.mp3",
+    cancel: "assets/SE/kyanseru.mp3",
     draw: "assets/SE/doro-.mp3",
     place: "assets/SE/ka-dohaiti.mp3",
     damage: "assets/SE/dame-ji.mp3",
@@ -22,6 +23,13 @@
     "[data-no-button-sound]",
   ].join(",");
   const MENU_SOUND_TRIGGER_SELECTOR = "[data-menu-sound]";
+  const CANCEL_SOUND_TRIGGER_SELECTOR = [
+    "[data-cancel-sound]",
+    "button[data-action='cancel']",
+    "button[data-action='close']",
+    "button[data-action='close-pack']",
+    "button[data-choice='cancel']",
+  ].join(",");
 
   function prefersLiteAudio() {
     const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
@@ -57,6 +65,10 @@
       document.addEventListener("click", (event) => {
         const button = event.target?.closest?.("button, [role='button']");
         if (!button || button.disabled || button.getAttribute("aria-disabled") === "true") return;
+        if (button.closest(CANCEL_SOUND_TRIGGER_SELECTOR)) {
+          this.play("cancel", { volume: 0.52 });
+          return;
+        }
         if (button.closest(MENU_SOUND_TRIGGER_SELECTOR)) {
           this.play("menu", { volume: 0.52 });
           return;
