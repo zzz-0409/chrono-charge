@@ -1563,7 +1563,16 @@
     canPayDriveChargeCostAfterMaterials(player, card, selectedMaterials = []) {
       const cost = Math.max(0, Number(card?.cost || 0));
       if (cost === 0) return true;
-      const selectedKeys = new Set(selectedMaterials.map((entry) => entry.key));
+      const selectedKeys = new Set(
+        selectedMaterials
+          .map((entry) =>
+            entry?.key
+              || (entry?.source && entry?.originalIndex !== undefined
+                ? `${entry.source}:${entry.originalIndex}`
+                : null)
+          )
+          .filter(Boolean),
+      );
       const selectedEntries = this.driveMaterialEntries(player).filter((entry) => !selectedKeys.has(entry.key));
       if (!card.theme) {
         const type = baseDriveType(card?.type);
@@ -1616,6 +1625,19 @@
           player.grave.push(entry.id);
         });
       return true;
+    }
+
+    selectDriveCostMaterials(player, card, amount = 0, selectedMaterials = []) {
+      const selectedKeys = new Set(selectedMaterials.map((entry) => entry.key));
+      const sourceType = baseDriveType(card?.type);
+      return this.driveMaterialEntries(player)
+        .filter((entry) => !selectedKeys.has(entry.key))
+        .filter((entry) => {
+          if (card?.theme) return cardHasTheme(cards[entry.id], card.theme);
+          return baseDriveType(cards[entry.id]?.type) === sourceType;
+        })
+        .sort((a, b) => this.driveMaterialPriority(a, b))
+        .slice(0, amount);
     }
 
     payDriveCombinedCostAutomatically(player, card) {
@@ -1798,8 +1820,8 @@
       if (candidates.length === 0) return null;
       const selected = await this.options.requestCardChoice({
         zone: "driveMaterial",
-        title: `${card.name}のチャージ素材`,
-        message: `ロストゾーンに送るチャージの素材を選んでください。${step}/${total}`,
+        title: `${card.name}のコスト素材`,
+        message: `ロストゾーンに送るコスト素材を選んでください。${step}/${total}`,
         candidates,
         confirmLabel: "素材にする",
       }, this);
@@ -1939,7 +1961,7 @@
     }
 
     driveRequirementLabel(requirement = {}) {
-      const source = requirement.source === "field" ? "場の" : requirement.source === "charge" ? "チャージの" : "";
+      const source = requirement.source === "field" ? "場の" : requirement.source === "charge" ? "手札か場の" : "";
       if (requirement.id && cards[requirement.id]) return `${source}${cards[requirement.id].name}1枚`;
       const theme = requirement.theme ? `「${requirement.theme}」` : "";
       const type = baseDriveType(requirement.type) || "カード";
