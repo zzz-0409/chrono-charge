@@ -16,6 +16,8 @@
     defeat: "assets/SE/haiboku.mp3",
   };
   const SOUND_ENABLED_KEY = "chrono.soundEffects.enabled.v1";
+  const SOUND_VOLUME_KEY = "chrono.soundEffects.volume.v1";
+  const DEFAULT_MASTER_VOLUME = 1;
 
   const BUTTON_SOUND_EXCLUDE_SELECTOR = [
     ".tcg-card",
@@ -55,10 +57,16 @@
     }
   }
 
+  function clampVolume(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return DEFAULT_MASTER_VOLUME;
+    return Math.max(0, Math.min(1, number));
+  }
+
   class SoundEffects {
     constructor() {
       this.mobileSilentSafety = prefersMobileSilentSafety();
-      this.volume = 0.72;
+      this.volume = this.loadVolumePreference();
       this.enabled = this.loadEnabledPreference();
       this.lastPlayedAt = {};
       this.minIntervalMs = 70;
@@ -89,6 +97,30 @@
       return Boolean(this.enabled);
     }
 
+    loadVolumePreference() {
+      try {
+        const saved = window.localStorage?.getItem(SOUND_VOLUME_KEY);
+        if (saved !== null) return clampVolume(saved);
+      } catch {
+        // Storage may be unavailable in private browsing modes.
+      }
+      return DEFAULT_MASTER_VOLUME;
+    }
+
+    getVolume() {
+      return this.volume;
+    }
+
+    setVolume(value) {
+      this.volume = clampVolume(value);
+      try {
+        window.localStorage?.setItem(SOUND_VOLUME_KEY, String(this.volume));
+      } catch {
+        // Sound still changes for the current session if storage fails.
+      }
+      this.dispatchSettingChange();
+    }
+
     setEnabled(enabled) {
       this.enabled = Boolean(enabled);
       try {
@@ -100,9 +132,13 @@
         configureAmbientAudioSession();
         this.unlock();
       }
+      this.dispatchSettingChange();
+    }
+
+    dispatchSettingChange() {
       if (typeof window.CustomEvent === "function") {
         window.dispatchEvent?.(new window.CustomEvent("chrono:sound-setting-change", {
-          detail: { enabled: this.enabled },
+          detail: { enabled: this.enabled, volume: this.volume },
         }));
       }
     }
@@ -167,7 +203,8 @@
       const audio = this.audio[name];
       audio.pause();
       this.reset(audio);
-      audio.volume = Math.max(0, Math.min(1, options.volume ?? this.volume));
+      const baseVolume = Number.isFinite(Number(options.volume)) ? Number(options.volume) : 0.72;
+      audio.volume = clampVolume(baseVolume * this.volume);
       audio.play().catch(() => {
         // Browsers may block sound until the first user gesture.
       });

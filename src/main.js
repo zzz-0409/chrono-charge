@@ -598,6 +598,10 @@
     const soundEnabled = typeof SoundEffects?.isEnabled === "function"
       ? SoundEffects.isEnabled()
       : Boolean(SoundEffects?.enabled);
+    const soundVolume = typeof SoundEffects?.getVolume === "function"
+      ? SoundEffects.getVolume()
+      : Number(SoundEffects?.volume || 1);
+    const soundVolumePercent = Math.round(Math.max(0, Math.min(1, soundVolume)) * 100);
     const modal = document.createElement("div");
     modal.className = "modal-dialog app-settings-dialog";
     modal.innerHTML = `
@@ -607,15 +611,32 @@
           <span>SE</span>
           <input id="soundEffectsToggle" type="checkbox"${soundEnabled ? " checked" : ""}>
         </label>
+        <label class="settings-range-row">
+          <span>
+            <span>音量</span>
+            <strong id="soundVolumeValue">${soundVolumePercent}%</strong>
+          </span>
+          <input id="soundVolumeRange" type="range" min="0" max="100" step="5" value="${soundVolumePercent}"${soundEnabled ? "" : " disabled"} aria-label="SE音量">
+        </label>
       </div>
       <div class="modal-actions modal-actions-row">
         <button class="ghost-button" type="button" data-action="close">閉じる</button>
       </div>
     `;
     const toggle = modal.querySelector("#soundEffectsToggle");
+    const range = modal.querySelector("#soundVolumeRange");
+    const volumeValue = modal.querySelector("#soundVolumeValue");
+    const updateVolumeLabel = () => {
+      if (volumeValue) volumeValue.textContent = `${range?.value || 0}%`;
+    };
     toggle?.addEventListener("change", () => {
       SoundEffects?.setEnabled?.(toggle.checked);
+      if (range) range.disabled = !toggle.checked;
       toast(toggle.checked ? "SEをオンにしました。" : "SEをオフにしました。");
+    });
+    range?.addEventListener("input", () => {
+      updateVolumeLabel();
+      SoundEffects?.setVolume?.(Number(range.value) / 100);
     });
     modal.querySelector('[data-action="close"]').addEventListener("click", closeAppModal);
     openAppModal(modal);

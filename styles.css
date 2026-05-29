@@ -6040,9 +6040,40 @@ select {
   font-weight: 900;
 }
 
+.settings-range-row {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.34fr) 1fr;
+  align-items: center;
+  gap: 16px;
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-weight: 900;
+}
+
+.settings-range-row > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-range-row strong {
+  color: #b9f5ed;
+  font-size: 0.88rem;
+}
+
 .settings-toggle-row input {
   width: 42px;
   height: 24px;
+  accent-color: #55c7bb;
+}
+
+.settings-range-row input {
+  width: 100%;
   accent-color: #55c7bb;
 }
 
