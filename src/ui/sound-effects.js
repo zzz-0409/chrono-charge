@@ -5,6 +5,7 @@
 
   const SOUND_FILES = {
     button: "assets/SE/botan.mp3",
+    menu: "assets/SE/menyu-.mp3",
     draw: "assets/SE/doro-.mp3",
     place: "assets/SE/ka-dohaiti.mp3",
     damage: "assets/SE/dame-ji.mp3",
@@ -20,6 +21,7 @@
     ".card-zoom-overlay",
     "[data-no-button-sound]",
   ].join(",");
+  const MENU_SOUND_TRIGGER_SELECTOR = "[data-menu-sound]";
 
   function prefersLiteAudio() {
     const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
@@ -55,6 +57,10 @@
       document.addEventListener("click", (event) => {
         const button = event.target?.closest?.("button, [role='button']");
         if (!button || button.disabled || button.getAttribute("aria-disabled") === "true") return;
+        if (button.closest(MENU_SOUND_TRIGGER_SELECTOR)) {
+          this.play("menu", { volume: 0.52 });
+          return;
+        }
         if (button.closest(BUTTON_SOUND_EXCLUDE_SELECTOR)) return;
         this.play("button", { volume: 0.48 });
       }, true);

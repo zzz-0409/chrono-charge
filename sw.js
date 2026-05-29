@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260529-buttonse";
+const CACHE_VERSION = "chrono-drive-pwa-20260529-menuse";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -22,6 +22,7 @@ const APP_SHELL_URLS = [
   "/assets/board/duel-board-cyberpunk-layout.png",
   "/assets/SE/doro-.mp3",
   "/assets/SE/botan.mp3",
+  "/assets/SE/menyu-.mp3",
   "/assets/SE/ka-dohaiti.mp3",
   "/assets/SE/dame-ji.mp3",
   "/assets/SE/hakai.mp3",
@@ -36,12 +37,12 @@ const APP_SHELL_URLS = [
   "/src/core/duel-game.js?v=20260529duelrecover",
   "/src/ui/scale-manager.js?v=20260524a",
   "/src/ui/card-renderer.js?v=20260529duelrecover",
-  "/src/ui/sound-effects.js?v=20260529buttonse",
+  "/src/ui/sound-effects.js?v=20260529menuse",
   "/src/ui/card-zoom.js?v=20260522k",
   "/src/ui/deck-builder-view.js?v=20260528loginbonusui",
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
-  "/src/ui/duel-view.js?v=20260529duelrecover",
+  "/src/ui/duel-view.js?v=20260529menuse",
   "/src/main.js?v=20260529duelrecover"
 ];
 

@@ -59,6 +59,7 @@
       this.els.enemyGravePile.addEventListener("click", () => this.openGraveList("enemy"));
       this.els.playerAbyssPile?.addEventListener("click", () => this.openAbyssList("player"));
       this.els.enemyAbyssPile?.addEventListener("click", () => this.openAbyssList("enemy"));
+      this.els.playerDrivePile?.setAttribute("data-menu-sound", "true");
       this.els.playerDrivePile?.addEventListener("click", () => this.openDriveDeck({ showAll: true }));
       this.els.playerDrivePile?.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
@@ -1098,6 +1099,10 @@
       this.sounds?.play("activation", { volume: 0.7 });
     }
 
+    playMenuSound() {
+      this.sounds?.play("menu", { volume: 0.52 });
+    }
+
     selectCard(id, context) {
       this.selectedCardId = id;
       this.selectedContext = context;
@@ -1352,7 +1357,7 @@
         });
         updateSelection();
       }
-      this.openModal(modal);
+      this.openModal(modal, { menuSound: true });
     }
 
     addAction(label, handler, enabled = true) {
@@ -1442,7 +1447,7 @@
         });
         showGraveFocus(player.grave[player.grave.length - 1], player.grave.length - 1);
       }
-      this.openModal(modal);
+      this.openModal(modal, { menuSound: true });
     }
 
     openAbyssList(owner) {
@@ -1491,7 +1496,7 @@
         });
         showAbyssFocus(abyss[abyss.length - 1], abyss.length - 1);
       }
-      this.openModal(modal);
+      this.openModal(modal, { menuSound: true });
     }
 
     openChargeList(owner) {
@@ -1550,7 +1555,7 @@
         });
         showChargeFocus(player.charge[player.charge.length - 1], player.charge.length - 1);
       }
-      this.openModal(modal);
+      this.openModal(modal, { menuSound: true });
     }
 
     requestReactionChoice(options, event) {
@@ -1753,7 +1758,8 @@
       this.openModal(modal);
     }
 
-    openModal(content) {
+    openModal(content, options = {}) {
+      if (options.menuSound) this.playMenuSound();
       if (this.modalPeekButton && this.els.modalRoot.hidden && this.els.modalRoot.childNodes.length > 0) {
         const fragment = document.createDocumentFragment();
         fragment.append(...this.els.modalRoot.childNodes);
