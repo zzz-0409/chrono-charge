@@ -4344,6 +4344,56 @@ select {
     0 26px 70px rgba(0, 0, 0, 0.64);
 }
 
+.activation-overlay.is-lite {
+  pointer-events: none;
+  background: rgba(2, 5, 8, 0.42);
+}
+
+.activation-overlay.is-lite .activation-burst {
+  gap: 8px;
+  animation: activation-lite-pop 620ms ease both;
+}
+
+.activation-overlay.is-lite .activation-label {
+  min-width: 150px;
+  padding: 7px 14px;
+  font-size: 0.98rem;
+  box-shadow: none;
+}
+
+.activation-card-lite {
+  width: min(320px, 78vw);
+  border: 1px solid rgba(85, 199, 187, 0.45);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #effffc;
+  text-align: center;
+  background: rgba(9, 14, 20, 0.92);
+}
+
+.activation-burst.is-reaction .activation-card-lite {
+  border-color: rgba(245, 191, 91, 0.58);
+}
+
+.activation-card-lite strong,
+.activation-card-lite span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activation-card-lite strong {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.activation-card-lite span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
 @keyframes draw-to-player-hand {
   0% {
     opacity: 0;
@@ -4411,11 +4461,46 @@ select {
   }
 }
 
+@keyframes activation-lite-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  22%,
+  78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .draw-card,
   .activation-burst,
   .activation-card-slot .preview-card {
     animation: none;
+  }
+}
+
+@media (pointer: coarse), (max-width: 920px) {
+  .draw-card {
+    animation-duration: 260ms;
+    will-change: auto;
+  }
+
+  .activation-card-slot .preview-card {
+    animation: none;
+    filter: none;
+    box-shadow:
+      0 0 0 1px rgba(85, 199, 187, 0.72),
+      0 14px 28px rgba(0, 0, 0, 0.48);
+  }
+
+  .card-zoom-overlay {
+    backdrop-filter: none;
   }
 }
 

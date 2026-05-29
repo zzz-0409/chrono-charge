@@ -135,7 +135,6 @@
       this.notify();
       await pause(this.normalizeCpuDelay(delayMs, CPU_THINK_DELAY_MS));
       this.cpuThinking = false;
-      this.notify();
     }
 
     async waitAfterCpuAction(delayMs = this.options.cpuActionDelayMs, fallback = CPU_ACTION_DELAY_MS) {

@@ -13,15 +13,22 @@
     defeat: "assets/SE/haiboku.mp3",
   };
 
+  function prefersLiteAudio() {
+    const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
+    const lowMemory = Number(navigator.deviceMemory || 8) <= 4;
+    return Boolean(coarsePointer || lowMemory);
+  }
+
   class SoundEffects {
     constructor() {
       this.volume = 0.72;
       this.enabled = true;
       this.lastPlayedAt = {};
       this.minIntervalMs = 70;
+      this.liteAudio = prefersLiteAudio();
       this.audio = Object.fromEntries(Object.entries(SOUND_FILES).map(([key, src]) => {
         const audio = new Audio(src);
-        audio.preload = "auto";
+        audio.preload = this.liteAudio ? "metadata" : "auto";
         return [key, audio];
       }));
       this.unlocked = false;
@@ -38,7 +45,9 @@
     unlock() {
       if (this.unlocked) return;
       this.unlocked = true;
-      Object.values(this.audio).forEach((audio) => {
+      const audioList = Object.values(this.audio);
+      const unlockList = this.liteAudio ? audioList.slice(0, 1) : audioList;
+      unlockList.forEach((audio) => {
         audio.muted = true;
         const promise = audio.play();
         if (promise?.then) {

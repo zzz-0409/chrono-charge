@@ -37,6 +37,7 @@
       this.activationOverlay = null;
       this.modalPeekButton = null;
       this.peekedModalContent = null;
+      this.renderFrame = 0;
       this.lastPlaceSoundAt = 0;
       this.lastDrawSoundAt = 0;
       this.lastDamageSoundAt = 0;
@@ -111,7 +112,7 @@
         cpuDeck: expandDeck(cpuChoice.deck),
         cpuDriveDeck: expandDeck(cpuChoice.driveDeck),
         firstActive: finishInfo.firstActive || "random",
-        onChange: () => this.render(),
+        onChange: () => this.scheduleRender(),
         onResult: (won) => this.showResult(won),
         requestReaction: (options, event) => this.requestReactionChoice(options, event),
         requestCardChoice: (choice) => this.requestCardChoice(choice),
@@ -150,7 +151,7 @@
       this.boardSoundSnapshot = null;
       this.game = game;
       this.royalBattleIds = new Set();
-      this.game.onChange = () => this.render();
+      this.game.onChange = () => this.scheduleRender();
       this.game.onResult = (won) => this.showResult(won);
       this.game.requestCardChoice = (choice) => this.requestCardChoice(choice);
       this.game.showActivation = (activation) => this.showActivation(activation);
@@ -164,6 +165,7 @@
     }
 
     render() {
+      this.renderFrame = 0;
       if (!this.game) return;
       this.renderLp();
       this.renderDuelistNames();
@@ -183,6 +185,31 @@
       this.els.playerDeckInfo.textContent = `山札 ${this.game.player.deck.length} / ロスト ${this.game.player.grave.length} / アビス ${playerAbyss.length}`;
       this.els.enemyDeckInfo.textContent = `山札 ${this.game.enemy.deck.length} / ロスト ${this.game.enemy.grave.length} / アビス ${enemyAbyss.length}`;
       this.els.handInfo.textContent = `${this.game.player.hand.length}枚`;
+    }
+
+    scheduleRender() {
+      if (this.renderFrame) return;
+      const run = () => {
+        this.renderFrame = 0;
+        try {
+          this.render();
+        } catch (error) {
+          console.error("Duel render failed", error);
+          this.toast?.("対戦画面の更新に失敗しました。");
+        }
+      };
+      if (typeof window.requestAnimationFrame === "function") {
+        this.renderFrame = window.requestAnimationFrame(run);
+      } else {
+        this.renderFrame = window.setTimeout(run, 16);
+      }
+    }
+
+    prefersLiteDuelEffects() {
+      const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
+      const smallViewport = window.matchMedia?.("(max-width: 920px)")?.matches;
+      const lowMemory = Number(navigator.deviceMemory || 8) <= 4;
+      return Boolean(coarsePointer || smallViewport || lowMemory);
     }
 
     phaseLabel() {
@@ -1536,14 +1563,16 @@
 
     showActivation(activation = {}) {
       const id = activation.id;
-      if (!id || !cards[id]) return Promise.resolve();
+      const card = cards[id];
+      if (!id || !card) return Promise.resolve();
       this.playActivationSound();
 
       return new Promise((resolve) => {
         this.activationOverlay?.remove();
+        const liteEffects = this.prefersLiteDuelEffects();
 
         const overlay = document.createElement("div");
-        overlay.className = "activation-overlay";
+        overlay.className = `activation-overlay${liteEffects ? " is-lite" : ""}`;
         overlay.setAttribute("aria-hidden", "true");
 
         const burst = document.createElement("div");
@@ -1554,8 +1583,17 @@
         label.textContent = activation.kind === "reaction" ? "リアクション発動" : "効果発動";
 
         const cardSlot = document.createElement("div");
-        cardSlot.className = "activation-card-slot";
-        CardRenderer.preview(id, cardSlot, { finish: this.finishFor(id) });
+        if (liteEffects) {
+          cardSlot.className = "activation-card-lite";
+          const name = document.createElement("strong");
+          name.textContent = card.name;
+          const meta = document.createElement("span");
+          meta.textContent = `${card.type} / ${card.attr}`;
+          cardSlot.append(name, meta);
+        } else {
+          cardSlot.className = "activation-card-slot";
+          CardRenderer.preview(id, cardSlot, { finish: this.finishFor(id) });
+        }
 
         burst.append(label, cardSlot);
         overlay.append(burst);
@@ -1572,7 +1610,7 @@
           overlay.remove();
           resolve();
         };
-        window.setTimeout(finish, 1500);
+        window.setTimeout(finish, liteEffects ? 620 : 1500);
       });
     }
 
