@@ -24,6 +24,15 @@ const RANKED_WAITING_TTL_MS = 10 * 60 * 1000;
 const RANKED_CPU_FALLBACK_MS = 15 * 1000;
 const RANKED_DISCONNECT_GRACE_MS = 30 * 1000;
 const RANKED_LEADERBOARD_LIMIT = 50;
+const RANKED_CPU_THINK_DELAY_MS = 960;
+const RANKED_CPU_ACTION_DELAY_MS = 760;
+const RANKED_CPU_CARD_PLAY_DELAY_MS = 980;
+const RANKED_CPU_SET_REACTION_DELAY_MS = 680;
+const RANKED_CPU_ATTACK_DELAY_MS = 920;
+const RANKED_CPU_MIN_TURN_MS = 3800;
+const RANKED_CPU_OPENING_MIN_TURN_MS = 2400;
+const RANKED_CPU_CHOICE_DELAY_MS = 540;
+const RANKED_CPU_REACTION_DECISION_DELAY_MS = 620;
 const DAILY_LOGIN_BONUS_GEMS = 1000;
 const LOGIN_BONUS_CYCLE_DAYS = 10;
 
@@ -553,6 +562,7 @@ function startRoomGame(room) {
     finished: false,
     winner: null,
     pendingChoice: null,
+    rankedCpuSeat: room.ranked?.cpuSeat || "",
     host: newDuelist(room.players.host.name || "Host", room.players.host.deck, room.players.host.driveDeck),
     guest: newDuelist(room.players.guest.name || "Guest", room.players.guest.deck, room.players.guest.driveDeck),
     logItems: [
@@ -729,40 +739,110 @@ async function advanceRankedCpu(room) {
   const cpuSeat = room.ranked.cpuSeat;
   if (!cpuSeat) return;
   const game = room.game;
+  game.rankedCpuSeat = cpuSeat;
 
   if (game.pendingChoice) {
     if (game.pendingChoice.seat !== cpuSeat) return;
+    if (!rankedCpuPendingChoiceReady(room)) return;
     resolveCpuPendingChoice(room);
+    clearRankedCpuPendingChoicePace(room);
     checkGameEnd(game);
-    if (game.finished || game.pendingChoice || game.active !== cpuSeat) {
-      await finalizeRankedRoom(room);
-      room.version += 1;
-      return;
-    }
+    scheduleRankedCpuNextStep(room, RANKED_CPU_ACTION_DELAY_MS);
+    await finalizeRankedRoom(room);
+    room.version += 1;
+    return;
   }
 
   if (game.active !== cpuSeat) return;
+  if (!rankedCpuActiveStepReady(room)) return;
 
-  let safety = 0;
-  while (!game.finished && game.active === cpuSeat && safety < 60) {
-    safety += 1;
-    if (game.pendingChoice) {
-      if (game.pendingChoice.seat !== cpuSeat) break;
-      resolveCpuPendingChoice(room);
-      checkGameEnd(game);
-      continue;
-    }
-
-    const acted = runRankedCpuTurnSlice(room);
-    checkGameEnd(game);
-    if (!acted || game.pendingChoice) break;
-  }
-
-  if (safety >= 60 && !game.finished && game.active === cpuSeat && !game.pendingChoice) {
-    endTurn(game);
-  }
+  const result = runRankedCpuTurnSlice(room);
+  checkGameEnd(game);
+  scheduleRankedCpuAfterStep(room, result);
   await finalizeRankedRoom(room);
   room.version += 1;
+}
+
+function rankedCpuPace(room) {
+  if (!room?.ranked) return null;
+  room.ranked.cpuPace = room.ranked.cpuPace || {};
+  return room.ranked.cpuPace;
+}
+
+function rankedCpuTurnKey(game, cpuSeat) {
+  return `${game.turn}:${game.completedTurns}:${game.active}:${cpuSeat}:${game.openingTurn ? 1 : 0}`;
+}
+
+function ensureRankedCpuActivePace(room) {
+  const game = room?.game;
+  const cpuSeat = room?.ranked?.cpuSeat;
+  if (!game || !cpuSeat || game.active !== cpuSeat || game.finished) return null;
+  const pace = rankedCpuPace(room);
+  const key = rankedCpuTurnKey(game, cpuSeat);
+  if (pace.turnKey !== key) {
+    const now = Date.now();
+    pace.turnKey = key;
+    pace.turnStartedAt = now;
+    pace.nextStepAt = now + RANKED_CPU_THINK_DELAY_MS;
+    pace.pendingChoiceId = "";
+    pace.nextChoiceAt = 0;
+  }
+  return pace;
+}
+
+function rankedCpuActiveStepReady(room) {
+  const pace = ensureRankedCpuActivePace(room);
+  return Boolean(pace && Date.now() >= Number(pace.nextStepAt || 0));
+}
+
+function scheduleRankedCpuNextStep(room, delayMs) {
+  const pace = ensureRankedCpuActivePace(room);
+  if (!pace) return;
+  pace.nextStepAt = Date.now() + Math.max(0, Number(delayMs) || 0);
+}
+
+function scheduleRankedCpuAfterStep(room, result = {}) {
+  if (!result || result.kind === "wait") return;
+  const delays = {
+    charge: RANKED_CPU_ACTION_DELAY_MS,
+    setReaction: RANKED_CPU_SET_REACTION_DELAY_MS,
+    play: RANKED_CPU_CARD_PLAY_DELAY_MS,
+    attack: RANKED_CPU_ATTACK_DELAY_MS,
+    endTurn: RANKED_CPU_ACTION_DELAY_MS,
+  };
+  scheduleRankedCpuNextStep(room, delays[result.kind] ?? RANKED_CPU_ACTION_DELAY_MS);
+}
+
+function rankedCpuTurnReadyToEnd(room) {
+  const pace = ensureRankedCpuActivePace(room);
+  if (!pace) return true;
+  const minTurnMs = room.game?.openingTurn ? RANKED_CPU_OPENING_MIN_TURN_MS : RANKED_CPU_MIN_TURN_MS;
+  const readyAt = Number(pace.turnStartedAt || Date.now()) + minTurnMs;
+  if (Date.now() >= readyAt) return true;
+  pace.nextStepAt = readyAt;
+  return false;
+}
+
+function rankedCpuPendingChoiceReady(room) {
+  const game = room?.game;
+  const cpuSeat = room?.ranked?.cpuSeat;
+  const choice = game?.pendingChoice;
+  if (!choice || choice.seat !== cpuSeat) return false;
+  const pace = rankedCpuPace(room);
+  if (pace.pendingChoiceId !== choice.id) {
+    const delayMs = choice.zone === "reaction" ? RANKED_CPU_REACTION_DECISION_DELAY_MS : RANKED_CPU_CHOICE_DELAY_MS;
+    pace.pendingChoiceId = choice.id;
+    pace.nextChoiceAt = Date.now() + delayMs;
+    return false;
+  }
+  return Date.now() >= Number(pace.nextChoiceAt || 0);
+}
+
+function clearRankedCpuPendingChoicePace(room) {
+  const pace = rankedCpuPace(room);
+  if (!pace) return;
+  pace.pendingChoiceId = "";
+  pace.nextChoiceAt = 0;
 }
 
 function runRankedCpuTurnSlice(room) {
@@ -777,47 +857,42 @@ function runRankedCpuTurnSlice(room) {
   if (!cpu.chargedThisTurn && shouldCpuCharge(cpu, aiLevel)) {
     const index = chooseCpuChargeIndex(cpu, aiLevel);
     if (chargeFromHand(game, cpu, index)) {
-      resolveCpuPendingChoice(room);
-      return true;
+      return { acted: true, kind: "charge" };
     }
   }
 
-  if (setCpuReactions(game, cpu, aiLevel)) return true;
+  if (setCpuReactions(game, cpu, aiLevel)) return { acted: true, kind: "setReaction" };
 
   const playLimit = cpuPlayLimit(aiLevel);
   for (let i = 0; i < playLimit; i += 1) {
     const move = chooseCpuPlay(cpu, aiLevel);
     if (!move) break;
     if (playFromHand(game, cpu, opponent, move.index, cpuSeat)) {
-      resolveCpuPendingChoice(room);
-      return true;
+      return { acted: true, kind: "play" };
     }
   }
 
   const attack = chooseCpuAttack(game, cpu, opponent, aiLevel);
   if (attack) {
     attackWithUnit(game, cpu, opponent, attack.attackerIndex, attack.targetIndex);
-    resolveCpuPendingChoice(room);
-    return true;
+    return { acted: true, kind: "attack" };
   }
 
+  if (!rankedCpuTurnReadyToEnd(room)) return { acted: false, kind: "wait" };
   endTurn(game);
-  return true;
+  return { acted: true, kind: "endTurn" };
 }
 
 function resolveCpuPendingChoice(room) {
   const game = room.game;
   const cpuSeat = room.ranked.cpuSeat;
-  let safety = 0;
-  while (game.pendingChoice && game.pendingChoice.seat === cpuSeat && safety < 20) {
-    safety += 1;
-    const choice = game.pendingChoice;
-    resolvePendingChoice(game, {
-      type: "choice",
-      choiceId: choice.id,
-      index: chooseCpuChoiceIndex(room, choice),
-    });
-  }
+  const choice = game.pendingChoice;
+  if (!choice || choice.seat !== cpuSeat) return;
+  resolvePendingChoice(game, {
+    type: "choice",
+    choiceId: choice.id,
+    index: chooseCpuChoiceIndex(room, choice),
+  });
 }
 
 function shouldCpuCharge(cpu, aiLevel) {
@@ -1017,6 +1092,11 @@ function resolvePlayedCard(game, player, opponent, card, seat, preferredSlot = n
           log(game, `${card.name}の通常召喚時効果は発動しなかった。`);
           afterSummon(game, player, card.id);
         });
+      } else if (shouldPaceRankedCpuActivation(game, player)) {
+        queueForcedEffectActivationChoice(game, player, card, {
+          title: `${card.name}の通常召喚時効果`,
+          message: "通常召喚時効果を発動します。",
+        }, activate);
       } else {
         activate();
       }
@@ -1029,13 +1109,33 @@ function resolvePlayedCard(game, player, opponent, card, seat, preferredSlot = n
   if (card.type === "コア") {
     placeCore(player, card.id, preferredSlot);
     log(game, `${prefix}${card.name}を発動。`);
-    if (card.effect) activateEffectWithReactions(game, player, opponent, card, card.effect, `${card.name}の効果は無効化された。`);
+    if (card.effect) {
+      const activate = () => activateEffectWithReactions(game, player, opponent, card, card.effect, `${card.name}の効果は無効化された。`);
+      if (shouldPaceRankedCpuActivation(game, player)) {
+        queueForcedEffectActivationChoice(game, player, card, {
+          title: `${card.name}の効果`,
+          message: `${card.name}の効果を発動します。`,
+        }, activate);
+      } else {
+        activate();
+      }
+    }
     return;
   }
 
   if (card.type === "スペル") {
     log(game, `${prefix}${card.name}を発動。`);
-    if (card.effect) activateEffectWithReactions(game, player, opponent, card, card.effect, `${card.name}は無効化された。`);
+    if (card.effect) {
+      const activate = () => activateEffectWithReactions(game, player, opponent, card, card.effect, `${card.name}は無効化された。`);
+      if (shouldPaceRankedCpuActivation(game, player)) {
+        queueForcedEffectActivationChoice(game, player, card, {
+          title: `${card.name}の効果`,
+          message: `${card.name}の効果を発動します。`,
+        }, activate);
+      } else {
+        activate();
+      }
+    }
     player.grave.push(card.id);
   }
 }
@@ -1075,6 +1175,27 @@ function queueEffectActivationChoice(game, player, card, choice, onActivate, onP
     afterResolve: null,
   };
   return true;
+}
+
+function queueForcedEffectActivationChoice(game, player, card, choice, onActivate) {
+  game.pendingChoice = {
+    id: makeId(8),
+    seat: seatOf(game, player),
+    zone: "effectActivation",
+    title: choice.title || `${card.name}の効果`,
+    message: choice.message || `${card.name}の効果を発動します。`,
+    candidates: [{ id: card.id, index: 0 }],
+    allowPass: false,
+    confirmLabel: choice.confirmLabel || "発動",
+    passLabel: "",
+    resolve: () => onActivate(),
+    afterResolve: null,
+  };
+  return true;
+}
+
+function shouldPaceRankedCpuActivation(game, player) {
+  return Boolean(game?.rankedCpuSeat && game.rankedCpuSeat === seatOf(game, player));
 }
 
 function queueOptionalAdditionalEffect(game, player, sourceCard, message, onActivate, onPass = () => {}) {
