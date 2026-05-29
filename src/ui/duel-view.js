@@ -38,6 +38,7 @@
       this.modalPeekButton = null;
       this.peekedModalContent = null;
       this.renderFrame = 0;
+      this.renderCache = {};
       this.lastPlaceSoundAt = 0;
       this.lastDrawSoundAt = 0;
       this.lastDamageSoundAt = 0;
@@ -104,6 +105,7 @@
       this.handDrag = null;
       this.pointerHandDrag = null;
       this.boardSoundSnapshot = null;
+      this.renderCache = {};
       const cpuChoice = this.chooseCpuDeck(deckList, finishInfo.cpuTheme || "random");
       this.game = new DuelGame({
         playerDeck: deckList,
@@ -149,6 +151,7 @@
       this.handDrag = null;
       this.pointerHandDrag = null;
       this.boardSoundSnapshot = null;
+      this.renderCache = {};
       this.game = game;
       this.royalBattleIds = new Set();
       this.game.onChange = () => this.scheduleRender();
@@ -167,14 +170,16 @@
     render() {
       this.renderFrame = 0;
       if (!this.game) return;
-      this.renderLp();
-      this.renderDuelistNames();
-      this.renderZones();
-      this.playPlacementSoundForBoardIncrease();
-      this.renderPiles();
-      this.renderHand();
+      if (this.updateRenderCache("lp", `${this.game.player.lp}:${this.game.enemy.lp}`)) this.renderLp();
+      if (this.updateRenderCache("names", `${this.game.player?.name || ""}:${this.game.enemy?.name || ""}`)) this.renderDuelistNames();
+      if (this.updateRenderCache("zones", this.zonesRenderKey())) {
+        this.renderZones();
+        this.playPlacementSoundForBoardIncrease();
+      }
+      if (this.updateRenderCache("piles", this.pilesRenderKey())) this.renderPiles();
+      if (this.updateRenderCache("hand", this.handRenderKey())) this.renderHand();
       this.renderSelection();
-      this.renderLog();
+      if (this.updateRenderCache("log", this.game.logItems.join("\u001f"))) this.renderLog();
       this.els.turnBadge.textContent = `Turn ${this.game.turn}`;
       this.els.phaseBadge.textContent = this.phaseLabel();
       this.els.phaseBadge.classList.toggle("is-waiting", Boolean(this.game.pendingChoice || this.game.waitingChoice || this.game.cpuThinking));
@@ -185,6 +190,92 @@
       this.els.playerDeckInfo.textContent = `山札 ${this.game.player.deck.length} / ロスト ${this.game.player.grave.length} / アビス ${playerAbyss.length}`;
       this.els.enemyDeckInfo.textContent = `山札 ${this.game.enemy.deck.length} / ロスト ${this.game.enemy.grave.length} / アビス ${enemyAbyss.length}`;
       this.els.handInfo.textContent = `${this.game.player.hand.length}枚`;
+    }
+
+    updateRenderCache(key, value) {
+      if (this.renderCache[key] === value) return false;
+      this.renderCache[key] = value;
+      return true;
+    }
+
+    zonesRenderKey() {
+      const player = this.game.player;
+      const enemy = this.game.enemy;
+      return [
+        this.game.active,
+        this.game.busy ? 1 : 0,
+        this.game.finished ? 1 : 0,
+        this.zoneListKey(player.units),
+        this.zoneListKey(player.cores),
+        this.zoneListKey(player.reactions),
+        this.chargeListKey(player.charge),
+        this.zoneListKey(enemy.units),
+        this.zoneListKey(enemy.cores),
+        this.zoneListKey(enemy.reactions),
+        this.chargeListKey(enemy.charge),
+      ].join("|");
+    }
+
+    pilesRenderKey() {
+      const player = this.game.player;
+      const enemy = this.game.enemy;
+      return [
+        this.game.active,
+        this.game.busy ? 1 : 0,
+        this.chargeListKey(player.charge),
+        this.zoneListKey(player.units),
+        this.zoneListKey(player.cores),
+        this.zoneListKey(player.reactions),
+        player.deck.length,
+        enemy.deck.length,
+        this.compactPileKey(player.grave),
+        this.compactPileKey(enemy.grave),
+        this.compactPileKey(player.abyss || []),
+        this.compactPileKey(enemy.abyss || []),
+        player.driveDeck.join(","),
+        enemy.driveDeck.length,
+        player.driveUsed.join(","),
+        enemy.driveUsed.join(","),
+      ].join("|");
+    }
+
+    handRenderKey() {
+      const player = this.game.player;
+      const enemy = this.game.enemy;
+      return [
+        this.game.active,
+        this.game.busy ? 1 : 0,
+        player.chargedThisTurn ? 1 : 0,
+        this.chargeListKey(player.charge),
+        player.hand.join(","),
+        enemy.hand.length,
+      ].join("|");
+    }
+
+    zoneListKey(list = []) {
+      return list.map((entry) => {
+        if (!entry) return "";
+        if (typeof entry === "string") return entry;
+        return [
+          entry.id || "",
+          entry.revealed ? 1 : 0,
+          entry.facedown ? 1 : 0,
+          entry.exhausted ? 1 : 0,
+          entry.exhaustedUntilOwnerTurnEnd ? 1 : 0,
+          entry.exhaustedUntilOwnerTurnEndReady ? 1 : 0,
+        ].join(":");
+      }).join(",");
+    }
+
+    chargeListKey(list = []) {
+      return list.map((entry) => {
+        if (typeof entry === "string") return entry;
+        return `${entry?.id || ""}:${entry?.tapped ? 1 : 0}`;
+      }).join(",");
+    }
+
+    compactPileKey(list = []) {
+      return `${list.length}:${list[list.length - 1] || ""}`;
     }
 
     scheduleRender() {
@@ -203,13 +294,6 @@
       } else {
         this.renderFrame = window.setTimeout(run, 16);
       }
-    }
-
-    prefersLiteDuelEffects() {
-      const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
-      const smallViewport = window.matchMedia?.("(max-width: 920px)")?.matches;
-      const lowMemory = Number(navigator.deviceMemory || 8) <= 4;
-      return Boolean(coarsePointer || smallViewport || lowMemory);
     }
 
     phaseLabel() {
@@ -1569,10 +1653,9 @@
 
       return new Promise((resolve) => {
         this.activationOverlay?.remove();
-        const liteEffects = this.prefersLiteDuelEffects();
 
         const overlay = document.createElement("div");
-        overlay.className = `activation-overlay${liteEffects ? " is-lite" : ""}`;
+        overlay.className = "activation-overlay";
         overlay.setAttribute("aria-hidden", "true");
 
         const burst = document.createElement("div");
@@ -1583,17 +1666,8 @@
         label.textContent = activation.kind === "reaction" ? "リアクション発動" : "効果発動";
 
         const cardSlot = document.createElement("div");
-        if (liteEffects) {
-          cardSlot.className = "activation-card-lite";
-          const name = document.createElement("strong");
-          name.textContent = card.name;
-          const meta = document.createElement("span");
-          meta.textContent = `${card.type} / ${card.attr}`;
-          cardSlot.append(name, meta);
-        } else {
-          cardSlot.className = "activation-card-slot";
-          CardRenderer.preview(id, cardSlot, { finish: this.finishFor(id) });
-        }
+        cardSlot.className = "activation-card-slot";
+        CardRenderer.preview(id, cardSlot, { finish: this.finishFor(id) });
 
         burst.append(label, cardSlot);
         overlay.append(burst);
@@ -1610,7 +1684,7 @@
           overlay.remove();
           resolve();
         };
-        window.setTimeout(finish, liteEffects ? 620 : 1500);
+        window.setTimeout(finish, 1500);
       });
     }
 

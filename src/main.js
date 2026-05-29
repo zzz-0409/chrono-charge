@@ -152,6 +152,7 @@
   }
 
   let toastTimer = 0;
+  let hiddenViewsReleasedForDuel = false;
   const toast = (message) => {
     els.toast.textContent = message;
     els.toast.classList.add("show");
@@ -196,13 +197,34 @@
     els.displayNameInput.disabled = !accountEnabled;
     els.saveDisplayNameButton.disabled = !accountEnabled;
     els.logoutButton.disabled = !accountEnabled;
+    if (showDuel) {
+      releaseHiddenViewDomForDuel();
+    } else if (hiddenViewsReleasedForDuel) {
+      hiddenViewsReleasedForDuel = false;
+    }
     if (showDeckSelect) renderDeckSelectView();
+    if (showBuilder) builderView?.render({ preserveLibraryScroll: true });
     if (showPack || showPackResult) packView?.render();
     if (showDuelMenu) {
       renderDuelMenuDeckCard();
       renderRankedStatus();
     }
     renderShellResources();
+  };
+
+  const releaseHiddenViewDomForDuel = () => {
+    if (hiddenViewsReleasedForDuel) return;
+    hiddenViewsReleasedForDuel = true;
+    [
+      els.deckPresetGrid,
+      els.collectionGrid,
+      els.deckList,
+      els.cardPreview,
+      els.previewDeckControls,
+      els.packList,
+      els.selectedPackPreview,
+      els.packResultGrid,
+    ].forEach((element) => element?.replaceChildren());
   };
 
   const openAppModal = (content) => {
