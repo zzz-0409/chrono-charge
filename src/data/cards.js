@@ -1600,7 +1600,72 @@
     },
   ];
 
-  const cards = Object.fromEntries([...cardPool, ...drivePool].map((card) => [card.id, card]));
+  const UNIT_COST_BOOST = 3;
+  const DEFAULT_REACTION_COST = 0;
+  const REACTION_COST_KEEP_THRESHOLD = 3;
+  const DEFAULT_DRIVE_MATERIAL_REDUCTION = 1;
+
+  function reduceDriveMaterialRequirements(materials, reduction = 0) {
+    if (!Array.isArray(materials) || reduction <= 0) return materials.map((requirement) => ({ ...requirement }));
+
+    const reduced = materials.map((requirement) => ({ ...requirement }));
+    let remaining = reduction;
+
+    while (remaining > 0) {
+      const index = reduced
+        .map((requirement, idx) => ({ requirement, idx }))
+        .filter((entry) => Number(entry.requirement.count || 0) > 0)
+        .sort((a, b) => Number(b.requirement.count || 0) - Number(a.requirement.count || 0) || a.idx - b.idx)[0]?.idx;
+
+      if (index === undefined) break;
+      const currentCount = Number(reduced[index].count || 0);
+      reduced[index].count = Math.max(0, currentCount - 1);
+      remaining -= 1;
+    }
+
+    return reduced.filter((requirement) => !("count" in requirement) || requirement.count > 0);
+  }
+
+  function normalizeDriveCostCard(card) {
+    if (!card?.driveKind || !card.driveCost) return card;
+
+    const originalCost = Number(card.cost || 0);
+    const balance = card.driveCostBalance || {};
+    const isStrongReaction = card.driveKind === "reaction" && originalCost >= REACTION_COST_KEEP_THRESHOLD;
+    const shouldReduceMaterials = balance.reduceMaterials === false ? false : !isStrongReaction;
+    const hasConfiguredCost = balance.costKeep !== undefined || balance.cost != null;
+    const costKeepBalance = balance.costKeep === true || (!hasConfiguredCost && isStrongReaction);
+    const cost =
+      balance.cost != null ? Number(balance.cost)
+      : card.driveKind === "unit"
+        ? originalCost + UNIT_COST_BOOST
+        : card.driveKind === "reaction"
+          ? costKeepBalance
+            ? originalCost
+            : DEFAULT_REACTION_COST
+          : originalCost;
+
+    const configuredReduction = balance.materialReduction !== undefined ? Math.max(0, Number(balance.materialReduction)) : DEFAULT_DRIVE_MATERIAL_REDUCTION;
+    const reductionAmount = shouldReduceMaterials ? configuredReduction : 0;
+    const normalizedMaterials = Array.isArray(card.driveCost.materials)
+      ? reduceDriveMaterialRequirements(card.driveCost.materials, reductionAmount)
+      : [];
+    const materials = shouldReduceMaterials
+      ? normalizedMaterials
+      : card.driveCost.materials.map((requirement) => ({ ...requirement }));
+
+    return {
+      ...card,
+      cost: Math.max(0, cost),
+      driveCost: {
+        ...card.driveCost,
+        materials,
+      },
+    };
+  }
+
+  const normalizedDrivePool = drivePool.map((card) => normalizeDriveCostCard(card));
+  const cards = Object.fromEntries([...cardPool, ...normalizedDrivePool].map((card) => [card.id, card]));
 
   const starterDeck = {
     star_scout: 3,
@@ -1826,7 +1891,7 @@
     attrClass,
     typeClass,
     cardPool,
-    drivePool,
+    drivePool: normalizedDrivePool,
     cards,
     starterDeck,
     cpuDeck,

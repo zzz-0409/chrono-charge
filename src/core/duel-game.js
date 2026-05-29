@@ -1485,8 +1485,7 @@
     }
 
     drivePaymentRule(card) {
-      if (card?.driveKind === "unit" || card?.driveKind === "core") return "materialsAndCharge";
-      return "materialsOrCharge";
+      return "materialsAndCharge";
     }
 
     availableSlotsAfterDriveCost(zone, player, driveCost, type) {
@@ -1533,13 +1532,12 @@
         const selection = this.selectDriveMaterials(player, driveCost, 0, requiredFreedType);
         return Boolean(selection);
       }
-      const field = driveCost.field || 0;
-      const charge = driveCost.charge || 0;
-      if (requiredFreedType && (baseDriveType(driveCost.type) !== requiredFreedType || field <= 0)) return false;
-      return (
-        this.countFieldMaterials(player, driveCost) >= field &&
-        this.countChargeMaterials(player, driveCost) >= charge
-      );
+      const total = Number(driveCost.field || 0) + Number(driveCost.charge || 0);
+      if (requiredFreedType && (baseDriveType(driveCost.type) !== requiredFreedType || total <= 0)) return false;
+      const matching = this.driveMaterialEntries(player).filter((entry) => this.matchesDriveRequirement(cards[entry.id], driveCost, entry));
+      if (matching.length < total) return false;
+      const selected = matching.slice(0, total);
+      return this.driveSelectionFreesRequiredSlot(player, card, selected, requiredFreedType);
     }
 
     canPayDriveCombinedCost(player, card, requiredFreedType = this.requiredFreedTypeForDrive(player, card)) {
@@ -1559,26 +1557,19 @@
     }
 
     canPayDriveChargeCost(player, card) {
-      const cost = Math.max(0, Number(card?.cost || 0));
-      if (cost === 0) return true;
-      if (!this.canPay(player, cost)) return false;
-      if (!card.theme) return this.countDriveChargeType(player, card) >= cost;
-      return this.countThemeInCharge(player, card.theme) >= cost;
+      return this.canPayDriveChargeCostAfterMaterials(player, card);
     }
 
     canPayDriveChargeCostAfterMaterials(player, card, selectedMaterials = []) {
       const cost = Math.max(0, Number(card?.cost || 0));
       if (cost === 0) return true;
-      const selectedChargeIndexes = new Set(selectedMaterials
-        .filter((entry) => entry.source === "charge" || entry.originalIndex !== undefined)
-        .map((entry) => entry.originalIndex));
-      const remainingCharge = player.charge.filter((_, index) => !selectedChargeIndexes.has(index));
-      if (remainingCharge.filter((entry) => !entry.tapped).length < cost) return false;
+      const selectedKeys = new Set(selectedMaterials.map((entry) => entry.key));
+      const selectedEntries = this.driveMaterialEntries(player).filter((entry) => !selectedKeys.has(entry.key));
       if (!card.theme) {
         const type = baseDriveType(card?.type);
-        return remainingCharge.filter((entry) => baseDriveType(cards[entry.id]?.type) === type).length >= cost;
+        return selectedEntries.filter((entry) => baseDriveType(cards[entry.id]?.type) === type).length >= cost;
       }
-      return remainingCharge.filter((entry) => cardHasTheme(cards[entry.id], card.theme)).length >= cost;
+      return selectedEntries.filter((entry) => cardHasTheme(cards[entry.id], card.theme)).length >= cost;
     }
 
     countDriveChargeType(player, card) {
@@ -1596,34 +1587,35 @@
           ? await this.payDriveCombinedCostWithChoices(player, card)
           : this.payDriveCombinedCostAutomatically(player, card);
       }
-      if (player === this.player && options.length > 1) {
-        const useCharge = await this.chooseDrivePaymentMode(player, card);
-        return useCharge ? this.payDriveChargeCost(player, card) : await this.payDriveMaterialCostWithChoices(player, card);
-      }
-      if (options.includes("charge")) return this.payDriveChargeCost(player, card);
       if (player === this.player) return await this.payDriveCostWithChoices(player, card);
       return this.payDriveCostAutomatically(player, card);
     }
 
-    async chooseDrivePaymentMode(player, card) {
-      if (player !== this.player) return true;
-      const selected = await this.options.requestCardChoice({
-        zone: "drivePayment",
-        title: `${card.name}のドライブ支払い`,
-        message: card.theme
-          ? `素材をロストゾーンに送るか、チャージゾーンに「${card.theme}」が${card.cost}枚以上あるならチャージ${card.cost}を支払えます。`
-          : `素材をロストゾーンに送るか、チャージゾーンに${baseDriveType(card.type)}が${card.cost}枚以上あるならチャージ${card.cost}を支払えます。`,
-        candidates: [{ id: card.id, index: "charge" }],
-        allowPass: true,
-        confirmLabel: "チャージで支払う",
-        passLabel: "素材で支払う",
-      }, this);
-      return selected === "charge";
-    }
-
     payDriveChargeCost(player, card) {
+      const cost = Math.max(0, Number(card?.cost || 0));
       if (!this.canPayDriveChargeCost(player, card)) return false;
-      return this.payCost(player, Math.max(0, Number(card?.cost || 0)));
+      const selected = this.selectDriveCostMaterials(
+        player,
+        card,
+        cost,
+        []
+      );
+      if (selected.length < cost) return false;
+      selected
+        .slice()
+        .sort((a, b) => {
+          if (a.source !== b.source) return a.source === "hand" ? -1 : 1;
+          if (a.source === "hand") return b.originalIndex - a.originalIndex;
+          return b.originalIndex - a.originalIndex;
+        })
+        .forEach((entry) => {
+          if (entry.source === "field") {
+            if (entry.remove) entry.remove();
+          }
+          if (entry.source === "hand") player.hand.splice(entry.originalIndex, 1);
+          player.grave.push(entry.id);
+        });
+      return true;
     }
 
     payDriveCombinedCostAutomatically(player, card) {
@@ -1654,31 +1646,9 @@
         this.removeDriveMaterialSelection(player, selection);
         return true;
       }
-      let fieldRemaining = driveCost.field || 0;
-      let chargeRemaining = driveCost.charge || 0;
-
-      if (fieldRemaining > 0) {
-        for (const entry of this.fieldMaterialEntries(player, driveCost)) {
-          if (fieldRemaining <= 0) break;
-          player.grave.push(entry.id);
-          entry.remove();
-          fieldRemaining -= 1;
-        }
-      }
-
-      if (chargeRemaining > 0) {
-        const selected = this.driveChargeMaterialIndexes(player, driveCost)
-          .slice(0, chargeRemaining)
-          .map((entry) => ({ ...entry, originalIndex: entry.index, source: "charge", key: `charge:${entry.index}` }))
-          .sort((a, b) => b.originalIndex - a.originalIndex);
-        for (const { originalIndex } of selected) {
-          const [removed] = player.charge.splice(originalIndex, 1);
-          player.grave.push(removed.id);
-          chargeRemaining -= 1;
-        }
-      }
-
-      if (fieldRemaining !== 0 || chargeRemaining !== 0) return false;
+      const selection = this.selectLegacyDriveMaterialPlan(player, driveCost, this.requiredFreedTypeForDrive(player, card));
+      if (!selection) return false;
+      this.removeDriveMaterialSelection(player, selection);
       return true;
     }
 
@@ -1745,21 +1715,12 @@
       const field = driveCost.field || 0;
       const charge = driveCost.charge || 0;
       if (requiredFreedType && (baseDriveType(driveCost.type) !== requiredFreedType || field <= 0)) return null;
-      const fieldMaterials = this.fieldMaterialEntries(player, driveCost)
-        .slice(0, field)
-        .map((entry) => ({ ...entry, source: "field" }));
-      if (fieldMaterials.length < field) return null;
-      const chargeMaterials = this.driveChargeMaterialIndexes(player, driveCost)
-        .slice(0, charge)
-        .map((entry) => ({
-          id: entry.id,
-          key: `charge:${entry.index}`,
-          source: "charge",
-          originalIndex: entry.index,
-          tapped: Boolean(entry.tapped),
-        }));
-      if (chargeMaterials.length < charge) return null;
-      const selected = [...fieldMaterials, ...chargeMaterials];
+      const total = Number(field) + Number(charge);
+      const selected = this.driveMaterialEntries(player)
+        .filter((entry) => this.matchesDriveMaterial(cards[entry.id], driveCost))
+        .slice(0, total)
+        .map((entry) => ({ ...entry }));
+      if (selected.length < total) return null;
       if (!this.driveSelectionFreesRequiredSlot(player, { driveKind: null }, selected, requiredFreedType)) return null;
       return selected;
     }
@@ -1768,19 +1729,19 @@
       const driveCost = card?.driveCost || {};
       const fieldRequired = driveCost.field || 0;
       const chargeRequired = driveCost.charge || 0;
+      const totalRequired = Number(fieldRequired) + Number(chargeRequired);
       const fieldMaterials = [];
       const chargeMaterials = [];
 
-      for (let i = 0; i < fieldRequired; i += 1) {
-        const material = await this.chooseDriveFieldMaterial(player, card, fieldMaterials, i + 1, fieldRequired);
+      for (let i = 0; i < totalRequired; i += 1) {
+        const material = await this.chooseDriveMaterial(player, card, { ...driveCost }, [...fieldMaterials, ...chargeMaterials], i + 1, totalRequired);
         if (!material) return false;
-        fieldMaterials.push({ ...material, source: "field" });
-      }
-
-      for (let i = 0; i < chargeRequired; i += 1) {
-        const material = await this.chooseDriveChargeMaterial(player, card, chargeMaterials, i + 1, chargeRequired);
-        if (!material) return false;
-        chargeMaterials.push(material);
+        const selected = { ...material };
+        if (selected.source === "field") {
+          fieldMaterials.push(selected);
+        } else {
+          chargeMaterials.push(selected);
+        }
       }
 
       const selected = [...fieldMaterials, ...chargeMaterials];
@@ -1846,10 +1807,8 @@
     }
 
     remainingUntappedAfterSelectedDriveMaterials(player, chargeMaterials) {
-      const selectedIndexes = new Set(chargeMaterials
-        .filter((entry) => entry.source === "charge" || entry.originalIndex !== undefined)
-        .map((entry) => entry.originalIndex));
-      return player.charge.filter((entry, index) => !entry.tapped && !selectedIndexes.has(index)).length;
+      const selectedKeys = new Set(chargeMaterials.map((entry) => entry.key));
+      return this.driveMaterialEntries(player).filter((entry) => !selectedKeys.has(entry.key)).length;
     }
 
     expandDriveRequirements(driveCost = {}) {
@@ -1893,9 +1852,9 @@
       const bFrees = requiredFreedType && b.source === "field" && baseDriveType(cards[b.id]?.type) === requiredFreedType;
       if (aFrees !== bFrees) return aFrees ? -1 : 1;
       const rank = (entry) => {
-        if (entry.source === "charge" && entry.tapped) return 0;
         if (entry.source === "field") return 1;
-        return 2;
+        if (entry.source === "hand") return 2;
+        return 3;
       };
       const aRank = rank(a);
       const bRank = rank(b);
@@ -1924,6 +1883,17 @@
         });
 
       selectedMaterials
+        .filter((entry) => entry.source === "hand")
+        .slice()
+        .sort((a, b) => b.originalIndex - a.originalIndex)
+        .forEach((entry) => {
+          if (entry.originalIndex >= 0 && entry.originalIndex < player.hand.length) {
+            player.hand.splice(entry.originalIndex, 1);
+            player.grave.push(entry.id);
+          }
+        });
+
+      selectedMaterials
         .filter((entry) => entry.source === "charge")
         .slice()
         .sort((a, b) => b.originalIndex - a.originalIndex)
@@ -1935,6 +1905,15 @@
 
     driveMaterialEntries(player) {
       const entries = [];
+      player.hand.forEach((id, index) => {
+        if (!id) return;
+        entries.push({
+          id,
+          key: `hand:${index}`,
+          source: "hand",
+          originalIndex: index,
+        });
+      });
       player.units.forEach((unit, index) => {
         if (unit) entries.push({ id: unit.id, key: `unit:${index}`, source: "field", remove: () => { player.units[index] = null; } });
       });
@@ -1945,21 +1924,12 @@
         const id = reactionId(entry);
         if (id) entries.push({ id, key: `reaction:${index}`, source: "field", remove: () => { player.reactions[index] = null; } });
       });
-      player.charge.forEach((entry, index) => {
-        entries.push({
-          id: entry.id,
-          key: `charge:${index}`,
-          source: "charge",
-          originalIndex: index,
-          tapped: Boolean(entry.tapped),
-        });
-      });
       return entries;
     }
 
     matchesDriveRequirement(card, requirement = {}, entry = null) {
       if (!card) return false;
-      if (requirement.source && entry?.source !== requirement.source) return false;
+      if (requirement.source && requirement.source !== "field" && requirement.source !== "charge" && entry?.source !== requirement.source) return false;
       if (requirement.id && card.id !== requirement.id) return false;
       if (Array.isArray(requirement.ids) && !requirement.ids.includes(card.id)) return false;
       const type = baseDriveType(requirement.type);
