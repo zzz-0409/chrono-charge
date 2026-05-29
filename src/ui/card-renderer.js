@@ -6,8 +6,18 @@
   const preloadedArtUrls = new Set();
   const CARD_ART_ROOT = "assets/cards/art/";
   const CARD_THUMB_ROOT = `${CARD_ART_ROOT}thumbs/`;
+  let skipPreloadOnThisDevice = null;
+
+  function shouldSkipPreload() {
+    if (skipPreloadOnThisDevice !== null) return skipPreloadOnThisDevice;
+    const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
+    const lowMemory = Number(navigator.deviceMemory || 8) <= 4;
+    skipPreloadOnThisDevice = Boolean(coarsePointer || lowMemory);
+    return skipPreloadOnThisDevice;
+  }
 
   function preloadCardArt(src) {
+    if (shouldSkipPreload()) return;
     if (!src || preloadedArtUrls.has(src) || typeof Image !== "function") return;
     preloadedArtUrls.add(src);
     const image = new Image();

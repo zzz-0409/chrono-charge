@@ -24,6 +24,8 @@
       this.setView = options.setView;
       this.onCpuResult = options.onCpuResult || (() => 0);
       this.onOnlineResult = options.onOnlineResult || (() => 0);
+      this.onDuelSnapshot = options.onDuelSnapshot || (() => {});
+      this.onDuelFinished = options.onDuelFinished || (() => {});
       this.sounds = options.sounds || SoundEffects;
       this.game = null;
       this.selectedCardId = "star_scout";
@@ -163,6 +165,31 @@
       this.setView("duel");
     }
 
+    resumeLocal(game, finishInfo = {}) {
+      if (!game) return false;
+      this.cancelHandPointerDrag();
+      this.game?.dispose?.();
+      this.restart = null;
+      this.selectedContext = null;
+      this.selectionRenderKey = "";
+      this.handSnapshot = null;
+      this.handDrag = null;
+      this.pointerHandDrag = null;
+      this.boardSoundSnapshot = null;
+      this.renderCache = {};
+      this.royalBattleIds = new Set([...(finishInfo.mainRoyalIds || []), ...(finishInfo.driveRoyalIds || [])]);
+      this.game = game;
+      this.game.options.onChange = () => this.scheduleRender();
+      this.game.options.onResult = (won) => this.showResult(won);
+      this.game.options.requestReaction = (options, event) => this.requestReactionChoice(options, event);
+      this.game.options.requestCardChoice = (choice) => this.requestCardChoice(choice);
+      this.game.options.showActivation = (activation) => this.showActivation(activation);
+      this.game.options.onSoundEvent = (event) => this.handleSoundEvent(event);
+      this.game.notify();
+      this.setView("duel");
+      return true;
+    }
+
     finishFor(id) {
       return this.royalBattleIds?.has(id) ? "royal" : "normal";
     }
@@ -279,6 +306,7 @@
     }
 
     scheduleRender() {
+      if (this.game) this.onDuelSnapshot(this.game);
       if (this.renderFrame) return;
       const run = () => {
         this.renderFrame = 0;
@@ -1692,6 +1720,7 @@
       const online = Boolean(this.game?.isOnline);
       const ranked = Boolean(this.game?.isRanked);
       const rankedResult = this.game?.rankedResult || null;
+      this.onDuelFinished(this.game);
       const reward = online ? this.onOnlineResult(won) : this.onCpuResult(won);
       const rankedDelta = rankedResult?.delta > 0 ? `+${rankedResult.delta}` : String(rankedResult?.delta || 0);
       const opponentRank = rankedResult?.opponentPointsBefore !== undefined ? ` / 相手 ${rankedResult.opponentPointsBefore} RP` : "";

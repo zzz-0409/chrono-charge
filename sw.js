@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260529-duelperf";
+const CACHE_VERSION = "chrono-drive-pwa-20260529-duelrecover";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -32,16 +32,16 @@ const APP_SHELL_URLS = [
   "/src/core/deck-store.js?v=20260529sosai",
   "/src/core/effect-resolver.js?v=20260529sosai",
   "/src/core/cpu-controller.js?v=20260529cpupace",
-  "/src/core/duel-game.js?v=20260529duelperf",
+  "/src/core/duel-game.js?v=20260529duelrecover",
   "/src/ui/scale-manager.js?v=20260524a",
-  "/src/ui/card-renderer.js?v=20260529sosai",
+  "/src/ui/card-renderer.js?v=20260529duelrecover",
   "/src/ui/sound-effects.js?v=20260529duelperf",
   "/src/ui/card-zoom.js?v=20260522k",
   "/src/ui/deck-builder-view.js?v=20260528loginbonusui",
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
-  "/src/ui/duel-view.js?v=20260529duelperf",
-  "/src/main.js?v=20260529duelperf"
+  "/src/ui/duel-view.js?v=20260529duelrecover",
+  "/src/main.js?v=20260529duelrecover"
 ];
 
 self.addEventListener("install", (event) => {

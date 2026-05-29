@@ -11,6 +11,7 @@
     ScaleManager,
     OnlineClient,
     OnlineGameProxy,
+    DuelGame,
     SoundEffects,
     cards,
     CardRenderer,
@@ -153,6 +154,8 @@
 
   let toastTimer = 0;
   let hiddenViewsReleasedForDuel = false;
+  const DUEL_RECOVERY_KEY = "chrono.cpuDuelRecovery.v1";
+  const DUEL_RECOVERY_MAX_AGE_MS = 12 * 60 * 60 * 1000;
   const toast = (message) => {
     els.toast.textContent = message;
     els.toast.classList.add("show");
@@ -226,6 +229,67 @@
       els.packResultGrid,
     ].forEach((element) => element?.replaceChildren());
   };
+
+  function saveCpuDuelRecovery(game) {
+    if (!game || game.isOnline || game.finished || typeof game.snapshot !== "function") return;
+    if (game.active !== "player") return;
+    if (game.busy || game.cpuThinking || game.enemyTurnRunning || game.pendingChoice || game.waitingChoice) return;
+    try {
+      window.localStorage.setItem(DUEL_RECOVERY_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        mainRoyalIds: [...(store.royalBattleIds || [])],
+        driveRoyalIds: [...(store.driveRoyalBattleIds || [])],
+        game: game.snapshot(),
+      }));
+    } catch (error) {
+      console.warn("Duel recovery save failed", error);
+    }
+  }
+
+  function clearCpuDuelRecovery() {
+    try {
+      window.localStorage.removeItem(DUEL_RECOVERY_KEY);
+    } catch {
+      // Recovery is best-effort only.
+    }
+  }
+
+  function loadCpuDuelRecovery() {
+    try {
+      const raw = window.localStorage.getItem(DUEL_RECOVERY_KEY);
+      if (!raw) return null;
+      const payload = JSON.parse(raw);
+      const savedAt = Number(payload?.savedAt || 0);
+      if (!payload?.game || !savedAt || Date.now() - savedAt > DUEL_RECOVERY_MAX_AGE_MS) {
+        clearCpuDuelRecovery();
+        return null;
+      }
+      return payload;
+    } catch (error) {
+      console.warn("Duel recovery load failed", error);
+      clearCpuDuelRecovery();
+      return null;
+    }
+  }
+
+  function resumeRecoveredCpuDuel() {
+    const payload = loadCpuDuelRecovery();
+    if (!payload) return false;
+    try {
+      const game = DuelGame.fromSnapshot(payload.game);
+      setTitleActive(false);
+      duelView.resumeLocal(game, {
+        mainRoyalIds: payload.mainRoyalIds || [],
+        driveRoyalIds: payload.driveRoyalIds || [],
+      });
+      toast("中断された対戦を復帰しました。");
+      return true;
+    } catch (error) {
+      console.warn("Duel recovery resume failed", error);
+      clearCpuDuelRecovery();
+      return false;
+    }
+  }
 
   const openAppModal = (content) => {
     els.modalRoot.replaceChildren(content);
@@ -375,6 +439,8 @@
     els,
     toast,
     setView,
+    onDuelSnapshot: (game) => saveCpuDuelRecovery(game),
+    onDuelFinished: () => clearCpuDuelRecovery(),
     onCpuResult: (won) => {
       const gained = store.rewardCpuResult(won);
       builderView.render({ preserveLibraryScroll: true });
@@ -878,6 +944,7 @@
   const startCpuDuel = () => {
     const deckSet = requireDeck();
     if (!deckSet) return;
+    clearCpuDuelRecovery();
     duelView.start(deckSet.deck, deckSet.driveDeck, {
       mainRoyalIds: store.royalBattleIds,
       driveRoyalIds: store.driveRoyalBattleIds,
@@ -1227,8 +1294,10 @@
     packView.render();
     renderRankedStatus();
     renderShellResources();
-    showLoginBonusIfReady();
-    checkRankedResume();
+    if (!resumeRecoveredCpuDuel()) {
+      showLoginBonusIfReady();
+      checkRankedResume();
+    }
   });
 
   let accountSyncTimer = 0;
@@ -1236,6 +1305,11 @@
     window.clearTimeout(accountSyncTimer);
     accountSyncTimer = window.setTimeout(() => {
       store.syncActiveAccount().finally(() => {
+        if (!els.duelView.hidden) {
+          renderRankedStatus();
+          renderShellResources();
+          return;
+        }
         builderView.render({ preserveLibraryScroll: true });
         packView.render();
         renderRankedStatus();

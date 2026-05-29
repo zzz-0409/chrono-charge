@@ -67,9 +67,75 @@
       this.drewFromStarCore = false;
       this.shiftedThisTurn = false;
     }
+
+    snapshot() {
+      return clonePlain({
+        name: this.name,
+        lp: this.lp,
+        deck: this.deck,
+        driveDeck: this.driveDeck,
+        driveUsed: this.driveUsed,
+        hand: this.hand,
+        grave: this.grave,
+        abyss: this.abyss,
+        charge: this.charge,
+        units: this.units,
+        cores: this.cores,
+        reactions: this.reactions,
+        driveCoreActivations: this.driveCoreActivations,
+        chargedThisTurn: this.chargedThisTurn,
+        drewFromStarCore: this.drewFromStarCore,
+        shiftedThisTurn: this.shiftedThisTurn,
+      });
+    }
+
+    static fromSnapshot(snapshot = {}) {
+      const duelist = new Duelist(snapshot.name || "Player", [], []);
+      duelist.lp = Number.isFinite(snapshot.lp) ? snapshot.lp : MAX_LP;
+      duelist.deck = Array.isArray(snapshot.deck) ? clonePlain(snapshot.deck) : [];
+      duelist.driveDeck = Array.isArray(snapshot.driveDeck) ? clonePlain(snapshot.driveDeck) : [];
+      duelist.driveUsed = Array.isArray(snapshot.driveUsed) ? clonePlain(snapshot.driveUsed) : [];
+      duelist.hand = Array.isArray(snapshot.hand) ? clonePlain(snapshot.hand) : [];
+      duelist.grave = Array.isArray(snapshot.grave) ? clonePlain(snapshot.grave) : [];
+      duelist.abyss = Array.isArray(snapshot.abyss) ? clonePlain(snapshot.abyss) : [];
+      duelist.charge = Array.isArray(snapshot.charge) ? clonePlain(snapshot.charge) : [];
+      duelist.units = normalizeZone(snapshot.units, UNIT_ZONES);
+      duelist.cores = normalizeZone(snapshot.cores, CORE_ZONES);
+      duelist.reactions = normalizeZone(snapshot.reactions, REACTION_ZONES);
+      duelist.driveCoreActivations = clonePlain(snapshot.driveCoreActivations || {});
+      duelist.chargedThisTurn = Boolean(snapshot.chargedThisTurn);
+      duelist.drewFromStarCore = Boolean(snapshot.drewFromStarCore);
+      duelist.shiftedThisTurn = Boolean(snapshot.shiftedThisTurn);
+      return duelist;
+    }
   }
 
   class DuelGame {
+    static fromSnapshot(snapshot = {}, options = {}) {
+      const game = new DuelGame({
+        ...options,
+        playerDeck: [],
+        playerDriveDeck: [],
+        cpuDeck: [],
+        cpuDriveDeck: [],
+        firstActive: snapshot.active === "enemy" ? "enemy" : "player",
+      });
+      game.turn = Math.max(1, Number(snapshot.turn) || 1);
+      game.active = snapshot.active === "enemy" ? "enemy" : "player";
+      game.busy = false;
+      game.cpuThinking = false;
+      game.enemyTurnRunning = false;
+      game.finished = false;
+      game.logItems = Array.isArray(snapshot.logItems) ? clonePlain(snapshot.logItems).slice(-80) : [];
+      game.player = Duelist.fromSnapshot(snapshot.player);
+      game.enemy = Duelist.fromSnapshot(snapshot.enemy);
+      game.firstActive = snapshot.firstActive === "enemy" ? "enemy" : "player";
+      game.completedTurns = Math.max(0, Number(snapshot.completedTurns) || 0);
+      game.effects = new EffectResolver(game);
+      game.cpu = new CpuController(game);
+      return game;
+    }
+
     constructor(options) {
       this.options = {
         onChange: () => {},
@@ -101,6 +167,20 @@
       this.completedTurns = 0;
       this.effects = new EffectResolver(this);
       this.cpu = new CpuController(this);
+    }
+
+    snapshot() {
+      return {
+        version: 1,
+        savedAt: Date.now(),
+        turn: this.turn,
+        active: this.active,
+        firstActive: this.firstActive,
+        completedTurns: this.completedTurns,
+        logItems: clonePlain(this.logItems),
+        player: this.player.snapshot(),
+        enemy: this.enemy.snapshot(),
+      };
     }
 
     start() {
@@ -2372,6 +2452,15 @@
       [result[i], result[j]] = [result[j], result[i]];
     }
     return result;
+  }
+
+  function clonePlain(value) {
+    return JSON.parse(JSON.stringify(value ?? null));
+  }
+
+  function normalizeZone(value, size) {
+    const list = Array.isArray(value) ? clonePlain(value) : [];
+    return Array.from({ length: size }, (_, index) => list[index] || null);
   }
 
   function reactionId(entry) {
