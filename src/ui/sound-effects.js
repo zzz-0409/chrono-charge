@@ -4,6 +4,7 @@
   window.Chrono = window.Chrono || {};
 
   const SOUND_FILES = {
+    button: "assets/SE/botan.mp3",
     draw: "assets/SE/doro-.mp3",
     place: "assets/SE/ka-dohaiti.mp3",
     damage: "assets/SE/dame-ji.mp3",
@@ -12,6 +13,13 @@
     victory: "assets/SE/shouri.mp3",
     defeat: "assets/SE/haiboku.mp3",
   };
+
+  const BUTTON_SOUND_EXCLUDE_SELECTOR = [
+    ".tcg-card",
+    ".library-card",
+    ".card-zoom-overlay",
+    "[data-no-button-sound]",
+  ].join(",");
 
   function prefersLiteAudio() {
     const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
@@ -33,6 +41,7 @@
       }));
       this.unlocked = false;
       this.installUnlockHandlers();
+      this.installButtonSoundHandler();
     }
 
     installUnlockHandlers() {
@@ -40,6 +49,15 @@
       window.addEventListener("pointerdown", unlock, { once: true, passive: true });
       window.addEventListener("keydown", unlock, { once: true });
       window.addEventListener("touchstart", unlock, { once: true, passive: true });
+    }
+
+    installButtonSoundHandler() {
+      document.addEventListener("click", (event) => {
+        const button = event.target?.closest?.("button, [role='button']");
+        if (!button || button.disabled || button.getAttribute("aria-disabled") === "true") return;
+        if (button.closest(BUTTON_SOUND_EXCLUDE_SELECTOR)) return;
+        this.play("button", { volume: 0.48 });
+      }, true);
     }
 
     unlock() {
