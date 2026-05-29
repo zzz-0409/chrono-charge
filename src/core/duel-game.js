@@ -23,14 +23,19 @@
     "drive_sosai_coco_luna_unit",
   ];
 
-  const CPU_THINK_DELAY_MS = 760;
-  const CPU_ACTION_DELAY_MS = 520;
-  const CPU_CARD_PLAY_DELAY_MS = 720;
-  const CPU_SET_REACTION_DELAY_MS = 420;
-  const CPU_ATTACK_DELAY_MS = 680;
-  const CPU_MIN_TURN_MS = 2600;
-  const CPU_OPENING_MIN_TURN_MS = 1800;
-  const CPU_TURN_END_DELAY_MS = 650;
+  const CPU_THINK_DELAY_MS = 960;
+  const CPU_ACTION_DELAY_MS = 760;
+  const CPU_CARD_PLAY_DELAY_MS = 980;
+  const CPU_SET_REACTION_DELAY_MS = 680;
+  const CPU_ATTACK_DELAY_MS = 920;
+  const CPU_MIN_TURN_MS = 3800;
+  const CPU_OPENING_MIN_TURN_MS = 2400;
+  const CPU_TURN_END_DELAY_MS = 900;
+  const CPU_CARD_COMMIT_DELAY_MS = 420;
+  const CPU_CARD_ENTRY_DELAY_MS = 560;
+  const CPU_ACTIVATION_WINDUP_MS = 520;
+  const CPU_CHOICE_DELAY_MS = 540;
+  const CPU_REACTION_DECISION_DELAY_MS = 620;
 
   class Duelist {
     constructor(name, deck, driveDeck = []) {
@@ -156,6 +161,11 @@
         cpuMinTurnMs: CPU_MIN_TURN_MS,
         cpuOpeningMinTurnMs: CPU_OPENING_MIN_TURN_MS,
         cpuTurnEndDelayMs: CPU_TURN_END_DELAY_MS,
+        cpuCardCommitDelayMs: CPU_CARD_COMMIT_DELAY_MS,
+        cpuCardEntryDelayMs: CPU_CARD_ENTRY_DELAY_MS,
+        cpuActivationWindupMs: CPU_ACTIVATION_WINDUP_MS,
+        cpuChoiceDelayMs: CPU_CHOICE_DELAY_MS,
+        cpuReactionDecisionDelayMs: CPU_REACTION_DECISION_DELAY_MS,
         ...options,
       };
       this.turn = 1;
@@ -217,15 +227,42 @@
 
     async showCpuThinking(delayMs = this.options.cpuThinkDelayMs) {
       if (this.finished || this.active !== "enemy") return;
-      this.cpuThinking = true;
+      await this.waitForCpuBeat(this.enemy, delayMs, CPU_THINK_DELAY_MS, { thinking: true });
+    }
+
+    async waitForCpuBeat(player, delayMs, fallback, options = {}) {
+      if (player !== this.enemy || this.finished) return;
+      const ms = this.normalizeCpuDelay(delayMs, fallback);
+      if (ms <= 0) return;
+      if (options.thinking) {
+        this.cpuThinking = true;
+        this.notify();
+      }
+      await pause(ms);
+      if (options.thinking) this.cpuThinking = false;
       this.notify();
-      await pause(this.normalizeCpuDelay(delayMs, CPU_THINK_DELAY_MS));
-      this.cpuThinking = false;
     }
 
     async waitAfterCpuAction(delayMs = this.options.cpuActionDelayMs, fallback = CPU_ACTION_DELAY_MS) {
       if (this.finished || this.active !== "enemy") return;
-      await pause(this.normalizeCpuDelay(delayMs, fallback));
+      await this.waitForCpuBeat(this.enemy, delayMs, fallback);
+    }
+
+    async waitAfterCpuCardCommit(player) {
+      await this.waitForCpuBeat(player, this.options.cpuCardCommitDelayMs, CPU_CARD_COMMIT_DELAY_MS);
+    }
+
+    async waitAfterCpuCardEntry(player) {
+      await this.waitForCpuBeat(player, this.options.cpuCardEntryDelayMs, CPU_CARD_ENTRY_DELAY_MS);
+    }
+
+    async waitBeforeCpuActivation(owner) {
+      if (owner !== "enemy") return;
+      await this.waitForCpuBeat(this.enemy, this.options.cpuActivationWindupMs, CPU_ACTIVATION_WINDUP_MS, { thinking: true });
+    }
+
+    async waitForCpuChoice(player, delayMs = this.options.cpuChoiceDelayMs, fallback = CPU_CHOICE_DELAY_MS) {
+      await this.waitForCpuBeat(player, delayMs, fallback, { thinking: true });
     }
 
     async waitForCpuTurnPacing(startedAt, openingTurn = false) {
@@ -601,6 +638,7 @@
       this.enemy.hand.splice(index, 1);
 
       this.notify();
+      await this.waitAfterCpuCardCommit(this.enemy);
       await this.resolvePlayedCard(this.enemy, this.player, card, "enemy");
       this.checkGameEnd();
       this.notify();
@@ -613,6 +651,7 @@
       if (!await this.activateDriveCard(this.enemy, card)) return false;
 
       this.notify();
+      await this.waitAfterCpuCardCommit(this.enemy);
       await this.resolveDriveCardEffect(this.enemy, this.player, card, "enemy");
       this.checkGameEnd();
       this.notify();
@@ -621,6 +660,7 @@
 
     async showActivation(card, owner, kind) {
       if (!card) return;
+      await this.waitBeforeCpuActivation(owner);
       await this.options.showActivation?.({ id: card.id, owner, kind, card });
     }
 
@@ -631,7 +671,10 @@
 
     async confirmEffectActivation(player, card, choice = {}) {
       if (!card) return false;
-      if (player !== this.player) return true;
+      if (player !== this.player) {
+        await this.waitForCpuChoice(player);
+        return true;
+      }
       const selected = await this.options.requestCardChoice({
         zone: "effectActivation",
         title: choice.title || `${card.name}の効果`,
@@ -686,6 +729,7 @@
         this.summonUnit(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}を召喚。`);
         this.notify();
+        await this.waitAfterCpuCardEntry(player);
         if (card.effect) {
           const activates = await this.shouldActivateTriggeredEffect(player, card, "通常召喚時");
           if (!activates) {
@@ -704,12 +748,16 @@
       if (card.type === "コア") {
         this.placeCore(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}を発動。`);
+        this.notify();
+        await this.waitAfterCpuCardEntry(player);
         if (card.effect) await this.resolveEffectActivation(player, opponent, card, card.effect, `${card.name}の効果は無効化された。`);
         return;
       }
 
       if (card.type === "スペル") {
         this.log(`${prefix}${card.name}を発動。`);
+        this.notify();
+        await this.waitAfterCpuCardEntry(player);
         if (card.effect) await this.resolveEffectActivation(player, opponent, card, card.effect, `${card.name}は無効化された。`);
         player.grave.push(card.id);
       }
@@ -721,6 +769,7 @@
         this.summonUnit(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}をドライブ召喚。`);
         this.notify();
+        await this.waitAfterCpuCardEntry(player);
         const activates = await this.shouldActivateTriggeredEffect(player, card, "召喚時");
         if (!activates) {
           this.log(`${card.name}の召喚時効果は発動しなかった。`);
@@ -738,6 +787,8 @@
       if (card.driveKind === "core") {
         this.placeCore(player, card.id, preferredSlot);
         this.log(`${prefix}${card.name}をドライブ発動。`);
+        this.notify();
+        await this.waitAfterCpuCardEntry(player);
         await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
         const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
         if (!negated) await this.applyDriveEffect(card, player, opponent);
@@ -746,6 +797,8 @@
       }
 
       this.log(`${prefix}${card.name}をドライブ発動。`);
+      this.notify();
+      await this.waitAfterCpuCardEntry(player);
       await this.showActivation(card, player === this.enemy ? "enemy" : "player", "effect");
       const negated = await this.resolveReactionWindow({ trigger: "effect", source: card }, opponent, player);
       if (!negated) await this.applyDriveEffect(card, player, opponent);
@@ -776,7 +829,7 @@
       if (options.length === 0) return false;
       const choiceIndex = player === this.player
         ? await this.options.requestReaction(options, event, this)
-        : options[0].index;
+        : await this.chooseCpuReactionOption(player, options);
       if (choiceIndex === null || choiceIndex === undefined) return null;
 
       const option = options.find((entry) => entry.index === choiceIndex);
@@ -833,6 +886,11 @@
       const driveReactions = this.usableDriveCards(player, trigger)
         .map((id) => ({ id, index: `drive:${id}`, drive: true }));
       return [...normalReactions, ...driveReactions];
+    }
+
+    async chooseCpuReactionOption(player, options) {
+      await this.waitForCpuChoice(player, this.options.cpuReactionDecisionDelayMs, CPU_REACTION_DECISION_DELAY_MS);
+      return options[0].index;
     }
 
     async applyReactionEffect(card, player, opponent, event = {}) {
@@ -2085,7 +2143,10 @@
         .map((id, index) => ({ id, index }))
         .filter((entry) => cards[entry.id] && predicate(cards[entry.id], entry.index));
       if (candidates.length === 0) return -1;
-      if (player !== this.player) return candidates[0].index;
+      if (player !== this.player) {
+        await this.waitForCpuChoice(player);
+        return candidates[0].index;
+      }
 
       const selected = await this.options.requestCardChoice({
         zone,
