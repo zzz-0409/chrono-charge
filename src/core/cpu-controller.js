@@ -3,20 +3,29 @@
 
   const { cards } = window.Chrono;
 
+  function normalizeAiLevel(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 3;
+    return Math.max(1, Math.min(5, Math.floor(numeric)));
+  }
+
   class CpuController {
-    constructor(game) {
+    constructor(game, options = {}) {
       this.game = game;
+      this.aiLevel = normalizeAiLevel(options.aiLevel);
     }
 
     shouldCharge(player = this.game.enemy, opponent = this.game.opponentOf?.(player)) {
       if (!player || player.chargedThisTurn || player.hand.length === 0) return false;
       if (!player.hand.some((id) => cards[id])) return false;
-      if (player.hand.length === 1 && this.canUseOnlyHandCard(player.hand[0], player)) return false;
-      if (this.canPresentLethal(player, opponent)) return false;
+      if (this.aiLevel >= 3 && player.hand.length === 1 && this.canUseOnlyHandCard(player.hand[0], player)) return false;
+      if (this.aiLevel >= 4 && this.canPresentLethal(player, opponent)) return false;
       const playable = player.hand
         .map((id) => cards[id])
         .filter((card) => card && this.game.canPlayCard(player, card) && this.game.canPay(player, card.cost));
-      if (player.charge.filter((entry) => !entry.tapped).length >= 4 && playable.length >= 2) return false;
+      if (this.aiLevel >= 4 && player.charge.filter((entry) => !entry.tapped).length >= 4 && playable.length >= 2) return false;
+      if (this.aiLevel <= 1) return player.charge.length < 6 || Math.random() < 0.65;
+      if (this.aiLevel === 2) return player.charge.length < 5 || Math.random() < 0.45;
       return true;
     }
 
@@ -31,18 +40,24 @@
       if (!player) return -1;
       const fallbackIndex = player.hand.findIndex((id) => cards[id]);
       if (fallbackIndex === -1) return -1;
+      if (this.aiLevel <= 1) return fallbackIndex;
       return player.hand
         .map((id, index) => ({ id, index, card: cards[id] }))
         .filter((entry) => entry.card)
-        .sort((a, b) => this.chargeCandidateScore(a.card, player) - this.chargeCandidateScore(b.card, player))[0].index;
+        .map((entry) => ({ ...entry, score: this.decisionScore(this.chargeCandidateScore(entry.card, player)) }))
+        .sort((a, b) => a.score - b.score)[0].index;
     }
 
     setNextReaction(player = this.game.enemy) {
       if (!player || !this.game.canSetReaction(player)) return false;
-      const candidate = player.hand
+      const candidates = player.hand
         .map((id, index) => ({ id, index, card: cards[id] }))
-        .filter((entry) => entry.card?.type === "リアクション")
-        .sort((a, b) => this.reactionScore(b.card, player) - this.reactionScore(a.card, player))[0];
+        .filter((entry) => entry.card?.type === "リアクション");
+      const candidate = this.aiLevel <= 1
+        ? candidates[0]
+        : candidates
+          .map((entry) => ({ ...entry, score: this.decisionScore(this.reactionScore(entry.card, player)) }))
+          .sort((a, b) => b.score - a.score)[0];
       const index = candidate?.index ?? -1;
       if (index === -1) return false;
       const slot = player.reactions.findIndex((card) => !card);
@@ -62,10 +77,15 @@
     }
 
     choosePlay(player = this.game.enemy, opponent = this.game.opponentOf?.(player)) {
-      return player.hand
+      const playable = player.hand
         .map((id, index) => ({ id, index, card: cards[id] }))
-        .filter((entry) => entry.card && this.game.canPlayCard(player, entry.card) && this.game.canPay(player, entry.card.cost))
-        .map((entry) => ({ ...entry, score: this.playScore(entry.card, player, opponent) }))
+        .filter((entry) => entry.card && this.game.canPlayCard(player, entry.card) && this.game.canPay(player, entry.card.cost));
+      if (this.aiLevel <= 1) {
+        return playable
+          .sort((a, b) => (a.card.cost || 0) - (b.card.cost || 0) || a.index - b.index)[0] || null;
+      }
+      return playable
+        .map((entry) => ({ ...entry, score: this.decisionScore(this.playScore(entry.card, player, opponent)) }))
         .sort((a, b) => b.score - a.score || b.card.cost - a.card.cost)[0] || null;
     }
 
@@ -73,13 +93,26 @@
       return this.game.usableDriveCards(player, trigger)
         .map((id) => ({ id, card: cards[id] }))
         .filter((entry) => entry.card)
-        .map((entry) => ({ ...entry, score: this.driveScore(entry.card, player, opponent) }))
+        .map((entry) => ({ ...entry, score: this.decisionScore(this.driveScore(entry.card, player, opponent)) }))
         .filter((entry) => trigger || entry.score >= this.driveUseThreshold(player, opponent))
         .sort((a, b) => b.score - a.score)[0]?.id || null;
     }
 
     chooseAttackTarget(attacker, defender, attackerPlayer = this.game.enemy) {
       const attackerAtk = this.game.getUnitAtk(attackerPlayer, attacker);
+      if (this.aiLevel <= 1) {
+        const firstTarget = defender.units.findIndex((unit) => unit);
+        if (firstTarget === -1) return null;
+        return Math.random() < 0.35 ? undefined : firstTarget;
+      }
+      if (this.aiLevel === 2) {
+        if (defender.lp <= attackerAtk && Math.random() < 0.65) return null;
+        const firstKillable = defender.units
+          .map((unit, index) => ({ unit, index }))
+          .filter((entry) => entry.unit && this.game.getUnitAtk(defender, entry.unit) <= attackerAtk)[0];
+        if (firstKillable) return firstKillable.index;
+        return defender.units.some((unit) => unit) ? undefined : null;
+      }
       if (defender.lp <= attackerAtk) return null;
       const targets = defender.units
         .map((unit, index) => ({ unit, index }))
@@ -92,17 +125,27 @@
     }
 
     chooseReactionOption(player, options = [], event = {}) {
+      if (this.aiLevel <= 1) return options[0]?.index ?? null;
       return options
         .slice()
-        .sort((a, b) => this.reactionOptionScore(b, player, event) - this.reactionOptionScore(a, player, event))[0]?.index ?? null;
+        .map((entry) => ({ ...entry, score: this.decisionScore(this.reactionOptionScore(entry, player, event)) }))
+        .sort((a, b) => b.score - a.score)[0]?.index ?? null;
     }
 
     chooseCardIndex(player, zone, candidates = []) {
+      if (this.aiLevel <= 1) return candidates[0]?.index ?? -1;
       const scored = candidates
         .map((entry) => ({ ...entry, card: cards[entry.id] }))
         .filter((entry) => entry.card)
-        .sort((a, b) => this.choiceScore(b.card, player, zone) - this.choiceScore(a.card, player, zone));
+        .map((entry) => ({ ...entry, score: this.decisionScore(this.choiceScore(entry.card, player, zone)) }))
+        .sort((a, b) => b.score - a.score);
       return scored[0]?.index ?? -1;
+    }
+
+    decisionScore(score) {
+      const noise = [0, 28, 16, 8, 3, 0][this.aiLevel] || 0;
+      if (!noise) return score;
+      return score + (Math.random() * 2 - 1) * noise;
     }
 
     chargeCandidateScore(card, player) {
@@ -188,9 +231,10 @@
     }
 
     driveUseThreshold(player, opponent) {
-      if (this.canPresentLethal(player, opponent) || this.incomingDamage(opponent) >= player.lp) return 28;
-      if (player.driveDeck.length <= 3) return 48;
-      return 58;
+      const adjustment = this.aiLevel <= 1 ? 18 : this.aiLevel === 2 ? 10 : this.aiLevel === 3 ? 4 : 0;
+      if (this.canPresentLethal(player, opponent) || this.incomingDamage(opponent) >= player.lp) return 28 + adjustment;
+      if (player.driveDeck.length <= 3) return 48 + adjustment;
+      return 58 + adjustment;
     }
 
     incomingDamage(player) {

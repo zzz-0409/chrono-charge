@@ -127,6 +127,7 @@
         cpuDeck: [],
         cpuDriveDeck: [],
         firstActive: snapshot.active === "enemy" ? "enemy" : "player",
+        cpuAiLevel: snapshot.cpuAiLevel ?? options.cpuAiLevel,
       });
       game.turn = Math.max(1, Number(snapshot.turn) || 1);
       game.active = snapshot.active === "enemy" ? "enemy" : "player";
@@ -140,7 +141,8 @@
       game.firstActive = snapshot.firstActive === "enemy" ? "enemy" : "player";
       game.completedTurns = Math.max(0, Number(snapshot.completedTurns) || 0);
       game.effects = new EffectResolver(game);
-      game.cpu = new CpuController(game);
+      game.cpuAiLevel = normalizeCpuAiLevel(snapshot.cpuAiLevel ?? options.cpuAiLevel);
+      game.cpu = new CpuController(game, { aiLevel: game.cpuAiLevel });
       return game;
     }
 
@@ -166,6 +168,7 @@
         cpuActivationWindupMs: CPU_ACTIVATION_WINDUP_MS,
         cpuChoiceDelayMs: CPU_CHOICE_DELAY_MS,
         cpuReactionDecisionDelayMs: CPU_REACTION_DECISION_DELAY_MS,
+        cpuAiLevel: 3,
         ...options,
       };
       this.turn = 1;
@@ -182,7 +185,8 @@
       this.firstActive = this.active;
       this.completedTurns = 0;
       this.effects = new EffectResolver(this);
-      this.cpu = new CpuController(this);
+      this.cpuAiLevel = normalizeCpuAiLevel(this.options.cpuAiLevel);
+      this.cpu = new CpuController(this, { aiLevel: this.cpuAiLevel });
     }
 
     snapshot() {
@@ -192,6 +196,7 @@
         turn: this.turn,
         active: this.active,
         firstActive: this.firstActive,
+        cpuAiLevel: this.cpuAiLevel,
         completedTurns: this.completedTurns,
         logItems: clonePlain(this.logItems),
         player: this.player.snapshot(),
@@ -2400,6 +2405,12 @@
   function normalizeZone(value, size) {
     const list = Array.isArray(value) ? clonePlain(value) : [];
     return Array.from({ length: size }, (_, index) => list[index] || null);
+  }
+
+  function normalizeCpuAiLevel(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 3;
+    return Math.max(1, Math.min(5, Math.floor(numeric)));
   }
 
   function reactionId(entry) {

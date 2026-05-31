@@ -44,6 +44,7 @@
     modeCpuDuelButton: document.querySelector("#modeCpuDuelButton"),
     modeRankedDuelButton: document.querySelector("#modeRankedDuelButton"),
     rankedLeaderboardButton: document.querySelector("#rankedLeaderboardButton"),
+    cpuLevelSelect: document.querySelector("#cpuLevelSelect"),
     cpuThemeSelect: document.querySelector("#cpuThemeSelect"),
     cpuFirstSelect: document.querySelector("#cpuFirstSelect"),
     rankedStatusText: document.querySelector("#rankedStatusText"),
@@ -1030,6 +1031,7 @@
     duelView.start(deckSet.deck, deckSet.driveDeck, {
       mainRoyalIds: store.royalBattleIds,
       driveRoyalIds: store.driveRoyalBattleIds,
+      cpuLevel: els.cpuLevelSelect?.value || "random",
       cpuTheme: els.cpuThemeSelect?.value || "random",
       firstActive: els.cpuFirstSelect?.value || "random",
     });

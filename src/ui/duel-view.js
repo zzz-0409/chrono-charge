@@ -18,6 +18,14 @@
     CardZoom,
   } = window.Chrono;
 
+  const CPU_RANK_LEVELS = [
+    { value: "1", aiLevel: 1, label: "ブロンズ" },
+    { value: "2", aiLevel: 2, label: "シルバー" },
+    { value: "3", aiLevel: 3, label: "ゴールド" },
+    { value: "4", aiLevel: 4, label: "ダイヤ" },
+    { value: "5", aiLevel: 5, label: "マスター" },
+  ];
+
   class DuelView {
     constructor(options) {
       this.els = options.els;
@@ -110,13 +118,16 @@
       this.pointerHandDrag = null;
       this.boardSoundSnapshot = null;
       this.renderCache = {};
-      const cpuChoice = this.chooseCpuDeck(deckList, finishInfo.cpuTheme || "random");
+      const cpuRank = this.resolveCpuRank(finishInfo.cpuLevel || "3");
+      const cpuChoice = this.chooseCpuDeck(deckList, finishInfo.cpuTheme || "random", cpuRank.aiLevel);
+      const cpuDisplayName = this.cpuDisplayName(cpuChoice.name);
       this.game = new DuelGame({
         playerDeck: deckList,
         playerDriveDeck: driveDeckList,
-        cpuName: this.cpuDisplayName(cpuChoice.name),
+        cpuName: `${cpuRank.label}級 ${cpuDisplayName}`,
         cpuDeck: expandDeck(cpuChoice.deck),
         cpuDriveDeck: expandDeck(cpuChoice.driveDeck),
+        cpuAiLevel: cpuRank.aiLevel,
         firstActive: finishInfo.firstActive || "random",
         onChange: () => this.scheduleRender(),
         onResult: (won) => this.showResult(won),
@@ -129,17 +140,25 @@
       this.setView("duel");
     }
 
-    chooseCpuDeck(playerDeckList = [], mode = "random") {
+    chooseCpuDeck(playerDeckList = [], mode = "random", aiLevel = 3) {
       const options = Array.isArray(cpuDecks) && cpuDecks.length
         ? cpuDecks
         : [{ name: "CPU: 黒機", deck: cpuDeck, driveDeck: cpuDriveDeck }];
       const requested = String(mode || "random");
       if (requested !== "random") {
         const themed = options.find((entry) => dominantTheme(expandDeck(entry.deck)) === requested);
-        if (themed) return createCpuDeckVariant ? createCpuDeckVariant(themed, { aiLevel: 3, allowSplash: true }) : themed;
+        if (themed) return createCpuDeckVariant ? createCpuDeckVariant(themed, { aiLevel, allowSplash: true }) : themed;
       }
       const chosen = options[Math.floor(Math.random() * options.length)] || options[0];
-      return createCpuDeckVariant ? createCpuDeckVariant(chosen, { aiLevel: 3, allowSplash: true }) : chosen;
+      return createCpuDeckVariant ? createCpuDeckVariant(chosen, { aiLevel, allowSplash: true }) : chosen;
+    }
+
+    resolveCpuRank(value = "3") {
+      const requested = String(value || "3");
+      if (requested === "random") {
+        return CPU_RANK_LEVELS[Math.floor(Math.random() * CPU_RANK_LEVELS.length)] || CPU_RANK_LEVELS[2];
+      }
+      return CPU_RANK_LEVELS.find((rank) => rank.value === requested) || CPU_RANK_LEVELS[2];
     }
 
     cpuDisplayName(name) {

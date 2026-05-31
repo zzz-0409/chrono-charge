@@ -109,6 +109,7 @@ async function runGame(playerDeck, enemyDeck, seed) {
     cpuName: enemyVariant.theme,
     cpuDeck: expandDeck(enemyVariant.deck),
     cpuDriveDeck: expandDeck(enemyVariant.driveDeck),
+    cpuAiLevel: HARNESS_AI_LEVEL,
     firstActive: "player",
     delayMs: 0,
     cpuThinkDelayMs: 0,
@@ -131,7 +132,7 @@ async function runGame(playerDeck, enemyDeck, seed) {
     onChange: () => {},
     onSoundEvent: () => {},
   });
-  const playerPilot = new CpuController(game);
+  const playerPilot = new CpuController(game, { aiLevel: HARNESS_AI_LEVEL });
   game.start();
 
   while (!game.finished && game.completedTurns < MAX_COMPLETED_TURNS) {

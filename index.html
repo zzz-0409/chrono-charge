@@ -12,13 +12,13 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
-    <link rel="stylesheet" href="styles.css?v=20260529soundvolume">
+    <link rel="stylesheet" href="styles.css?v=20260601cpurank">
     <script defer src="src/data/cards.js?v=20260601cyber"></script>
     <script defer src="src/data/notices.js?v=20260601cyber"></script>
     <script defer src="src/core/deck-store.js?v=20260601cyber"></script>
     <script defer src="src/core/effect-resolver.js?v=20260601cyber"></script>
-    <script defer src="src/core/cpu-controller.js?v=20260529cpupace"></script>
-    <script defer src="src/core/duel-game.js?v=20260529cpulag"></script>
+    <script defer src="src/core/cpu-controller.js?v=20260601cpurank"></script>
+    <script defer src="src/core/duel-game.js?v=20260601cpurank"></script>
     <script defer src="src/ui/scale-manager.js?v=20260524a"></script>
     <script defer src="src/ui/card-renderer.js?v=20260529duelrecover"></script>
     <script defer src="src/ui/sound-effects.js?v=20260529soundvolume"></script>
@@ -26,8 +26,8 @@
     <script defer src="src/ui/deck-builder-view.js?v=20260528loginbonusui"></script>
     <script defer src="src/ui/pack-view.js?v=20260529notice"></script>
     <script defer src="src/net/online-client.js?v=20260528rankedsystems"></script>
-    <script defer src="src/ui/duel-view.js?v=20260529recoverchoice"></script>
-    <script defer src="src/main.js?v=20260529soundvolume"></script>
+    <script defer src="src/ui/duel-view.js?v=20260601cpurank"></script>
+    <script defer src="src/main.js?v=20260601cpurank"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -497,8 +497,19 @@
                   </div>
                 </div>
                 <span class="duel-mode-visual duel-mode-visual-cpu" aria-hidden="true"></span>
-                <p class="duel-mode-description">CPUを相手に練習しよう<br>難易度を選んで挑戦可能</p>
+                <p class="duel-mode-description">CPUを相手に練習しよう<br>階級とテーマを選んで挑戦可能</p>
                 <div class="duel-mode-options">
+                  <label>
+                    <span>CPU階級</span>
+                    <select id="cpuLevelSelect">
+                      <option value="random">ランダム</option>
+                      <option value="1">ブロンズ</option>
+                      <option value="2">シルバー</option>
+                      <option value="3">ゴールド</option>
+                      <option value="4">ダイヤ</option>
+                      <option value="5">マスター</option>
+                    </select>
+                  </label>
                   <label>
                     <span>CPUテーマ</span>
                     <select id="cpuThemeSelect">
