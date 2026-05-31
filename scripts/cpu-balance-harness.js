@@ -7,6 +7,7 @@ const vm = require("vm");
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_GAMES_PER_ORDERED_PAIR = 20;
 const MAX_COMPLETED_TURNS = 80;
+const HARNESS_AI_LEVEL = 5;
 
 function loadChrono() {
   global.window = {
@@ -177,7 +178,7 @@ function makeHarnessVariant(deck) {
     driveDeck: deck.driveDeck,
   }, {
     theme: deck.theme,
-    aiLevel: 4,
+    aiLevel: HARNESS_AI_LEVEL,
     allowSplash: true,
   });
   return {
