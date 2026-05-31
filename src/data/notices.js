@@ -6,6 +6,23 @@
   // Card-addition automation can append a new entry here after it updates cards.js.
   window.Chrono.notices = [
     {
+      id: "2026-05-31-keikan-support",
+      date: "2026.05.31",
+      badge: "カード追加",
+      title: "契環サポートカード追加",
+      summary: "契環にコア確保と予備審理の新カードを追加しました。台帳係イオで証環へ届きやすくなり、予備審理は相手ユニットを足止めしながら条件達成後のリアクション回収につなげます。",
+      cardIds: [
+        "keikan_ledger_keeper_io",
+        "keikan_pretrial_record",
+        "generic_repair_cart",
+      ],
+      pack: {
+        theme: "契環",
+        title: "契環パック更新",
+        text: "契環パックに新しい契環カード2種が収録されました。汎用修理カートは共通プールに追加されています。",
+      },
+    },
+    {
       id: "2026-05-29-sosai-support",
       date: "2026.05.29",
       badge: "カード追加",

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260529-cpulag";
+const CACHE_VERSION = "chrono-drive-pwa-20260531-keikan";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -30,10 +30,10 @@ const APP_SHELL_URLS = [
   "/assets/SE/koukahatudou.mp3",
   "/assets/SE/shouri.mp3",
   "/assets/SE/haiboku.mp3",
-  "/src/data/cards.js?v=20260529sosai",
-  "/src/data/notices.js?v=20260529notice",
-  "/src/core/deck-store.js?v=20260529sosai",
-  "/src/core/effect-resolver.js?v=20260529sosai",
+  "/src/data/cards.js?v=20260531keikan",
+  "/src/data/notices.js?v=20260531keikan",
+  "/src/core/deck-store.js?v=20260531keikan",
+  "/src/core/effect-resolver.js?v=20260531keikan",
   "/src/core/cpu-controller.js?v=20260529cpupace",
   "/src/core/duel-game.js?v=20260529cpulag",
   "/src/ui/scale-manager.js?v=20260524a",

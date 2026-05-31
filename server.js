@@ -2230,6 +2230,18 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         });
       }
       break;
+    case "keikanLedgerKeeperIo":
+      return chooseFromDeck(game, player, (card) => card.type === "コア" && card.theme === "契環", {
+        title: "契環コアをサーチ",
+        message: "デッキから手札に加える「契環」コアを選んでください。",
+      }, () => {
+        queueOptionalAdditionalEffect(game, player, sourceCard, "追加で手札から「契環」カードをチャージに置きますか？", () => {
+          chooseFromHandToCharge(game, player, (card) => card.theme === "契環", {
+            title: "契環カードをチャージ",
+            message: "手札からチャージに置く「契環」カードを選んでください。",
+          });
+        });
+      });
     case "keikanOathScript":
       return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.theme === "契環", {
         title: "契環ユニットをサーチ",
@@ -2250,6 +2262,17 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         if (moved && countThemeChargeTypes(player, "契環") >= 3) {
           queueOptionalAdditionalEffect(game, player, sourceCard, "チャージに「契環」のカード種類が3種類以上あります。追加で1枚ドローしますか？", () => {
             drawCards(player, 1, game);
+          });
+        }
+      });
+    case "keikanPretrialRecord":
+      return chooseExhaustUnit(game, player, opponent, () => {
+        if (countThemeChargeTypes(player, "契環") >= 3) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "チャージに「契環」のカード種類が3種類以上あります。追加で「契環」リアクションを回収しますか？", () => {
+            chooseFromGrave(game, player, (card) => card.type === "リアクション" && card.theme === "契環", {
+              title: "契環リアクションを回収",
+              message: "ロストゾーンから手札に戻す「契環」リアクションを選んでください。",
+            });
           });
         }
       });
@@ -2405,6 +2428,16 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       break;
     case "genericRearguardAide":
       if (player.units.filter(Boolean).length > 1) {
+        drawCards(player, 1, game);
+        return chooseDiscardFromHand(game, player, {
+          title: "手札を1枚捨てる",
+          message: "ロストゾーンに送るカードを選んでください。",
+          delayBeforeOpenMs: 560,
+        });
+      }
+      break;
+    case "genericRepairCart":
+      if (player.cores.some(Boolean)) {
         drawCards(player, 1, game);
         return chooseDiscardFromHand(game, player, {
           title: "手札を1枚捨てる",

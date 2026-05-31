@@ -451,6 +451,19 @@
             this.game.drawCards(player, 1);
           }
           break;
+        case "keikanLedgerKeeperIo":
+          await this.game.addFromDeck(player, (card) => card.type === "コア" && card.theme === "契環", {
+            title: "契環コアをサーチ",
+            message: "デッキから手札に加える「契環」コアを選んでください。",
+          });
+          if (await this.optionalAdditional(player, sourceCard, "追加で手札から「契環」カードをチャージに置きますか？")) {
+            await this.game.afterEffectStep();
+            await this.game.moveHandCardToCharge(player, (card) => card.theme === "契環", {
+              title: "契環カードをチャージ",
+              message: "手札からチャージに置く「契環」カードを選んでください。",
+            });
+          }
+          break;
         case "keikanOathScript":
           await this.game.addFromDeck(player, (card) => card.type === "ユニット" && card.theme === "契環", {
             title: "契環ユニットをサーチ",
@@ -472,6 +485,19 @@
             await this.optionalAdditional(player, sourceCard, "チャージに「契環」のカード種類が3種類以上あります。追加で1枚ドローしますか？")) {
             await this.game.afterEffectStep();
             this.game.drawCards(player, 1);
+          }
+          break;
+        case "keikanPretrialRecord":
+          await this.game.exhaustBestUnit(opponent);
+          if (
+            this.game.countThemeChargeTypes(player, "契環") >= 3 &&
+            await this.optionalAdditional(player, sourceCard, "チャージに「契環」のカード種類が3種類以上あります。追加で「契環」リアクションを回収しますか？")
+          ) {
+            await this.game.afterEffectStep();
+            await this.game.addFromGrave(player, (card) => card.type === "リアクション" && card.theme === "契環", {
+              title: "契環リアクションを回収",
+              message: "ロストゾーンから手札に戻す「契環」リアクションを選んでください。",
+            });
           }
           break;
         case "keikanWitnessRing":
@@ -643,6 +669,16 @@
           break;
         case "genericRearguardAide":
           if (player.units.filter(Boolean).length > 1) {
+            this.game.drawCards(player, 1);
+            await this.game.afterEffectStep(560);
+            await this.game.discardFromHand(player, {
+              title: "手札を1枚捨てる",
+              message: "ロストゾーンに送るカードを選んでください。",
+            });
+          }
+          break;
+        case "genericRepairCart":
+          if (player.cores.some(Boolean)) {
             this.game.drawCards(player, 1);
             await this.game.afterEffectStep(560);
             await this.game.discardFromHand(player, {
