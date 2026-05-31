@@ -854,6 +854,14 @@ function runRankedCpuTurnSlice(room) {
   const profile = room.ranked.profiles?.[cpuSeat] || rankedProfile({ cpu: true });
   const aiLevel = profile.aiLevel || rankedCpuAiLevel(profile.points);
 
+  if (aiLevel >= 4) {
+    const lethalAttack = chooseCpuAttack(game, cpu, opponent, aiLevel, { lethalOnly: true });
+    if (lethalAttack) {
+      attackWithUnit(game, cpu, opponent, lethalAttack.attackerIndex, lethalAttack.targetIndex);
+      return { acted: true, kind: "attack" };
+    }
+  }
+
   if (!cpu.chargedThisTurn && shouldCpuCharge(cpu, aiLevel, game, opponent)) {
     const index = chooseCpuChargeIndex(cpu, aiLevel, game, opponent);
     if (chargeFromHand(game, cpu, index)) {
@@ -899,6 +907,7 @@ function shouldCpuCharge(cpu, aiLevel, game = null, opponent = null) {
   if (!cpu.hand.length) return false;
   if (cpu.hand.length === 1 && aiLevel >= 3 && canCpuUseHandCard(cpu, cpu.hand[0])) return false;
   if (aiLevel <= 1 && Math.random() < 0.22) return false;
+  if (aiLevel >= 4 && cpuCanPresentLethal(cpu, opponent, game)) return false;
   if (aiLevel >= 4) {
     const playable = cpu.hand
       .map((id, index) => ({ id, index, card: cards[id] }))
@@ -956,6 +965,7 @@ function chooseCpuPlay(cpu, opponent, game, aiLevel) {
 
 function cpuPlayScore(card, cpu, opponent, game, aiLevel) {
   let score = cpuCardValue(card, cpu, opponent, game, aiLevel) + 12;
+  const incoming = cpuIncomingDamage(opponent, game);
   if (card.type === "コア") {
     score += cpu.cores.filter(Boolean).length === 0 ? 18 : 6;
     if (cpu.cores.includes(card.id)) score -= aiLevel >= 4 ? 24 : 8;
@@ -965,11 +975,13 @@ function cpuPlayScore(card, cpu, opponent, game, aiLevel) {
     if ((card.atk || 0) >= enemyBest) score += 10;
     if (opponent.lp <= (card.atk || 0)) score += 22;
     if (cpu.units.filter(Boolean).length === 0) score += 12;
+    if (incoming >= cpu.lp && cpu.units.filter(Boolean).length <= 1) score += aiLevel >= 4 ? 18 : 8;
   }
   if (card.type === "スペル") {
     if (opponent.units.some((unit) => unit)) score += 8;
     if (card.effect && cpu.hand.length <= 2) score += 4;
   }
+  if (cpuCanPresentLethal(cpu, opponent, game, card)) score += aiLevel >= 4 ? 42 : 18;
   score -= (card.cost || 0) * (aiLevel >= 4 ? 0.8 : 1.5);
   return score;
 }
@@ -981,7 +993,7 @@ function cpuPlayLimit(aiLevel) {
   return 2;
 }
 
-function chooseCpuAttack(game, cpu, opponent, aiLevel) {
+function chooseCpuAttack(game, cpu, opponent, aiLevel, options = {}) {
   if (!canAttack(game, cpu)) return null;
   const attackers = cpu.units
     .map((unit, index) => ({ unit, index }))
@@ -990,19 +1002,20 @@ function chooseCpuAttack(game, cpu, opponent, aiLevel) {
   if (attackers.length === 0) return null;
 
   for (const attacker of attackers) {
-    const targetIndex = chooseCpuAttackTarget(game, cpu, attacker.unit, opponent, aiLevel);
+    const targetIndex = chooseCpuAttackTarget(game, cpu, attacker.unit, opponent, aiLevel, options);
     if (targetIndex !== undefined) return { attackerIndex: attacker.index, targetIndex };
   }
   return null;
 }
 
-function chooseCpuAttackTarget(game, cpu, attacker, opponent, aiLevel) {
+function chooseCpuAttackTarget(game, cpu, attacker, opponent, aiLevel, options = {}) {
   const attackerAtk = getUnitAtk(cpu, attacker, game);
   const targets = opponent.units
     .map((unit, index) => ({ unit, index }))
     .filter((entry) => entry.unit)
     .map((entry) => ({ ...entry, atk: getUnitAtk(opponent, entry.unit, game) }));
   if (targets.length === 0 && opponent.lp <= attackerAtk) return null;
+  if (options.lethalOnly) return undefined;
   if (targets.length === 0) return null;
   const winningTargets = targets
     .filter((entry) => entry.atk <= attackerAtk)
@@ -1081,6 +1094,7 @@ function cpuCardValue(card, cpu, opponent, game, aiLevel) {
   if (card.type === "スペル") score += opponent?.units?.some((unit) => unit) ? 11 : 5;
   if (card.type === "リアクション") score += cpu?.reactions?.some((entry) => !entry) ? 12 : -4;
   score += (card.cost || 0) * (aiLevel >= 4 ? 1.5 : 0.8);
+  score += cpuThemePlanScore(card, cpu, opponent, game, aiLevel);
   return score;
 }
 
@@ -1091,6 +1105,7 @@ function cpuChargeScore(card, cpu, opponent, game, aiLevel) {
   if (card.type === "ユニット" && cpu.units.filter(Boolean).length === 0 && (card.cost || 0) <= cpu.charge.length + 1) score += 10;
   score -= duplicatePenalty(card, cpu);
   if ((card.cost || 0) > cpu.charge.length + 2) score -= 8;
+  if (cpuCanPresentLethal(cpu, opponent, game, card)) score += 18;
   return score;
 }
 
@@ -1112,6 +1127,59 @@ function cpuAttackTargetScore(target, attackerAtk, opponent, game, aiLevel) {
   const card = cards[target.unit?.id];
   if (card?.effect) score += aiLevel >= 4 ? 20 : 8;
   if ((card?.cost || 0) >= 3) score += 10;
+  return score;
+}
+
+function cpuIncomingDamage(player, game) {
+  if (!player) return 0;
+  return player.units
+    .filter(Boolean)
+    .reduce((sum, unit) => sum + getUnitAtk(player, unit, game), 0);
+}
+
+function cpuReadyDamage(player, game) {
+  if (!player) return 0;
+  return player.units
+    .filter((unit) => unit && !unit.exhausted)
+    .reduce((sum, unit) => sum + getUnitAtk(player, unit, game), 0);
+}
+
+function cpuCanPresentLethal(cpu, opponent, game, addedCard = null) {
+  if (!cpu || !opponent) return false;
+  const addedAtk = addedCard?.type === "ユニット" || addedCard?.driveKind === "unit" ? (addedCard.atk || 0) : 0;
+  return cpuReadyDamage(cpu, game) + addedAtk >= opponent.lp;
+}
+
+function cpuThemePlanScore(card, cpu, opponent, game, aiLevel) {
+  const theme = card?.theme || "";
+  if (!theme) return 0;
+  let score = 0;
+  if (theme === "星導") {
+    if (card.type === "コア" && !cpu.cores.some((id) => cardHasTheme(cards[id], theme))) score += 12;
+    if (countThemeInCharge(cpu, theme) >= 2) score += 5;
+  }
+  if (theme === "黒機") {
+    if (card.type === "スペル" && opponent?.units?.some((unit) => unit)) score += 8;
+    if (card.type === "ユニット" && cpu.cores.includes("black_tower")) score += 7;
+  }
+  if (theme === "断刃") {
+    if (opponent?.units?.some((unit) => unit?.exhausted)) score += 10;
+    if (card.type === "リアクション" && countThemeInCharge(cpu, theme) >= 2) score += 6;
+  }
+  if (theme === "電脳") {
+    if (card.type === "リアクション" || card.type === "スペル") score += 7;
+    if (opponent?.reactions?.some((entry) => entry)) score += 5;
+  }
+  if (theme === "双彩") {
+    const ids = fieldUnitIds(cpu);
+    const partner = SOSAI_PAIRS.some(([a, b]) => (ids.has(a) && card.id === b) || (ids.has(b) && card.id === a));
+    if (partner) score += 18;
+  }
+  if (theme === "契環") {
+    const types = new Set(cpu.charge.filter((entry) => cardHasTheme(cards[entry.id], theme)).map((entry) => cards[entry.id]?.type));
+    if (card.type && !types.has(card.type)) score += 8;
+  }
+  if (aiLevel >= 5 && card.effect) score += 3;
   return score;
 }
 
