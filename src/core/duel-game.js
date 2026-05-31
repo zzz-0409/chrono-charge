@@ -571,7 +571,7 @@
         }
 
         for (let i = 0; i < 3; i += 1) {
-          const driveId = this.usableDriveCards(this.enemy)[0];
+          const driveId = this.cpu.chooseDriveCard(this.enemy, this.player);
           if (!driveId) break;
           await this.showCpuThinking(this.options.cpuActionDelayMs);
           if (!await this.cpuPlayDriveCard(driveId)) break;
@@ -599,7 +599,7 @@
           if (!this.canAttack(this.enemy)) break;
           const unit = this.enemy.units[i];
           if (!unit || unit.exhausted || this.finished) continue;
-          const target = this.cpu.chooseAttackTarget(unit, this.player);
+          const target = this.cpu.chooseAttackTarget(unit, this.player, this.enemy);
           if (target === undefined) continue;
           await this.showCpuThinking(this.options.cpuAttackDelayMs);
           const negated = await this.resolveReactionWindow({ trigger: "attack", source: cards[unit.id], sourceIndex: i }, this.player, this.enemy);
@@ -890,7 +890,7 @@
 
     async chooseCpuReactionOption(player, options) {
       await this.waitForCpuChoice(player, this.options.cpuReactionDecisionDelayMs, CPU_REACTION_DECISION_DELAY_MS);
-      return options[0].index;
+      return this.cpu.chooseReactionOption(player, options);
     }
 
     async applyReactionEffect(card, player, opponent, event = {}) {
@@ -2003,7 +2003,7 @@
       if (candidates.length === 0) return -1;
       if (player !== this.player) {
         await this.waitForCpuChoice(player);
-        return candidates[0].index;
+        return this.cpu.chooseCardIndex(player, zone, candidates);
       }
 
       const selected = await this.options.requestCardChoice({

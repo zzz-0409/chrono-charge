@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "balance:cpu": "node scripts/cpu-balance-harness.js",
     "start": "node server.js"
   },
   "dependencies": {
