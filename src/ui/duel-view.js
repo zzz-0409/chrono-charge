@@ -256,6 +256,7 @@
         this.zoneListKey(player.units),
         this.zoneListKey(player.cores),
         this.zoneListKey(player.reactions),
+        player.hand.join(","),
         player.deck.length,
         enemy.deck.length,
         this.compactPileKey(player.grave),
