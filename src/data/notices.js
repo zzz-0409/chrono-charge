@@ -23,6 +23,23 @@
       },
     },
     {
+      id: "2026-05-31-keikan-support",
+      date: "2026.05.31",
+      badge: "カード追加",
+      title: "契環の誓約補給",
+      summary: "契環テーマの補強として2枚の新規カードを追加し、汎用枠として1枚の中立ユニットを追加しました。",
+      cardIds: [
+        "keikan_oath_guard",
+        "keikan_oath_contract",
+        "generic_contract_ledger",
+      ],
+      pack: {
+        theme: "契環",
+        title: "契環パック更新",
+        text: "契環パックに新しい契環カード2種が収録されました。汎用契約台帳は共通プールに追加されています。",
+      },
+    },
+    {
       id: "2026-05-28-keikan-theme",
       date: "2026.05.28",
       badge: "新テーマ",
