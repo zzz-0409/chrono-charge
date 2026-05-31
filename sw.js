@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260601-cpurank";
+const CACHE_VERSION = "chrono-drive-pwa-20260601-drivematerials";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -30,7 +30,7 @@ const APP_SHELL_URLS = [
   "/assets/SE/koukahatudou.mp3",
   "/assets/SE/shouri.mp3",
   "/assets/SE/haiboku.mp3",
-  "/src/data/cards.js?v=20260601cyber",
+  "/src/data/cards.js?v=20260601drivematerials",
   "/src/data/notices.js?v=20260601cyber",
   "/src/core/deck-store.js?v=20260601cyber",
   "/src/core/effect-resolver.js?v=20260601cyber",
