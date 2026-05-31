@@ -1513,13 +1513,7 @@
 
     drivePaymentOptions(player, card) {
       const requiredFreedType = this.requiredFreedTypeForDrive(player, card);
-      if (this.drivePaymentRule(card) === "materialsAndCharge") {
-        return this.canPayDriveCombinedCost(player, card, requiredFreedType) ? ["materialsAndCharge"] : [];
-      }
-      const options = [];
-      if (this.canPayDriveMaterialCost(player, card, requiredFreedType)) options.push("materials");
-      if (!requiredFreedType && this.canPayDriveChargeCost(player, card)) options.push("charge");
-      return options;
+      return this.canPayDriveCombinedCost(player, card, requiredFreedType) ? ["materialsAndCharge"] : [];
     }
 
     canPayDriveCost(player, card) {
@@ -1529,7 +1523,7 @@
     canPayDriveMaterialCost(player, card, requiredFreedType = this.requiredFreedTypeForDrive(player, card)) {
       const driveCost = card?.driveCost || {};
       if (Array.isArray(driveCost.materials)) {
-        const selection = this.selectDriveMaterials(player, driveCost, 0, requiredFreedType);
+        const selection = this.selectDriveMaterials(player, driveCost, requiredFreedType);
         return Boolean(selection);
       }
       const total = Number(driveCost.field || 0) + Number(driveCost.charge || 0);
@@ -1541,44 +1535,11 @@
     }
 
     canPayDriveCombinedCost(player, card, requiredFreedType = this.requiredFreedTypeForDrive(player, card)) {
-      const driveCost = card?.driveCost || {};
-      if (Array.isArray(driveCost.materials)) {
-        const selection = this.selectDriveMaterials(
-          player,
-          driveCost,
-          Math.max(0, Number(card?.cost || 0)),
-          requiredFreedType,
-          card
-        );
-        return Boolean(selection);
-      }
-      const selection = this.selectLegacyDriveMaterialPlan(player, driveCost, requiredFreedType);
-      return Boolean(selection && this.canPayDriveChargeCostAfterMaterials(player, card, selection));
+      return this.canPayDriveMaterialCost(player, card, requiredFreedType) && this.canPayDriveAdditionalChargeCost(player, card);
     }
 
-    canPayDriveChargeCost(player, card) {
-      return this.canPayDriveChargeCostAfterMaterials(player, card);
-    }
-
-    canPayDriveChargeCostAfterMaterials(player, card, selectedMaterials = []) {
-      const cost = Math.max(0, Number(card?.cost || 0));
-      if (cost === 0) return true;
-      const selectedKeys = new Set(
-        selectedMaterials
-          .map((entry) =>
-            entry?.key
-              || (entry?.source && entry?.originalIndex !== undefined
-                ? `${entry.source}:${entry.originalIndex}`
-                : null)
-          )
-          .filter(Boolean),
-      );
-      const selectedEntries = this.driveMaterialEntries(player).filter((entry) => !selectedKeys.has(entry.key));
-      if (!card.theme) {
-        const type = baseDriveType(card?.type);
-        return selectedEntries.filter((entry) => baseDriveType(cards[entry.id]?.type) === type).length >= cost;
-      }
-      return selectedEntries.filter((entry) => cardHasTheme(cards[entry.id], card.theme)).length >= cost;
+    canPayDriveAdditionalChargeCost(player, card) {
+      return this.canPay(player, Math.max(0, Number(card?.cost || 0)));
     }
 
     countDriveChargeType(player, card) {
@@ -1596,58 +1557,17 @@
           ? await this.payDriveCombinedCostWithChoices(player, card)
           : this.payDriveCombinedCostAutomatically(player, card);
       }
-      if (player === this.player) return await this.payDriveCostWithChoices(player, card);
-      return this.payDriveCostAutomatically(player, card);
-    }
-
-    payDriveChargeCost(player, card) {
-      const cost = Math.max(0, Number(card?.cost || 0));
-      if (!this.canPayDriveChargeCost(player, card)) return false;
-      const selected = this.selectDriveCostMaterials(
-        player,
-        card,
-        cost,
-        []
-      );
-      if (selected.length < cost) return false;
-      selected
-        .slice()
-        .sort((a, b) => {
-          if (a.source !== b.source) return a.source === "hand" ? -1 : 1;
-          if (a.source === "hand") return b.originalIndex - a.originalIndex;
-          return b.originalIndex - a.originalIndex;
-        })
-        .forEach((entry) => {
-          if (entry.source === "field") {
-            if (entry.remove) entry.remove();
-          }
-          if (entry.source === "hand") player.hand.splice(entry.originalIndex, 1);
-          player.grave.push(entry.id);
-        });
-      return true;
-    }
-
-    selectDriveCostMaterials(player, card, amount = 0, selectedMaterials = []) {
-      const selectedKeys = new Set(selectedMaterials.map((entry) => entry.key));
-      const sourceType = baseDriveType(card?.type);
-      return this.driveMaterialEntries(player)
-        .filter((entry) => !selectedKeys.has(entry.key))
-        .filter((entry) => {
-          if (card?.theme) return cardHasTheme(cards[entry.id], card.theme);
-          return baseDriveType(cards[entry.id]?.type) === sourceType;
-        })
-        .sort((a, b) => this.driveMaterialPriority(a, b))
-        .slice(0, amount);
+      return false;
     }
 
     payDriveCombinedCostAutomatically(player, card) {
       const driveCost = card?.driveCost || {};
       const selection = Array.isArray(driveCost.materials)
-        ? this.selectDriveMaterials(player, driveCost, Math.max(0, Number(card?.cost || 0)), this.requiredFreedTypeForDrive(player, card), card)
+        ? this.selectDriveMaterials(player, driveCost, this.requiredFreedTypeForDrive(player, card))
         : this.selectLegacyDriveMaterialPlan(player, driveCost, this.requiredFreedTypeForDrive(player, card));
-      if (!selection || !this.canPayDriveChargeCostAfterMaterials(player, card, selection)) return false;
+      if (!selection || !this.canPayDriveAdditionalChargeCost(player, card)) return false;
       this.removeDriveMaterialSelection(player, selection);
-      return this.payDriveChargeCost(player, card);
+      return this.payCost(player, Math.max(0, Number(card?.cost || 0)));
     }
 
     async payDriveCombinedCostWithChoices(player, card) {
@@ -1655,61 +1575,9 @@
         ? await this.chooseDriveMaterialSelection(player, card)
         : await this.chooseLegacyDriveMaterialSelection(player, card);
       if (!selectedMaterials) return false;
-      if (!this.canPayDriveChargeCostAfterMaterials(player, card, selectedMaterials)) return false;
+      if (!this.canPayDriveAdditionalChargeCost(player, card)) return false;
       this.removeDriveMaterialSelection(player, selectedMaterials);
-      return this.payDriveChargeCost(player, card);
-    }
-
-    payDriveCostAutomatically(player, card) {
-      const driveCost = card?.driveCost || {};
-      if (Array.isArray(driveCost.materials)) {
-        const selection = this.selectDriveMaterials(player, driveCost, 0, this.requiredFreedTypeForDrive(player, card));
-        if (!selection) return false;
-        this.removeDriveMaterialSelection(player, selection);
-        return true;
-      }
-      const selection = this.selectLegacyDriveMaterialPlan(player, driveCost, this.requiredFreedTypeForDrive(player, card));
-      if (!selection) return false;
-      this.removeDriveMaterialSelection(player, selection);
-      return true;
-    }
-
-    async payDriveCostWithChoices(player, card) {
-      const driveCost = card?.driveCost || {};
-      if (Array.isArray(driveCost.materials)) {
-        return await this.payDriveMaterialCostWithChoices(player, card);
-      }
-      const fieldRequired = driveCost.field || 0;
-      const chargeRequired = driveCost.charge || 0;
-      const fieldMaterials = [];
-      const chargeMaterials = [];
-
-      for (let i = 0; i < fieldRequired; i += 1) {
-        const material = await this.chooseDriveFieldMaterial(player, card, fieldMaterials, i + 1, fieldRequired);
-        if (!material) return false;
-        fieldMaterials.push(material);
-      }
-
-      for (let i = 0; i < chargeRequired; i += 1) {
-        const material = await this.chooseDriveChargeMaterial(player, card, chargeMaterials, i + 1, chargeRequired);
-        if (!material) return false;
-        chargeMaterials.push({ ...material, source: "charge" });
-      }
-
-      fieldMaterials.forEach((entry) => {
-        player.grave.push(entry.id);
-        entry.remove();
-      });
-
-      chargeMaterials
-        .slice()
-        .sort((a, b) => b.originalIndex - a.originalIndex)
-        .forEach((entry) => {
-          const [removed] = player.charge.splice(entry.originalIndex, 1);
-          if (removed) player.grave.push(removed.id);
-        });
-
-      return true;
+      return this.payCost(player, Math.max(0, Number(card?.cost || 0)));
     }
 
     async payDriveMaterialCostWithChoices(player, card) {
@@ -1841,14 +1709,12 @@
       });
     }
 
-    selectDriveMaterials(player, driveCost = {}, cost = 0, requiredFreedType = null, chargeCostCard = null) {
+    selectDriveMaterials(player, driveCost = {}, requiredFreedType = null) {
       const requirements = this.expandDriveRequirements(driveCost);
       const entries = this.driveMaterialEntries(player);
       const search = (step, availableEntries, selected) => {
         if (step >= requirements.length) {
           if (!this.driveSelectionFreesRequiredSlot(player, { driveKind: null }, selected, requiredFreedType)) return null;
-          if (this.remainingUntappedAfterSelectedDriveMaterials(player, selected) < cost) return null;
-          if (chargeCostCard && !this.canPayDriveChargeCostAfterMaterials(player, chargeCostCard, selected)) return null;
           return selected;
         }
 
@@ -1951,7 +1817,11 @@
 
     matchesDriveRequirement(card, requirement = {}, entry = null) {
       if (!card) return false;
-      if (requirement.source && requirement.source !== "field" && requirement.source !== "charge" && entry?.source !== requirement.source) return false;
+      const source = requirement.source || "handOrField";
+      if (source === "field" && entry?.source !== "field") return false;
+      if (source === "hand" && entry?.source !== "hand") return false;
+      if (source === "charge" && entry?.source !== "charge") return false;
+      if (source === "handOrField" && entry?.source !== "hand" && entry?.source !== "field") return false;
       if (requirement.id && card.id !== requirement.id) return false;
       if (Array.isArray(requirement.ids) && !requirement.ids.includes(card.id)) return false;
       const type = baseDriveType(requirement.type);
@@ -1961,7 +1831,7 @@
     }
 
     driveRequirementLabel(requirement = {}) {
-      const source = requirement.source === "field" ? "場の" : requirement.source === "charge" ? "手札か場の" : "";
+      const source = requirement.source === "field" ? "場の" : "手札か場の";
       if (requirement.id && cards[requirement.id]) return `${source}${cards[requirement.id].name}1枚`;
       const theme = requirement.theme ? `「${requirement.theme}」` : "";
       const type = baseDriveType(requirement.type) || "カード";
