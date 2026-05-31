@@ -11,6 +11,7 @@
     cpuDeck,
     cpuDecks,
     cpuDriveDeck,
+    createCpuDeckVariant,
     DuelGame,
     CardRenderer,
     SoundEffects,
@@ -135,9 +136,10 @@
       const requested = String(mode || "random");
       if (requested !== "random") {
         const themed = options.find((entry) => dominantTheme(expandDeck(entry.deck)) === requested);
-        if (themed) return themed;
+        if (themed) return createCpuDeckVariant ? createCpuDeckVariant(themed, { aiLevel: 3, allowSplash: true }) : themed;
       }
-      return options[Math.floor(Math.random() * options.length)] || options[0];
+      const chosen = options[Math.floor(Math.random() * options.length)] || options[0];
+      return createCpuDeckVariant ? createCpuDeckVariant(chosen, { aiLevel: 3, allowSplash: true }) : chosen;
     }
 
     cpuDisplayName(name) {

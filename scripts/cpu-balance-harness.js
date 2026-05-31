@@ -91,6 +91,8 @@ async function runStandardRoundRobin(gamesPerPair) {
 
 async function runGame(playerDeck, enemyDeck, seed) {
   withSeed(seed);
+  const playerVariant = makeHarnessVariant(playerDeck);
+  const enemyVariant = makeHarnessVariant(enemyDeck);
   let finalGame = null;
   const turnStats = {
     player: [],
@@ -101,11 +103,11 @@ async function runGame(playerDeck, enemyDeck, seed) {
     enemy: emptyActionStats(),
   };
   const game = new DuelGame({
-    playerDeck: expandDeck(playerDeck.deck),
-    playerDriveDeck: expandDeck(playerDeck.driveDeck),
-    cpuName: enemyDeck.theme,
-    cpuDeck: expandDeck(enemyDeck.deck),
-    cpuDriveDeck: expandDeck(enemyDeck.driveDeck),
+    playerDeck: expandDeck(playerVariant.deck),
+    playerDriveDeck: expandDeck(playerVariant.driveDeck),
+    cpuName: enemyVariant.theme,
+    cpuDeck: expandDeck(enemyVariant.deck),
+    cpuDriveDeck: expandDeck(enemyVariant.driveDeck),
     firstActive: "player",
     delayMs: 0,
     cpuThinkDelayMs: 0,
@@ -165,6 +167,24 @@ async function runGame(playerDeck, enemyDeck, seed) {
   result.player.theme = playerDeck.theme;
   result.enemy.theme = enemyDeck.theme;
   return result;
+}
+
+function makeHarnessVariant(deck) {
+  if (typeof Chrono.createCpuDeckVariant !== "function") return deck;
+  const variant = Chrono.createCpuDeckVariant({
+    name: `CPU: ${deck.theme}`,
+    deck: deck.deck,
+    driveDeck: deck.driveDeck,
+  }, {
+    theme: deck.theme,
+    aiLevel: 4,
+    allowSplash: true,
+  });
+  return {
+    ...deck,
+    deck: variant.deck,
+    driveDeck: variant.driveDeck,
+  };
 }
 
 async function playManualCpuTurn(game, pilot, side, actions) {

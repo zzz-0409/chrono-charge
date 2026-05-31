@@ -1846,6 +1846,234 @@
     },
   ];
 
+  const CPU_GENERIC_MAIN_POOL = [
+    "generic_vanguard",
+    "generic_survey_team",
+    "generic_watch_drone",
+    "generic_probe_drone",
+    "generic_field_medic",
+    "generic_supply_box",
+    "generic_rearguard_aide",
+    "generic_repair_cart",
+    "generic_duelist",
+    "generic_carrier",
+    "generic_lancer",
+    "generic_walker",
+    "generic_crusher",
+    "generic_guardian",
+    "generic_code",
+    "generic_wall",
+    "generic_transfer",
+    "generic_watch_signal",
+    "generic_noise_ping",
+    "generic_field_notes",
+    "generic_bind",
+    "generic_recall",
+    "generic_zero",
+  ];
+
+  function createCpuDeckVariant(source = {}, options = {}) {
+    const theme = options.theme || dominantDeckTheme(source.deck) || "";
+    const aiLevel = Math.max(1, Math.min(5, Math.floor(Number(options.aiLevel) || 3)));
+    const allowSplash = options.allowSplash !== false;
+    const main = normalizeCpuCounts(source.deck || starterDeck, false);
+    const drive = normalizeCpuCounts(source.driveDeck || starterDriveDeck, true);
+    const mainVariant = varyCpuMainDeck(main, theme, { aiLevel, allowSplash });
+    const driveVariant = varyCpuDriveDeck(drive, theme, { aiLevel, allowSplash });
+    return {
+      ...source,
+      name: cpuVariantName(source.name, mainVariant.label, aiLevel),
+      deck: mainVariant.deck,
+      driveDeck: driveVariant.deck,
+      variantLabel: mainVariant.label,
+    };
+  }
+
+  function cpuVariantName(name = "CPU", label = "", aiLevel = 3) {
+    const base = String(name || "CPU").replace(/\s+$/, "");
+    const suffix = label || (aiLevel >= 4 ? "調整型" : aiLevel <= 2 ? "純構築型" : "標準型");
+    return `${base}・${suffix}`;
+  }
+
+  function varyCpuMainDeck(base, theme, options = {}) {
+    const deck = { ...base };
+    const aiLevel = options.aiLevel || 3;
+    const labels = [];
+    const variationSteps = aiLevel >= 4 ? 8 : aiLevel >= 3 ? 6 : 4;
+    const themeFloor = Math.max(24, Math.min(32, countThemeCards(deck, theme) - (aiLevel >= 4 ? 7 : 5)));
+    const splashChance = options.allowSplash ? (aiLevel >= 4 ? 0.24 : aiLevel >= 3 ? 0.16 : 0.08) : 0;
+    const stabilityChance = aiLevel >= 4 ? 0.42 : aiLevel >= 3 ? 0.28 : 0.16;
+
+    for (let i = 0; i < variationSteps; i += 1) {
+      const removed = removeFlexibleCpuCard(deck, theme, themeFloor, false);
+      if (!removed) break;
+      const roll = Math.random();
+      const candidate = roll < stabilityChance
+        ? chooseCpuCandidate(deck, theme, "theme")
+        : roll < stabilityChance + splashChance
+          ? chooseCpuCandidate(deck, theme, "splash")
+          : chooseCpuCandidate(deck, theme, "generic");
+      if (candidate) {
+        deck[candidate] = (deck[candidate] || 0) + 1;
+        labels.push(cards[candidate]?.theme && cards[candidate].theme !== theme ? "出張" : roll < stabilityChance ? "安定" : "汎用");
+      } else {
+        deck[removed] = (deck[removed] || 0) + 1;
+      }
+    }
+
+    repairCpuDeck(deck, theme, themeFloor, DECK_SIZE, false);
+    return {
+      deck,
+      label: chooseVariantLabel(labels, aiLevel),
+    };
+  }
+
+  function varyCpuDriveDeck(base, theme, options = {}) {
+    const deck = { ...base };
+    const aiLevel = options.aiLevel || 3;
+    const steps = aiLevel >= 4 ? 2 : 1;
+    const themeFloor = Math.max(4, countThemeCards(deck, theme) - 1);
+    for (let i = 0; i < steps; i += 1) {
+      const removed = removeFlexibleCpuCard(deck, theme, themeFloor, true);
+      if (!removed) break;
+      const kind = options.allowSplash && aiLevel >= 4 && Math.random() < 0.22 ? "splash" : Math.random() < 0.55 ? "theme" : "generic";
+      const candidate = chooseCpuDriveCandidate(deck, theme, kind);
+      if (candidate) deck[candidate] = (deck[candidate] || 0) + 1;
+      else deck[removed] = (deck[removed] || 0) + 1;
+    }
+    repairCpuDeck(deck, theme, themeFloor, DRIVE_DECK_SIZE, true);
+    return { deck };
+  }
+
+  function chooseVariantLabel(labels, aiLevel) {
+    if (labels.includes("出張")) return aiLevel >= 4 ? "出張調整型" : "小型出張型";
+    if (labels.filter((label) => label === "安定").length >= 3) return "安定型";
+    if (labels.filter((label) => label === "汎用").length >= 3) return "汎用入り";
+    return aiLevel >= 4 ? "高レート型" : aiLevel <= 2 ? "純構築型" : "標準型";
+  }
+
+  function normalizeCpuCounts(source = {}, drive = false) {
+    const limit = drive ? MAX_DRIVE_COPIES : MAX_COPIES;
+    const pool = drive ? drivePool : cardPool.filter((card) => !card.driveKind && card.type !== "環境");
+    const validIds = new Set(pool.map((card) => card.id));
+    const result = {};
+    Object.entries(source || {}).forEach(([id, rawCount]) => {
+      const count = Math.max(0, Math.min(limit, Math.floor(Number(rawCount) || 0)));
+      if (count > 0 && validIds.has(id)) result[id] = count;
+    });
+    return result;
+  }
+
+  function removeFlexibleCpuCard(deck, theme, themeFloor, drive) {
+    const entries = Object.entries(deck)
+      .filter(([, count]) => count > 0)
+      .map(([id, count]) => ({ id, count, card: cards[id] }))
+      .filter((entry) => entry.card && entry.count > cpuMinCopies(entry.id, entry.card, theme, drive))
+      .filter((entry) => !cardHasThemeValue(entry.card, theme) || countThemeCards(deck, theme) > themeFloor)
+      .sort((a, b) => cpuRemoveScore(b, theme, drive) - cpuRemoveScore(a, theme, drive));
+    const chosen = weightedPick(entries.slice(0, 8));
+    if (!chosen) return "";
+    deck[chosen.id] -= 1;
+    if (deck[chosen.id] <= 0) delete deck[chosen.id];
+    return chosen.id;
+  }
+
+  function cpuMinCopies(id, card, theme, drive) {
+    if (drive) return cardHasThemeValue(card, theme) ? 1 : 0;
+    if (cardHasThemeValue(card, theme)) return cards[id]?.cost <= 1 ? 2 : 1;
+    return 0;
+  }
+
+  function cpuRemoveScore(entry, theme, drive) {
+    let score = 10;
+    if (!cardHasThemeValue(entry.card, theme)) score += 14;
+    if (entry.count >= 3) score += 10;
+    if (drive && !cardHasThemeValue(entry.card, theme)) score += 6;
+    if (entry.card.type === "リアクション") score += 3;
+    return score + Math.random() * 8;
+  }
+
+  function chooseCpuCandidate(deck, theme, kind) {
+    const pool = cardPool
+      .filter((card) => !card.driveKind && card.type !== "環境")
+      .filter((card) => (deck[card.id] || 0) < MAX_COPIES)
+      .filter((card) => {
+        if (kind === "theme") return cardHasThemeValue(card, theme);
+        if (kind === "splash") return card.theme && card.theme !== theme && card.cost <= 2 && card.type !== "リアクション";
+        return CPU_GENERIC_MAIN_POOL.includes(card.id) && !card.theme;
+      })
+      .sort((a, b) => cpuCandidateScore(b, deck, theme, kind) - cpuCandidateScore(a, deck, theme, kind));
+    return weightedPick(pool.slice(0, 10))?.id || "";
+  }
+
+  function chooseCpuDriveCandidate(deck, theme, kind) {
+    const pool = drivePool
+      .filter((card) => (deck[card.id] || 0) < MAX_DRIVE_COPIES)
+      .filter((card) => {
+        if (kind === "theme") return cardHasThemeValue(card, theme);
+        if (kind === "splash") return card.theme && card.theme !== theme && card.driveKind !== "reaction";
+        return !card.theme;
+      })
+      .sort((a, b) => cpuCandidateScore(b, deck, theme, kind) - cpuCandidateScore(a, deck, theme, kind));
+    return weightedPick(pool.slice(0, 8))?.id || "";
+  }
+
+  function cpuCandidateScore(card, deck, theme, kind) {
+    let score = Math.random() * 12;
+    if (cardHasThemeValue(card, theme)) score += 20;
+    if (kind === "splash" && card.type === "ユニット") score += 7;
+    if (kind === "splash" && card.type === "コア") score += 4;
+    if (kind === "generic" && ["generic_code", "generic_wall", "generic_transfer", "generic_zero", "generic_supply_box"].includes(card.id)) score += 8;
+    if ((deck[card.id] || 0) === 2) score += 8;
+    if ((deck[card.id] || 0) === 1) score += 4;
+    if (card.effect || card.driveEffect) score += 5;
+    return score;
+  }
+
+  function repairCpuDeck(deck, theme, themeFloor, targetSize, drive) {
+    const limit = drive ? MAX_DRIVE_COPIES : MAX_COPIES;
+    while (deckTotal(deck) > targetSize) {
+      if (!removeFlexibleCpuCard(deck, theme, themeFloor, drive)) break;
+    }
+    while (deckTotal(deck) < targetSize) {
+      const kind = countThemeCards(deck, theme) < themeFloor ? "theme" : Math.random() < 0.35 ? "generic" : "theme";
+      const id = drive ? chooseCpuDriveCandidate(deck, theme, kind) : chooseCpuCandidate(deck, theme, kind);
+      if (!id) break;
+      deck[id] = Math.min(limit, (deck[id] || 0) + 1);
+    }
+  }
+
+  function deckTotal(source = {}) {
+    return Object.values(source).reduce((sum, count) => sum + Math.max(0, Math.floor(Number(count) || 0)), 0);
+  }
+
+  function countThemeCards(deck, theme) {
+    if (!theme) return 0;
+    return Object.entries(deck || {}).reduce((sum, [id, count]) => {
+      return sum + (cardHasThemeValue(cards[id], theme) ? Math.max(0, Math.floor(Number(count) || 0)) : 0);
+    }, 0);
+  }
+
+  function dominantDeckTheme(deck = {}) {
+    const counts = new Map();
+    Object.entries(deck || {}).forEach(([id, count]) => {
+      const theme = cards[id]?.theme || "";
+      if (!theme) return;
+      counts.set(theme, (counts.get(theme) || 0) + Math.max(0, Math.floor(Number(count) || 0)));
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+  }
+
+  function cardHasThemeValue(card, theme) {
+    return Boolean(card && theme && (card.theme === theme || card.name.includes(theme)));
+  }
+
+  function weightedPick(list) {
+    if (!Array.isArray(list) || list.length === 0) return null;
+    const index = Math.floor(Math.random() * Math.min(list.length, 4));
+    return list[index] || list[0];
+  }
+
 
   window.Chrono = window.Chrono || {};
   Object.assign(window.Chrono, {
@@ -1867,6 +2095,7 @@
     starterDeck,
     cpuDeck,
     cpuDecks,
+    createCpuDeckVariant,
     starterDriveDeck,
     cpuDriveDeck,
   });

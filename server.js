@@ -1201,14 +1201,17 @@ function chooseRankedCpuProfile(playerPoints) {
   const aiLevel = rankedCpuAiLevel(points);
   const deckIndex = Math.min(options.length - 1, Math.max(0, aiLevel - 1));
   const source = options[deckIndex] || options[Math.floor(Math.random() * options.length)] || options[0];
+  const variant = typeof chrono.createCpuDeckVariant === "function"
+    ? chrono.createCpuDeckVariant(source, { aiLevel, allowSplash: true })
+    : source;
   return {
     cpu: true,
     username: "",
-    name: `${String(source.name || "CPU").replace(/^CPU:\s*/, "")} CPU ${points}RP`,
+    name: `${String(variant.name || source.name || "CPU").replace(/^CPU:\s*/, "")} CPU ${points}RP`,
     points,
     aiLevel,
-    deck: expandDeckCounts(source.deck || chrono.cpuDeck || chrono.starterDeck || {}),
-    driveDeck: expandDeckCounts(source.driveDeck || chrono.cpuDriveDeck || chrono.starterDriveDeck || {}),
+    deck: expandDeckCounts(variant.deck || source.deck || chrono.cpuDeck || chrono.starterDeck || {}),
+    driveDeck: expandDeckCounts(variant.driveDeck || source.driveDeck || chrono.cpuDriveDeck || chrono.starterDriveDeck || {}),
   };
 }
 
