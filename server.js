@@ -854,8 +854,8 @@ function runRankedCpuTurnSlice(room) {
   const profile = room.ranked.profiles?.[cpuSeat] || rankedProfile({ cpu: true });
   const aiLevel = profile.aiLevel || rankedCpuAiLevel(profile.points);
 
-  if (!cpu.chargedThisTurn && shouldCpuCharge(cpu, aiLevel)) {
-    const index = chooseCpuChargeIndex(cpu, aiLevel);
+  if (!cpu.chargedThisTurn && shouldCpuCharge(cpu, aiLevel, game, opponent)) {
+    const index = chooseCpuChargeIndex(cpu, aiLevel, game, opponent);
     if (chargeFromHand(game, cpu, index)) {
       return { acted: true, kind: "charge" };
     }
@@ -865,7 +865,7 @@ function runRankedCpuTurnSlice(room) {
 
   const playLimit = cpuPlayLimit(aiLevel);
   for (let i = 0; i < playLimit; i += 1) {
-    const move = chooseCpuPlay(cpu, aiLevel);
+    const move = chooseCpuPlay(cpu, opponent, game, aiLevel);
     if (!move) break;
     if (playFromHand(game, cpu, opponent, move.index, cpuSeat)) {
       return { acted: true, kind: "play" };
@@ -895,20 +895,30 @@ function resolveCpuPendingChoice(room) {
   });
 }
 
-function shouldCpuCharge(cpu, aiLevel) {
+function shouldCpuCharge(cpu, aiLevel, game = null, opponent = null) {
   if (!cpu.hand.length) return false;
   if (cpu.hand.length === 1 && aiLevel >= 3 && canCpuUseHandCard(cpu, cpu.hand[0])) return false;
   if (aiLevel <= 1 && Math.random() < 0.22) return false;
+  if (aiLevel >= 4) {
+    const playable = cpu.hand
+      .map((id, index) => ({ id, index, card: cards[id] }))
+      .filter((entry) => entry.card && canPlayCard(cpu, entry.card) && canPay(cpu, entry.card.cost));
+    const hasCriticalPlay = playable.some((entry) => cpuPlayScore(entry.card, cpu, opponent, game, aiLevel) >= 58);
+    if (cpu.hand.length <= 2 && hasCriticalPlay) return false;
+    if (cpu.charge.filter((entry) => !entry.tapped).length >= 4 && playable.length >= 2) return false;
+  }
   return true;
 }
 
-function chooseCpuChargeIndex(cpu, aiLevel) {
+function chooseCpuChargeIndex(cpu, aiLevel, game = null, opponent = null) {
   const entries = cpu.hand.map((id, index) => ({ id, index, card: cards[id] })).filter((entry) => entry.card);
   if (entries.length === 0) return 0;
   if (aiLevel <= 2 && Math.random() < 0.35) return entries[Math.floor(Math.random() * entries.length)].index;
-  const reaction = entries.find((entry) => entry.card.type === "リアクション" && cpu.charge.length < 2);
+  const reaction = entries.find((entry) => entry.card.type === "リアクション" && cpu.charge.length < 2 && !cpu.reactions.some((slot) => !slot));
   if (reaction) return reaction.index;
-  return entries.slice().sort((a, b) => (b.card.cost || 0) - (a.card.cost || 0))[0].index;
+  return entries
+    .slice()
+    .sort((a, b) => cpuChargeScore(a.card, cpu, opponent, game, aiLevel) - cpuChargeScore(b.card, cpu, opponent, game, aiLevel))[0].index;
 }
 
 function canCpuUseHandCard(cpu, id) {
@@ -922,13 +932,17 @@ function setCpuReactions(game, cpu, aiLevel) {
   if (aiLevel <= 1 && Math.random() < 0.35) return false;
   const slot = cpu.reactions.findIndex((entry) => !entry);
   if (slot === -1) return false;
-  const index = cpu.hand.findIndex((id) => cards[id]?.type === "リアクション");
-  if (index === -1) return false;
+  const candidate = cpu.hand
+    .map((id, index) => ({ id, index, card: cards[id] }))
+    .filter((entry) => entry.card?.type === "リアクション")
+    .sort((a, b) => cpuReactionCardScore(b.card, cpu, aiLevel) - cpuReactionCardScore(a.card, cpu, aiLevel))[0];
+  if (!candidate) return false;
+  const index = candidate.index;
   setReaction(game, cpu, index, slot);
   return true;
 }
 
-function chooseCpuPlay(cpu, aiLevel) {
+function chooseCpuPlay(cpu, opponent, game, aiLevel) {
   const playable = cpu.hand
     .map((id, index) => ({ id, index, card: cards[id] }))
     .filter((entry) => entry.card && entry.card.type !== "リアクション" && canPlayCard(cpu, entry.card) && canPay(cpu, entry.card.cost));
@@ -937,14 +951,27 @@ function chooseCpuPlay(cpu, aiLevel) {
   if (aiLevel <= 2 && Math.random() < 0.35) return playable[Math.floor(Math.random() * playable.length)];
   return playable
     .slice()
-    .sort((a, b) => cpuPlayScore(b.card, aiLevel) - cpuPlayScore(a.card, aiLevel))[0];
+    .sort((a, b) => cpuPlayScore(b.card, cpu, opponent, game, aiLevel) - cpuPlayScore(a.card, cpu, opponent, game, aiLevel))[0];
 }
 
-function cpuPlayScore(card, aiLevel) {
-  const typeBonus = card.type === "コア" ? 18 : card.type === "ユニット" ? 14 : 10;
-  const effectBonus = card.effect ? 8 : 0;
-  const atkBonus = Math.floor((card.atk || 0) / 200);
-  return typeBonus + effectBonus + atkBonus + (card.cost || 0) * (aiLevel >= 4 ? 4 : 2);
+function cpuPlayScore(card, cpu, opponent, game, aiLevel) {
+  let score = cpuCardValue(card, cpu, opponent, game, aiLevel) + 12;
+  if (card.type === "コア") {
+    score += cpu.cores.filter(Boolean).length === 0 ? 18 : 6;
+    if (cpu.cores.includes(card.id)) score -= aiLevel >= 4 ? 24 : 8;
+  }
+  if (card.type === "ユニット") {
+    const enemyBest = Math.max(0, ...opponent.units.filter(Boolean).map((unit) => getUnitAtk(opponent, unit, game)));
+    if ((card.atk || 0) >= enemyBest) score += 10;
+    if (opponent.lp <= (card.atk || 0)) score += 22;
+    if (cpu.units.filter(Boolean).length === 0) score += 12;
+  }
+  if (card.type === "スペル") {
+    if (opponent.units.some((unit) => unit)) score += 8;
+    if (card.effect && cpu.hand.length <= 2) score += 4;
+  }
+  score -= (card.cost || 0) * (aiLevel >= 4 ? 0.8 : 1.5);
+  return score;
 }
 
 function cpuPlayLimit(aiLevel) {
@@ -958,7 +985,8 @@ function chooseCpuAttack(game, cpu, opponent, aiLevel) {
   if (!canAttack(game, cpu)) return null;
   const attackers = cpu.units
     .map((unit, index) => ({ unit, index }))
-    .filter((entry) => entry.unit && !entry.unit.exhausted);
+    .filter((entry) => entry.unit && !entry.unit.exhausted)
+    .sort((a, b) => getUnitAtk(cpu, b.unit, game) - getUnitAtk(cpu, a.unit, game));
   if (attackers.length === 0) return null;
 
   for (const attacker of attackers) {
@@ -974,10 +1002,11 @@ function chooseCpuAttackTarget(game, cpu, attacker, opponent, aiLevel) {
     .map((unit, index) => ({ unit, index }))
     .filter((entry) => entry.unit)
     .map((entry) => ({ ...entry, atk: getUnitAtk(opponent, entry.unit, game) }));
+  if (targets.length === 0 && opponent.lp <= attackerAtk) return null;
   if (targets.length === 0) return null;
   const winningTargets = targets
     .filter((entry) => entry.atk <= attackerAtk)
-    .sort((a, b) => b.atk - a.atk);
+    .sort((a, b) => cpuAttackTargetScore(b, attackerAtk, opponent, game, aiLevel) - cpuAttackTargetScore(a, attackerAtk, opponent, game, aiLevel));
   if (winningTargets.length > 0) return winningTargets[0].index;
   if (aiLevel <= 2 && Math.random() < 0.32) {
     return targets.slice().sort((a, b) => a.atk - b.atk)[0].index;
@@ -986,30 +1015,104 @@ function chooseCpuAttackTarget(game, cpu, attacker, opponent, aiLevel) {
 }
 
 function chooseCpuChoiceIndex(room, choice) {
+  const game = room.game;
+  const cpuSeat = room.ranked.cpuSeat;
+  const cpu = game[cpuSeat];
+  const opponent = opponentOf(game, cpu);
   const profile = room.ranked.profiles?.[room.ranked.cpuSeat] || rankedProfile({ cpu: true });
   const aiLevel = profile.aiLevel || 1;
   if (!choice?.candidates?.length) return choice?.allowPass ? "pass" : null;
   if (choice.allowPass) {
-    if (choice.zone === "reaction" && Math.random() > cpuReactionChance(aiLevel)) return "pass";
-    if (choice.zone === "effectActivation" && aiLevel <= 1 && Math.random() < 0.3) return "pass";
+    if (choice.zone === "reaction" && Math.random() > cpuReactionChance(aiLevel, choice, cpu, opponent, game)) return "pass";
+    if (choice.zone === "effectActivation" && shouldCpuPassEffectActivation(choice, cpu, opponent, game, aiLevel)) return "pass";
   }
   const candidates = choice.candidates.slice();
-  candidates.sort((a, b) => cpuCandidateScore(b) - cpuCandidateScore(a));
+  candidates.sort((a, b) => cpuCandidateScore(b, choice, cpu, opponent, game, aiLevel) - cpuCandidateScore(a, choice, cpu, opponent, game, aiLevel));
   return candidates[0]?.index ?? (choice.allowPass ? "pass" : null);
 }
 
-function cpuCandidateScore(candidate) {
+function cpuCandidateScore(candidate, choice = {}, cpu = null, opponent = null, game = null, aiLevel = 1) {
   const card = cards[candidate.id];
   if (!card) return 0;
-  return (card.cost || 0) * 5 + (card.atk || 0) / 100 + (card.effect ? 8 : 0) + (card.driveKind ? 6 : 0);
+  if (choice.zone === "unitTarget") {
+    const targetPlayer = choice.targetPlayer || opponent;
+    const unit = targetPlayer?.units?.[candidate.index];
+    const atk = unit ? getUnitAtk(targetPlayer, unit, game) : card.atk || 0;
+    return atk / 10 + (card.effect ? 16 : 0) + (card.cost || 0) * 4;
+  }
+  if (choice.zone === "reactionTarget") {
+    return (candidate.facedown ? 8 : 0) + (card.trigger === "effect" ? 7 : 4) + (card.effect ? 10 : 0) + (card.cost || 0) * 3;
+  }
+  if (choice.zone === "hand" && choice.intent === "discard") return -cpuCardValue(card, cpu, opponent, game, aiLevel);
+  if (choice.zone === "hand" && choice.intent === "charge") return -cpuCardValue(card, cpu, opponent, game, aiLevel) + duplicatePenalty(card, cpu) * 2;
+  if (choice.zone === "hand" && choice.intent === "summon") return cpuPlayScore(card, cpu, opponent, game, aiLevel);
+  if (choice.zone === "reaction") return cpuReactionCardScore(card, cpu, aiLevel) + (choice.event?.trigger === card.trigger ? 12 : 0);
+  if (choice.zone === "deck" || choice.zone === "grave") return cpuCardValue(card, cpu, opponent, game, aiLevel) + (card.effect ? 8 : 0);
+  return cpuCardValue(card, cpu, opponent, game, aiLevel);
 }
 
-function cpuReactionChance(aiLevel) {
-  if (aiLevel >= 5) return 0.92;
-  if (aiLevel >= 4) return 0.78;
-  if (aiLevel >= 3) return 0.62;
-  if (aiLevel >= 2) return 0.45;
-  return 0.28;
+function cpuReactionChance(aiLevel, choice = {}, cpu = null, opponent = null, game = null) {
+  const source = choice.event?.source;
+  let chance = 0.28;
+  if (aiLevel >= 5) chance = 0.92;
+  else if (aiLevel >= 4) chance = 0.78;
+  else if (aiLevel >= 3) chance = 0.62;
+  else if (aiLevel >= 2) chance = 0.45;
+  if (source?.atk && cpu?.lp && source.atk >= cpu.lp) chance += 0.18;
+  if (source?.effect && aiLevel >= 4) chance += 0.08;
+  if (choice.event?.trigger === "attack" && opponent?.lp && cpu?.units?.filter(Boolean).length === 0) chance += 0.06;
+  return Math.max(0.05, Math.min(0.98, chance));
+}
+
+function shouldCpuPassEffectActivation(choice, cpu, opponent, game, aiLevel) {
+  if (aiLevel <= 1) return Math.random() < 0.3;
+  if (aiLevel <= 2) return Math.random() < 0.12;
+  return false;
+}
+
+function cpuCardValue(card, cpu, opponent, game, aiLevel) {
+  if (!card) return 0;
+  let score = 18 + (card.effect ? 9 : 0) + (card.driveKind ? 8 : 0);
+  if (card.type === "コア") score += cpu?.cores?.some((core) => !core) ? 18 : 2;
+  if (card.type === "ユニット") {
+    score += cpu?.units?.some((unit) => !unit) ? 12 : 2;
+    score += Math.min(18, (card.atk || 0) / 180);
+  }
+  if (card.type === "スペル") score += opponent?.units?.some((unit) => unit) ? 11 : 5;
+  if (card.type === "リアクション") score += cpu?.reactions?.some((entry) => !entry) ? 12 : -4;
+  score += (card.cost || 0) * (aiLevel >= 4 ? 1.5 : 0.8);
+  return score;
+}
+
+function cpuChargeScore(card, cpu, opponent, game, aiLevel) {
+  let score = cpuCardValue(card, cpu, opponent, game, aiLevel);
+  if (canPlayCard(cpu, card) && canPay(cpu, card.cost)) score += 18;
+  if (card.type === "リアクション" && cpu.reactions.some((entry) => !entry)) score += 12;
+  if (card.type === "ユニット" && cpu.units.filter(Boolean).length === 0 && (card.cost || 0) <= cpu.charge.length + 1) score += 10;
+  score -= duplicatePenalty(card, cpu);
+  if ((card.cost || 0) > cpu.charge.length + 2) score -= 8;
+  return score;
+}
+
+function duplicatePenalty(card, cpu) {
+  return Math.max(0, cpu.hand.filter((id) => id === card.id).length - 1) * 10;
+}
+
+function cpuReactionCardScore(card, cpu, aiLevel) {
+  if (!card) return 0;
+  let score = 20 + (card.effect ? 8 : 0) + (card.cost || 0) * 2;
+  if (card.trigger === "effect") score += aiLevel >= 4 ? 8 : 4;
+  if (cpu?.reactions?.filter(Boolean).length === 0) score += 6;
+  return score;
+}
+
+function cpuAttackTargetScore(target, attackerAtk, opponent, game, aiLevel) {
+  const overDamage = Math.max(0, attackerAtk - target.atk);
+  let score = target.atk / 10 + overDamage / 20;
+  const card = cards[target.unit?.id];
+  if (card?.effect) score += aiLevel >= 4 ? 20 : 8;
+  if ((card?.cost || 0) >= 3) score += 10;
+  return score;
 }
 
 function rankedCpuAiLevel(points) {
@@ -1298,6 +1401,7 @@ function queueReactionChainStep(game, chain, event, reactor, opponent, continuat
     message: `${event.source.name}に対応できます。発動するカードを選んでください。`,
     candidates: options,
     allowPass: true,
+    event,
     confirmLabel: "発動",
     passLabel: "発動しない",
     resolve: (candidate) => {
@@ -1564,6 +1668,7 @@ function queueChoice(game, player, zone, list, predicate, choice, handler, empty
     message: choice.message,
     delayBeforeOpenMs: choice.delayBeforeOpenMs || 0,
     allowPass: Boolean(choice.allowPass),
+    intent: choice.intent || "",
     confirmLabel: choice.confirmLabel,
     passLabel: choice.passLabel,
     candidates,
@@ -1596,6 +1701,7 @@ function queueUnitTargetChoice(game, chooser, targetPlayer, predicate, choice, h
     message: choice.message,
     delayBeforeOpenMs: choice.delayBeforeOpenMs || 0,
     candidates,
+    targetPlayer,
     confirmLabel: choice.confirmLabel,
     resolve: handler,
     afterResolve: null,
@@ -1674,6 +1780,7 @@ function queueReactionTargetChoice(game, chooser, targetPlayer, predicate, choic
     message: choice.message,
     delayBeforeOpenMs: choice.delayBeforeOpenMs || 0,
     candidates,
+    targetPlayer,
     confirmLabel: choice.confirmLabel,
     resolve: handler,
     afterResolve: null,
@@ -1727,7 +1834,7 @@ function chooseFromGrave(game, player, predicate, choice, after = () => {}) {
 }
 
 function chooseFromHandToCharge(game, player, predicate, choice, after = () => {}) {
-  return queueChoice(game, player, "hand", player.hand, predicate, choice, (candidate) => {
+  return queueChoice(game, player, "hand", player.hand, predicate, { ...choice, intent: "charge" }, (candidate) => {
     const [id] = player.hand.splice(candidate.index, 1);
     player.charge.push({ id, tapped: false });
     log(game, `${cards[id].name}をチャージに置いた。`);
@@ -1752,6 +1859,7 @@ function chooseSpecialSummonFromHand(game, player, predicate, choice, opponent =
   }
   return queueChoice(game, player, "hand", player.hand, predicate, {
     ...choice,
+    intent: "summon",
     allowPass: choice.allowPass ?? true,
     confirmLabel: choice.confirmLabel || "召喚する",
     passLabel: choice.passLabel || "召喚しない",
@@ -1788,7 +1896,7 @@ function resolveSpecialSummonEffect(game, player, opponent, id, after = () => {}
 }
 
 function chooseDiscardFromHand(game, player, choice, after = () => {}) {
-  return queueChoice(game, player, "hand", player.hand, () => true, choice, (candidate) => {
+  return queueChoice(game, player, "hand", player.hand, () => true, { ...choice, intent: "discard" }, (candidate) => {
     const [id] = player.hand.splice(candidate.index, 1);
     player.grave.push(id);
     log(game, `${cards[id].name}をロストゾーンに送った。`);
