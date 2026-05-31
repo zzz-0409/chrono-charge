@@ -500,6 +500,18 @@
       text: "通常召喚時：この効果を発動できる。デッキから「電脳」スペル1枚を手札に加える。加えたなら、その後、相手の公開状態リアクションがあるなら、追加で1枚ドローできる。",
     },
     {
+      id: "cyber_log_rin",
+      name: "電脳のログ係リン",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 700,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-log-rin.png",
+      effect: "cyberLogRin",
+      text: "通常召喚時：この効果を発動できる。デッキから「電脳」コア1枚を手札に加える。加えたなら、その後、追加で手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。",
+    },
+    {
       id: "cyber_preview",
       name: "電脳の予習",
       type: "スペル",
@@ -553,6 +565,17 @@
       art: "assets/cards/art/cyber-trace-route.png",
       effect: "cyberTraceRoute",
       text: "発動時：この効果を発動する。相手のセットリアクション1枚を公開状態にする。公開できたなら、追加でデッキからコスト1以下の「電脳」ユニット1枚を手札に加えられる。",
+    },
+    {
+      id: "cyber_cache_sync",
+      name: "電脳のキャッシュ同期",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-cache-sync.png",
+      effect: "cyberCacheSync",
+      text: "発動時：この効果を発動する。デッキからコスト2以下の「電脳」ユニット1枚を手札に加える。加えたなら、その後、自分フィールドに「電脳」ユニットがいるなら、追加で1枚ドローできる。",
     },
     {
       id: "cyber_shield",
@@ -961,6 +984,17 @@
       art: "assets/cards/art/generic-repair-cart.png",
       effect: "genericRepairCart",
       text: "通常召喚時：この効果を発動できる。自分フィールドにコアがあるなら、1枚ドロー。その後、手札1枚をロストゾーンに送る。",
+    },
+    {
+      id: "generic_emergency_wire",
+      name: "汎用応急配線",
+      type: "スペル",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      art: "assets/cards/art/generic-emergency-wire.png",
+      effect: "genericEmergencyWire",
+      text: "発動時：この効果を発動する。自分の手札が相手より少ないなら、1枚ドロー。その後、自分のチャージ枚数が相手より少ないなら、追加で手札1枚を自分のチャージに置ける。",
     },
     {
       id: "generic_duelist",
@@ -1755,14 +1789,15 @@
         cyber_yuna: 3,
         cyber_akari: 2,
         cyber_packet_mana: 2,
+        cyber_log_rin: 2,
         cyber_preview: 3,
-        cyber_intrusion: 2,
+        cyber_intrusion: 1,
         cyber_network: 3,
-        cyber_backchannel: 3,
+        cyber_backchannel: 2,
         cyber_trace_route: 2,
+        cyber_cache_sync: 2,
         cyber_shield: 3,
-        cyber_counterhack: 3,
-        generic_probe_drone: 1,
+        cyber_counterhack: 2,
         generic_code: 2,
         generic_wall: 1,
         generic_zero: 1,
@@ -1864,6 +1899,7 @@
     "generic_code",
     "generic_wall",
     "generic_transfer",
+    "generic_emergency_wire",
     "generic_watch_signal",
     "generic_noise_ping",
     "generic_field_notes",
@@ -2023,7 +2059,7 @@
     if (cardHasThemeValue(card, theme)) score += 20;
     if (kind === "splash" && card.type === "ユニット") score += 7;
     if (kind === "splash" && card.type === "コア") score += 4;
-    if (kind === "generic" && ["generic_code", "generic_wall", "generic_transfer", "generic_zero", "generic_supply_box"].includes(card.id)) score += 8;
+    if (kind === "generic" && ["generic_code", "generic_wall", "generic_transfer", "generic_zero", "generic_supply_box", "generic_emergency_wire"].includes(card.id)) score += 8;
     if ((deck[card.id] || 0) === 2) score += 8;
     if ((deck[card.id] || 0) === 1) score += 4;
     if (card.effect || card.driveEffect) score += 5;

@@ -327,6 +327,17 @@
             }
           }
           break;
+        case "cyberLogRin":
+          if (await this.game.addFromDeck(player, (card) => card.type === "コア" && card.theme === "電脳", {
+            title: "電脳コアをサーチ",
+            message: "デッキから手札に加える「電脳」コアを選んでください。",
+          }) && await this.optionalAdditional(player, sourceCard, "「電脳」コアを手札に加えました。追加で手札から召喚しますか？")) {
+            await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 1, {
+              title: "電脳ユニットを追加召喚",
+              message: "手札から追加召喚するコスト1以下の「電脳」ユニットを選んでください。",
+            }, opponent);
+          }
+          break;
         case "cyberPreview":
           if (await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
             title: "電脳ユニットを追加召喚",
@@ -388,6 +399,16 @@
           }
           break;
         }
+        case "cyberCacheSync":
+          if (await this.game.addFromDeck(player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+            title: "電脳ユニットをサーチ",
+            message: "デッキから手札に加えるコスト2以下の「電脳」ユニットを選んでください。",
+          }) && this.game.controlsThemeUnit(player, "電脳") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「電脳」ユニットがいます。追加で1枚ドローしますか？")) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
         case "probeDrone":
           if (
             await this.game.revealReactions(opponent, 1) > 0 &&
@@ -684,6 +705,21 @@
             await this.game.discardFromHand(player, {
               title: "手札を1枚捨てる",
               message: "ロストゾーンに送るカードを選んでください。",
+            });
+          }
+          break;
+        case "genericEmergencyWire":
+          if (player.hand.length < opponent.hand.length) {
+            this.game.drawCards(player, 1);
+            await this.game.afterEffectStep(560);
+          }
+          if (
+            player.charge.length < opponent.charge.length &&
+            await this.optionalAdditional(player, sourceCard, "自分のチャージ枚数が相手より少ないです。追加で手札1枚をチャージに置きますか？")
+          ) {
+            await this.game.moveHandCardToCharge(player, () => true, {
+              title: "手札をチャージ",
+              message: "手札からチャージに置くカードを選んでください。",
             });
           }
           break;

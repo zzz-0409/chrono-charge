@@ -2292,6 +2292,20 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
           });
         }
       });
+    case "cyberLogRin":
+      return chooseFromDeck(game, player, (card) => card.type === "コア" && card.theme === "電脳", {
+        title: "電脳コアをサーチ",
+        message: "デッキから手札に加える「電脳」コアを選んでください。",
+      }, (searched) => {
+        if (searched) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "「電脳」コアを手札に加えました。追加で手札から召喚しますか？", () => {
+            chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 1, {
+              title: "電脳ユニットを追加召喚",
+              message: "手札から追加召喚するコスト1以下の「電脳」ユニットを選んでください。",
+            }, opponent);
+          });
+        }
+      });
     case "cyberPreview":
       return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.name.includes("電脳") && card.cost <= 1, {
         title: "電脳ユニットを追加召喚",
@@ -2346,6 +2360,17 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
               title: "電脳ユニットをサーチ",
               message: "デッキから手札に加えるコスト1以下の「電脳」ユニットを選んでください。",
             });
+          });
+        }
+      });
+    case "cyberCacheSync":
+      return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.theme === "電脳" && card.cost <= 2, {
+        title: "電脳ユニットをサーチ",
+        message: "デッキから手札に加えるコスト2以下の「電脳」ユニットを選んでください。",
+      }, (searched) => {
+        if (searched && countThemeUnits(player, "電脳") > 0) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「電脳」ユニットがいます。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
           });
         }
       });
@@ -2622,6 +2647,17 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
           title: "手札を1枚捨てる",
           message: "ロストゾーンに送るカードを選んでください。",
           delayBeforeOpenMs: 560,
+        });
+      }
+      break;
+    case "genericEmergencyWire":
+      if (player.hand.length < opponent.hand.length) drawCards(player, 1, game);
+      if (player.charge.length < opponent.charge.length) {
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分のチャージ枚数が相手より少ないです。追加で手札1枚をチャージに置きますか？", () => {
+          chooseFromHandToCharge(game, player, () => true, {
+            title: "手札をチャージ",
+            message: "手札からチャージに置くカードを選んでください。",
+          });
         });
       }
       break;

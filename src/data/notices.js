@@ -6,6 +6,23 @@
   // Card-addition automation can append a new entry here after it updates cards.js.
   window.Chrono.notices = [
     {
+      id: "2026-06-01-cyber-support",
+      date: "2026.06.01",
+      badge: "カード追加",
+      title: "電脳サポートカード追加",
+      summary: "電脳にコア到達と手札補助の新カードを追加しました。ログ係リンで校内ネットへつなぎ、キャッシュ同期で次の追加召喚を整えます。",
+      cardIds: [
+        "cyber_log_rin",
+        "cyber_cache_sync",
+        "generic_emergency_wire",
+      ],
+      pack: {
+        theme: "電脳",
+        title: "電脳パック更新",
+        text: "電脳パックに新しい電脳カード2種が収録されました。汎用応急配線は共通プールから入手できます。",
+      },
+    },
+    {
       id: "2026-05-31-keikan-support",
       date: "2026.05.31",
       badge: "カード追加",
