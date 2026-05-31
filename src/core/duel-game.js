@@ -1027,10 +1027,6 @@
     async applyDriveEffect(card, player, opponent, event = {}) {
       switch (card.driveEffect) {
         case "driveStarUnit":
-          await this.addFromDeck(player, (candidate) => candidate.theme === "星導", {
-            title: "星導カードを手札に加える",
-            message: "デッキから星導カードを1枚選んでください。",
-          });
           await this.returnBestUnitToHand(opponent);
           this.drawCards(player, 2);
           return;
