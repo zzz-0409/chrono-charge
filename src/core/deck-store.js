@@ -12,211 +12,34 @@
     drivePool,
     starterDeck,
     starterDriveDeck,
+    classDecks,
+    classDriveDecks,
+    CLASSES,
   } = window.Chrono;
 
-  const STORE_VERSION = 6;
+  const STORE_VERSION = 7;
   const AUTH_TOKEN_KEY = `${STORAGE_KEY}-auth`;
   const DEFAULT_ACCOUNT = "Player";
-  const DEFAULT_DECK_ID = "main";
-  const MAIN_THEME_THRESHOLD = 10;
+  const DEFAULT_DECK_ID = "blader";
   const PACK_SIZE = 5;
   const PACK_COST = 100;
   const CPU_WIN_GEMS = 200;
   const CPU_LOSS_GEMS = 100;
   const ONLINE_WIN_GEMS = 200;
   const ONLINE_LOSS_GEMS = 100;
-  const RANKED_INITIAL_POINTS = 1000;
-  const PRESENT_TYPE_GEMS = "gems";
-  const LOGIN_BONUS_CYCLE_DAYS = 10;
   const DUST_PER_DISMANTLE = 10;
   const ROYAL_DUST_PER_DISMANTLE = 100;
   const CRAFT_COST = 100;
   const ROYAL_FINISH = "royal";
-  const ROYAL_RATE = 0.01;
-  const ROYAL_PACK_RATE = 0.001;
-  const AUTO_BUILD_THEMES = {
-    star: "星導",
-    black: "黒機",
-    blade: "断刃",
-    cyber: "電脳",
-    sosai: "双彩",
-    keikan: "契環",
-    balance: "",
-  };
-  const PACK_COVERS = {
-    "星導": { image: "assets/packs/star-pack.png", ace: "star_dragon" },
-    "黒機": { image: "assets/packs/black-pack.png", ace: "black_anchor" },
-    "断刃": { image: "assets/packs/blade-pack.png", ace: "blade_arbiter" },
-    "電脳": { image: "assets/packs/cyber-pack.png", ace: "cyber_akari" },
-    "双彩": { image: "assets/packs/sosai-pack.png", ace: "sosai_hikari" },
-    "契環": { image: "assets/packs/keikan-pack.png", ace: "drive_keikan_unit" },
-  };
 
-  const driveDecks = {
-    star: themedDriveDeck("星導"),
-    black: themedDriveDeck("黒機"),
-    blade: themedDriveDeck("断刃"),
-    cyber: themedDriveDeck("電脳"),
-    sosai: themedDriveDeck("双彩"),
-    keikan: themedDriveDeck("契環"),
-    balance: starterDriveDeck,
-  };
-
-  const autoDeckTemplates = {
-    star: {
-      label: "星導おまかせ",
-      main: starterDeck,
-      drive: driveDecks.star,
-    },
-    black: {
-      label: "黒機おまかせ",
-      main: {
-        black_grinder: 3,
-        black_gear: 3,
-        black_anchor: 3,
-        black_tower: 3,
-        black_raid: 3,
-        black_claw: 3,
-        black_supply_engineer: 3,
-        black_binding_gunner: 2,
-        generic_code: 3,
-        generic_wall: 3,
-        generic_transfer: 3,
-        generic_bind: 3,
-        generic_recall: 1,
-        generic_zero: 2,
-        generic_lancer: 1,
-        generic_crusher: 1,
-      },
-      drive: driveDecks.black,
-    },
-    blade: {
-      label: "断刃おまかせ",
-      main: {
-        blade_tracker: 3,
-        blade_marksmith: 3,
-        blade_edgeguard: 3,
-        blade_executioner: 3,
-        blade_arbiter: 2,
-        blade_mark: 3,
-        blade_cleave: 3,
-        blade_warrant: 3,
-        blade_scaffold: 3,
-        blade_counter: 3,
-        black_anchor: 2,
-        black_raid: 2,
-        generic_code: 2,
-        generic_wall: 2,
-        generic_transfer: 1,
-        generic_zero: 2,
-      },
-      drive: driveDecks.blade,
-    },
-    cyber: {
-      label: "電脳おまかせ",
-      main: {
-        cyber_mio: 3,
-        cyber_rei: 3,
-        cyber_shion: 3,
-        cyber_yuna: 3,
-        cyber_akari: 2,
-        cyber_packet_mana: 2,
-        cyber_log_rin: 2,
-        cyber_preview: 3,
-        cyber_intrusion: 1,
-        cyber_network: 3,
-        cyber_backchannel: 2,
-        cyber_trace_route: 2,
-        cyber_cache_sync: 2,
-        cyber_shield: 3,
-        cyber_counterhack: 2,
-        generic_code: 2,
-        generic_wall: 1,
-        generic_zero: 1,
-      },
-      drive: driveDecks.cyber,
-    },
-    sosai: {
-      label: "双彩おまかせ",
-      main: {
-        sosai_hikari: 3,
-        sosai_mint: 3,
-        sosai_partner_call_ai: 1,
-        sosai_nene: 3,
-        sosai_ruri: 3,
-        sosai_coco: 3,
-        sosai_luna: 2,
-        sosai_live_start: 3,
-        sosai_heart_sync: 3,
-        sosai_backstage_call: 1,
-        sosai_pop_stage: 3,
-        sosai_stream_cancel: 3,
-        generic_transfer: 3,
-        generic_code: 2,
-        generic_wall: 2,
-        generic_zero: 2,
-      },
-      drive: driveDecks.sosai,
-    },
-    keikan: {
-      label: "契環おまかせ",
-      main: {
-        keikan_scribe_yura: 3,
-        keikan_charm_ren: 3,
-        keikan_mediator_sae: 3,
-        keikan_oathbearer_kuga: 2,
-        keikan_ring_adept_may: 3,
-        keikan_ledger_keeper_io: 2,
-        keikan_oath_script: 3,
-        keikan_seal_exchange: 3,
-        keikan_pretrial_record: 2,
-        keikan_witness_ring: 3,
-        keikan_binding_clause: 3,
-        keikan_null_clause: 3,
-        generic_supply_box: 3,
-        generic_transfer: 2,
-        generic_wall: 1,
-        generic_code: 1,
-      },
-      drive: driveDecks.keikan,
-    },
-    balance: {
-      label: "バランスおまかせ",
-      main: {
-        star_scout: 2,
-        star_lux: 2,
-        star_mira: 2,
-        star_guard: 1,
-        star_dragon: 1,
-        star_navigator: 1,
-        star_invite: 2,
-        star_link: 2,
-        star_chart: 1,
-        star_orbit: 2,
-        star_wall: 2,
-        star_interference: 1,
-        black_grinder: 2,
-        black_gear: 2,
-        black_anchor: 2,
-        black_tower: 2,
-        black_raid: 2,
-        black_claw: 1,
-        generic_code: 2,
-        generic_wall: 2,
-        generic_transfer: 2,
-        generic_bind: 2,
-        generic_field_notes: 1,
-        generic_zero: 1,
-      },
-      drive: driveDecks.balance,
-    },
-  };
+  const classEntries = Object.values(CLASSES || {});
+  const classLabels = Object.fromEntries(classEntries.map((entry) => [entry.id, entry.name]));
 
   class DeckStore {
     constructor(storage = window.localStorage) {
       this.storage = storage;
       this.auth = this.loadAuth();
-      const loaded = this.auth ? this.load() : this.guestState();
+      const loaded = this.load();
       this.data = loaded.data;
       this.activeAccount = loaded.activeAccount;
       this.activeDeckId = loaded.activeDeckId;
@@ -224,31 +47,22 @@
       this.royalCounts = loaded.royalCounts;
       this.driveCounts = loaded.driveCounts;
       this.driveRoyalCounts = loaded.driveRoyalCounts;
-      this.localRevision = 0;
-      this.remoteDirty = false;
-      this.remoteSaveInFlight = false;
-      this.remoteSaveTimer = 0;
+      this.currentClassKey = this.activeDeck?.classKey || inferClassKey(this.counts) || "blader";
       this.pendingLoginBonus = null;
     }
 
     load() {
       try {
         const saved = JSON.parse(this.storage.getItem(STORAGE_KEY));
-        if (saved && typeof saved === "object") {
-          if (saved.accounts) return this.normalizeState(saved);
-          if (saved.mainDeck || saved.counts || saved.driveDeck) {
-            return this.stateFromDeck(saved.mainDeck || saved.counts || {}, saved.driveDeck || saved.driveCounts || starterDriveDeck);
-          }
-          return this.stateFromDeck(saved, starterDriveDeck);
-        }
+        if (saved && typeof saved === "object" && saved.accounts) return this.normalizeState(saved);
       } catch {
         this.storage.removeItem(STORAGE_KEY);
       }
-      return this.stateFromDeck(starterDeck, starterDriveDeck);
+      return this.stateFromDeck(starterDeck, starterDriveDeck, "blader");
     }
 
     guestState() {
-      return this.stateFromDeck(starterDeck, starterDriveDeck);
+      return this.stateFromDeck(starterDeck, starterDriveDeck, "blader");
     }
 
     loadAuth() {
@@ -273,29 +87,23 @@
         activeAccount: normalizeAccountName(saved.activeAccount),
         accounts: {},
       };
-
       Object.entries(saved.accounts || {}).forEach(([rawName, account]) => {
         const accountName = normalizeAccountName(rawName);
         data.accounts[accountName] = this.normalizeAccount(accountName, account);
       });
-
-      if (Object.keys(data.accounts).length === 0) {
-        data.accounts[DEFAULT_ACCOUNT] = this.defaultAccount(starterDeck, starterDriveDeck);
-      }
+      if (Object.keys(data.accounts).length === 0) data.accounts[DEFAULT_ACCOUNT] = this.defaultAccount();
       if (!data.accounts[data.activeAccount]) data.activeAccount = Object.keys(data.accounts)[0];
-
-      const activeAccount = data.accounts[data.activeAccount];
-      if (!activeAccount.decks[activeAccount.activeDeckId]) activeAccount.activeDeckId = Object.keys(activeAccount.decks)[0];
-      const activeDeck = activeAccount.decks[activeAccount.activeDeckId];
-
+      const account = data.accounts[data.activeAccount];
+      if (!account.decks[account.activeDeckId]) account.activeDeckId = Object.keys(account.decks)[0];
+      const deck = account.decks[account.activeDeckId];
       return {
         data,
         activeAccount: data.activeAccount,
-        activeDeckId: activeAccount.activeDeckId,
-        counts: this.normalizeMain(activeDeck.mainDeck),
-        royalCounts: this.normalizeMain(activeDeck.mainDeckRoyal),
-        driveCounts: this.normalizeDrive(activeDeck.driveDeck),
-        driveRoyalCounts: this.normalizeDrive(activeDeck.driveDeckRoyal || {}),
+        activeDeckId: account.activeDeckId,
+        counts: this.normalizeMain(deck.mainDeck),
+        royalCounts: this.normalizeMain(deck.mainDeckRoyal),
+        driveCounts: this.normalizeDrive(deck.driveDeck),
+        driveRoyalCounts: this.normalizeDrive(deck.driveDeckRoyal || {}),
       };
     }
 
@@ -305,11 +113,9 @@
         const id = sanitizeId(rawId);
         decks[id] = this.normalizeDeck(id, deck);
       });
-
       if (Object.keys(decks).length === 0) {
-        decks[DEFAULT_DECK_ID] = this.createDeck(DEFAULT_DECK_ID, "メインデッキ", starterDeck, starterDriveDeck);
+        Object.assign(decks, this.defaultDecks());
       }
-
       const activeDeckId = sanitizeId(account.activeDeckId);
       return {
         name: accountName,
@@ -317,47 +123,48 @@
         displayName: String(account.displayName || account.name || accountName).trim().slice(0, 24) || accountName,
         isDeveloper: Boolean(account.isDeveloper),
         activeDeckId: decks[activeDeckId] ? activeDeckId : Object.keys(decks)[0],
-        gems: Math.max(0, Math.floor(Number(account.gems) || 0)),
+        gems: Math.max(0, Math.floor(Number(account.gems) || 2000)),
         dust: Math.max(0, Math.floor(Number(account.dust) || 0)),
         ranked: normalizeRankedRecord(account.ranked),
         presents: normalizePresents(account.presents),
         lastLoginBonusDate: String(account.lastLoginBonusDate || ""),
         loginBonus: normalizeLoginBonusRecord(account.loginBonus),
-        collection: this.normalizeCollection(account.collection, decks),
-        collectionRoyal: this.normalizeCollection(account.collectionRoyal, decks, ROYAL_FINISH),
+        collection: this.normalizeCollection(account.collection),
+        collectionRoyal: this.normalizeCollection(account.collectionRoyal, ROYAL_FINISH),
         updatedAt: String(account.updatedAt || new Date().toISOString()),
         decks,
       };
     }
 
     normalizeDeck(id, deck = {}) {
+      const classKey = sanitizeClassKey(deck.classKey || inferClassKey(deck.mainDeck || deck.counts || {}) || "blader");
       return this.createDeck(
         id,
-        deck.name || "メインデッキ",
-        deck.mainDeck || deck.counts || {},
-        deck.driveDeck || deck.driveCounts || starterDriveDeck,
+        deck.name || `${classLabels[classKey] || "クラス"}デッキ`,
+        deck.mainDeck || deck.counts || classDecks[classKey] || starterDeck,
+        deck.driveDeck || deck.driveCounts || classDriveDecks[classKey] || starterDriveDeck,
         deck.mainDeckRoyal || deck.royalCounts || {},
         deck.driveDeckRoyal || deck.driveRoyalCounts || {},
         {
+          classKey,
           favoriteCardId: deck.favoriteCardId,
           updatedAt: deck.updatedAt,
         }
       );
     }
 
-    stateFromDeck(mainDeck, driveDeck = starterDriveDeck) {
+    stateFromDeck(mainDeck, driveDeck = starterDriveDeck, classKey = "blader") {
       const data = {
         version: STORE_VERSION,
         activeAccount: DEFAULT_ACCOUNT,
         accounts: {
-          [DEFAULT_ACCOUNT]: this.defaultAccount(mainDeck, driveDeck),
+          [DEFAULT_ACCOUNT]: this.defaultAccount(mainDeck, driveDeck, classKey),
         },
       };
-
       return {
         data,
         activeAccount: DEFAULT_ACCOUNT,
-        activeDeckId: DEFAULT_DECK_ID,
+        activeDeckId: classKey || DEFAULT_DECK_ID,
         counts: this.normalizeMain(mainDeck),
         royalCounts: {},
         driveCounts: this.normalizeDrive(driveDeck),
@@ -365,37 +172,46 @@
       };
     }
 
-    defaultAccount(mainDeck, driveDeck) {
+    defaultAccount(mainDeck = starterDeck, driveDeck = starterDriveDeck, classKey = "blader") {
+      const decks = this.defaultDecks();
+      decks[classKey] = this.createDeck(classKey, `${classLabels[classKey] || "ブレイダー"}デッキ`, mainDeck, driveDeck, {}, {}, { classKey });
       return {
         name: DEFAULT_ACCOUNT,
         username: "Guest",
         displayName: DEFAULT_ACCOUNT,
         isDeveloper: false,
-        activeDeckId: DEFAULT_DECK_ID,
-        gems: 0,
+        activeDeckId: classKey,
+        gems: 2000,
         dust: 0,
         ranked: normalizeRankedRecord(),
         presents: [],
         lastLoginBonusDate: "",
         loginBonus: normalizeLoginBonusRecord(),
-        collection: this.initialCollection(mainDeck, driveDeck),
+        collection: this.initialCollection(),
         collectionRoyal: {},
         updatedAt: new Date().toISOString(),
-        decks: {
-          [DEFAULT_DECK_ID]: this.createDeck(DEFAULT_DECK_ID, "メインデッキ", mainDeck, driveDeck, {}, {}),
-        },
+        decks,
       };
     }
 
+    defaultDecks() {
+      return Object.fromEntries(classEntries.map((entry) => [
+        entry.id,
+        this.createDeck(entry.id, `${entry.name}デッキ`, classDecks[entry.id], classDriveDecks[entry.id], {}, {}, { classKey: entry.id }),
+      ]));
+    }
+
     createDeck(id, name, mainDeck, driveDeck, mainDeckRoyal = {}, driveDeckRoyal = {}, meta = {}) {
+      const deckMeta = typeof meta === "string" ? { updatedAt: meta } : meta || {};
+      const classKey = sanitizeClassKey(deckMeta.classKey || inferClassKey(mainDeck) || this.currentClassKey || "blader");
       const normalizedMain = this.normalizeMain(mainDeck);
       const normalizedDrive = this.normalizeDrive(driveDeck);
       const normalizedMainRoyal = this.normalizeMain(mainDeckRoyal);
       const normalizedDriveRoyal = this.normalizeDrive(driveDeckRoyal || {});
-      const deckMeta = typeof meta === "string" ? { updatedAt: meta } : meta || {};
       return {
         id,
         name: normalizeDeckName(name),
+        classKey,
         mainDeck: normalizedMain,
         driveDeck: normalizedDrive,
         mainDeckRoyal: normalizedMainRoyal,
@@ -415,8 +231,9 @@
       const result = {};
       const entries = Array.isArray(source) ? Object.entries(countIds(source)) : Object.entries(source || {});
       entries.forEach(([id, count]) => {
-        if (!cards[id] || cards[id].driveKind || cards[id].type === "環境") return;
-        const safeCount = Math.max(0, Math.min(MAX_COPIES, Number(count) || 0));
+        const card = cards[id];
+        if (!card || isDriveCard(card)) return;
+        const safeCount = Math.max(0, Math.min(MAX_COPIES, Math.floor(Number(count) || 0)));
         if (safeCount > 0) result[id] = safeCount;
       });
       return trimDeck(result, DECK_SIZE);
@@ -426,8 +243,9 @@
       const result = {};
       const entries = Array.isArray(source) ? Object.entries(countIds(source)) : Object.entries(source || {});
       entries.forEach(([id, count]) => {
-        if (!isDriveCard(cards[id])) return;
-        const safeCount = Math.max(0, Math.min(MAX_DRIVE_COPIES, Number(count) || 0));
+        const card = cards[id];
+        if (!isDriveCard(card)) return;
+        const safeCount = Math.max(0, Math.min(MAX_DRIVE_COPIES, Math.floor(Number(count) || 0)));
         if (safeCount > 0) result[id] = safeCount;
       });
       return trimDeck(result, DRIVE_DECK_SIZE);
@@ -442,10 +260,12 @@
     saveActiveDeck(name = this.activeDeck?.name) {
       const account = this.activeAccountData;
       const deck = this.createDeck(this.activeDeckId, name, this.counts, this.driveCounts, this.royalCounts, this.driveRoyalCounts, {
+        classKey: this.currentClassKey,
         favoriteCardId: this.activeDeck?.favoriteCardId,
       });
       account.decks[this.activeDeckId] = deck;
       account.activeDeckId = this.activeDeckId;
+      this.currentClassKey = deck.classKey;
       return deck;
     }
 
@@ -456,6 +276,7 @@
       this.activeDeckId = id;
       account.activeDeckId = id;
       const deck = this.createDeck(id, name || this.nextDeckName(), this.counts, this.driveCounts, this.royalCounts, this.driveRoyalCounts, {
+        classKey: this.currentClassKey,
         favoriteCardId,
       });
       account.decks[id] = deck;
@@ -469,6 +290,7 @@
       if (!deck) return false;
       this.activeDeckId = id;
       account.activeDeckId = id;
+      this.currentClassKey = sanitizeClassKey(deck.classKey || inferClassKey(deck.mainDeck) || "blader");
       this.counts = this.normalizeMain(deck.mainDeck);
       this.royalCounts = this.normalizeMain(deck.mainDeckRoyal);
       this.driveCounts = this.normalizeDrive(deck.driveDeck);
@@ -511,144 +333,26 @@
       return true;
     }
 
-    switchAccount(name) {
-      const accountName = normalizeAccountName(name);
-      if (!this.data.accounts[accountName]) {
-        this.data.accounts[accountName] = this.defaultAccount(starterDeck, starterDriveDeck);
-        this.data.accounts[accountName].name = accountName;
-      }
-      this.activeAccount = accountName;
-      this.data.activeAccount = accountName;
-
-      const account = this.activeAccountData;
-      this.activeDeckId = account.activeDeckId;
-      const deck = account.decks[this.activeDeckId];
-      this.counts = this.normalizeMain(deck.mainDeck);
-      this.royalCounts = this.normalizeMain(deck.mainDeckRoyal);
-      this.driveCounts = this.normalizeDrive(deck.driveDeck);
-      this.driveRoyalCounts = this.normalizeDrive(deck.driveDeckRoyal || {});
-      this.persist();
-      return account;
-    }
-
-    async register(username, password, displayName) {
-      if (!canUseRemoteSync()) throw new Error("サーバー起動時だけ登録できます。");
-      const body = {
-        username,
-        password,
-        displayName: displayName || DEFAULT_ACCOUNT,
-      };
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "登録に失敗しました。");
-      this.saveAuth({ username: result.account.username, token: result.token });
-      this.applyAuthenticatedAccount(result.account);
-      this.setPendingLoginBonus(result.loginBonus);
-      return this.activeAccountData;
-    }
-
-    async login(username, password) {
-      if (!canUseRemoteSync()) throw new Error("サーバー起動時だけログインできます。");
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "ログインに失敗しました。");
-      this.saveAuth({ username: result.account.username, token: result.token });
-      this.applyAuthenticatedAccount(result.account);
-      this.setPendingLoginBonus(result.loginBonus);
-      return this.activeAccountData;
-    }
-
-    async logout() {
-      if (canUseRemoteSync() && this.auth?.token) {
-        await fetch("/api/auth/logout", {
-          method: "POST",
-          headers: this.authHeaders(),
-        }).catch(() => {});
-      }
-      this.saveAuth(null);
-      this.pendingLoginBonus = null;
-      this.storage.removeItem(STORAGE_KEY);
-      this.applyLoadedState(this.guestState());
-    }
-
-    updateDisplayName(displayName) {
-      const name = String(displayName || this.activeAccountData.displayName || this.activeAccount).trim().slice(0, 24);
-      this.activeAccountData.displayName = name || this.activeAccount;
-      this.activeAccountData.name = this.activeAccountData.displayName;
-      this.persist();
-      return this.activeAccountData.displayName;
-    }
-
-    applyAuthenticatedAccount(account) {
-      const accountName = normalizeAccountName(account.username || account.name || DEFAULT_ACCOUNT);
-      const normalized = this.normalizeAccount(accountName, account);
-      this.data.accounts[accountName] = normalized;
-      this.activeAccount = accountName;
-      this.data.activeAccount = accountName;
-      this.activeDeckId = normalized.activeDeckId;
-      const deck = normalized.decks[this.activeDeckId];
-      this.counts = this.normalizeMain(deck.mainDeck);
-      this.royalCounts = this.normalizeMain(deck.mainDeckRoyal);
-      this.driveCounts = this.normalizeDrive(deck.driveDeck);
-      this.driveRoyalCounts = this.normalizeDrive(deck.driveDeckRoyal || {});
-      this.persistLocalOnly();
-      this.remoteDirty = false;
-      this.remoteSaveInFlight = false;
-    }
-
-    applyLoadedState(loaded) {
-      this.data = loaded.data;
-      this.activeAccount = loaded.activeAccount;
-      this.activeDeckId = loaded.activeDeckId;
-      this.counts = loaded.counts;
-      this.royalCounts = loaded.royalCounts;
-      this.driveCounts = loaded.driveCounts;
-      this.driveRoyalCounts = loaded.driveRoyalCounts;
-      this.localRevision = 0;
-      this.remoteDirty = false;
-      this.remoteSaveInFlight = false;
-      window.clearTimeout(this.remoteSaveTimer);
-    }
-
-    setPendingLoginBonus(reward) {
-      this.pendingLoginBonus = normalizeLoginBonusReward(reward);
-    }
-
-    takeLoginBonusReward() {
-      const reward = this.pendingLoginBonus;
-      this.pendingLoginBonus = null;
-      return reward;
-    }
-
-    autoBuild(mode = "star", options = {}) {
-      const template = autoDeckTemplates[mode] || autoDeckTemplates.star;
-      const buildOptions = {
-        ownedOnly: Boolean(options.ownedOnly),
-        theme: AUTO_BUILD_THEMES[mode] || "",
-      };
-      const mainDeck = this.preferRoyalCopies(this.completeMainDeck(template.main, buildOptions), false);
-      const driveDeck = this.preferRoyalCopies(this.completeDriveDeck(template.drive, buildOptions), true);
+    autoBuild(mode = "blader", options = {}) {
+      const classKey = sanitizeClassKey(mode === "balance" ? this.currentClassKey : mode);
+      this.currentClassKey = classKey;
+      const main = this.completeMainDeck(classDecks[classKey] || starterDeck, { classKey, ownedOnly: Boolean(options.ownedOnly) });
+      const drive = this.completeDriveDeck(classDriveDecks[classKey] || starterDriveDeck, { classKey, ownedOnly: Boolean(options.ownedOnly) });
+      const mainDeck = this.preferRoyalCopies(main, false);
+      const driveDeck = this.preferRoyalCopies(drive, true);
       this.counts = mainDeck.normal;
       this.royalCounts = mainDeck.royal;
       this.driveCounts = driveDeck.normal;
       this.driveRoyalCounts = driveDeck.royal;
-      return template.label;
+      return `${classLabels[classKey]}おまかせ`;
     }
 
     completeMainDeck(source, options = {}) {
+      const classKey = sanitizeClassKey(options.classKey || this.currentClassKey || "blader");
       const result = this.normalizeMainForOwned(source, options);
-      const candidates = Object.values(cards)
-        .filter((card) => !isDriveCard(card) && card.type !== "環境")
-        .sort((a, b) => sortAutoBuildCandidates(a, b, options.theme));
-
+      const candidates = cardPool
+        .filter((card) => cardAllowedInClass(card, classKey))
+        .sort((a, b) => sortAutoBuildCandidates(a, b, classKey));
       for (const card of candidates) {
         const limit = this.autoBuildLimit(card.id, false, options.ownedOnly);
         while ((result[card.id] || 0) < limit && deckTotal(result) < DECK_SIZE) {
@@ -656,21 +360,21 @@
         }
         if (deckTotal(result) >= DECK_SIZE) break;
       }
-
-      return result;
+      return trimDeck(result, DECK_SIZE);
     }
 
     completeDriveDeck(source, options = {}) {
+      const classKey = sanitizeClassKey(options.classKey || this.currentClassKey || "blader");
       const result = this.normalizeDriveForOwned(source, options);
-      const candidates = drivePool.slice().sort((a, b) => sortAutoBuildCandidates(a, b, options.theme));
+      const candidates = drivePool.filter((card) => card.cardClass === classKey);
       for (const card of candidates) {
-        if (deckTotal(result) >= DRIVE_DECK_SIZE) break;
         const limit = this.autoBuildLimit(card.id, true, options.ownedOnly);
         while ((result[card.id] || 0) < limit && deckTotal(result) < DRIVE_DECK_SIZE) {
           result[card.id] = (result[card.id] || 0) + 1;
         }
+        if (deckTotal(result) >= DRIVE_DECK_SIZE) break;
       }
-      return result;
+      return trimDeck(result, DRIVE_DECK_SIZE);
     }
 
     preferRoyalCopies(source = {}, drive = false) {
@@ -691,23 +395,26 @@
     }
 
     normalizeMainForOwned(source = {}, options = {}) {
+      const classKey = sanitizeClassKey(options.classKey || this.currentClassKey || "blader");
       const result = {};
-      Object.entries(source).forEach(([id, count]) => {
-        if (!cards[id] || cards[id].driveKind || cards[id].type === "環境") return;
+      Object.entries(source || {}).forEach(([id, count]) => {
+        const card = cards[id];
+        if (!card || isDriveCard(card) || !cardAllowedInClass(card, classKey)) return;
         const limit = this.autoBuildLimit(id, false, options.ownedOnly);
-        const safeCount = Math.max(0, Math.min(limit, Number(count) || 0));
+        const safeCount = Math.max(0, Math.min(limit, Math.floor(Number(count) || 0)));
         if (safeCount > 0) result[id] = safeCount;
       });
       return trimDeck(result, DECK_SIZE);
     }
 
     normalizeDriveForOwned(source = starterDriveDeck, options = {}) {
+      const classKey = sanitizeClassKey(options.classKey || this.currentClassKey || "blader");
       const result = {};
-      const entries = Array.isArray(source) ? Object.entries(countIds(source)) : Object.entries(source || {});
-      entries.forEach(([id, count]) => {
-        if (!isDriveCard(cards[id])) return;
+      Object.entries(source || {}).forEach(([id, count]) => {
+        const card = cards[id];
+        if (!isDriveCard(card) || card.cardClass !== classKey) return;
         const limit = this.autoBuildLimit(id, true, options.ownedOnly);
-        const safeCount = Math.max(0, Math.min(limit, Number(count) || 0));
+        const safeCount = Math.max(0, Math.min(limit, Math.floor(Number(count) || 0)));
         if (safeCount > 0) result[id] = safeCount;
       });
       return trimDeck(result, DRIVE_DECK_SIZE);
@@ -719,25 +426,8 @@
       return Math.min(copyLimit, this.totalOwnedCount(id));
     }
 
-    persist() {
-      this.data.activeAccount = this.activeAccount;
-      this.activeAccountData.updatedAt = new Date().toISOString();
-      if (!this.isAuthenticated) return;
-      this.storage.setItem(STORAGE_KEY, JSON.stringify({
-        version: STORE_VERSION,
-        activeAccount: this.activeAccount,
-        accounts: this.data.accounts,
-      }));
-      this.localRevision += 1;
-      this.remoteDirty = true;
-      this.saveRemoteAccount();
-    }
-
     reset() {
-      this.counts = { ...starterDeck };
-      this.royalCounts = {};
-      this.driveCounts = { ...starterDriveDeck };
-      this.driveRoyalCounts = {};
+      this.autoBuild(this.currentClassKey || "blader");
     }
 
     clear() {
@@ -748,13 +438,17 @@
     }
 
     add(id, finish = "normal") {
-      if (!cards[id] || isDriveCard(cards[id]) || cards[id].type === "環境") return { ok: false, reason: "unknown" };
+      const card = cards[id];
+      if (!card || isDriveCard(card)) return { ok: false, reason: "unknown" };
+      if (!cardAllowedInClass(card, this.activeClass)) return { ok: false, reason: "class" };
+      if (this.total >= DECK_SIZE) return { ok: false, reason: "full" };
       const limit = this.deckLimit(id, false);
       if (this.deckCount(id, false) >= limit) return { ok: false, reason: "copies" };
       if (finish === ROYAL_FINISH) {
         if ((this.royalCounts[id] || 0) >= this.ownedCount(id, ROYAL_FINISH)) return { ok: false, reason: "owned" };
         this.royalCounts[id] = (this.royalCounts[id] || 0) + 1;
       } else {
+        if ((this.counts[id] || 0) >= this.ownedCount(id)) return { ok: false, reason: "owned" };
         this.counts[id] = (this.counts[id] || 0) + 1;
       }
       return { ok: true };
@@ -768,13 +462,17 @@
     }
 
     addDrive(id, finish = "normal") {
-      if (!isDriveCard(cards[id])) return { ok: false, reason: "unknown" };
+      const card = cards[id];
+      if (!isDriveCard(card)) return { ok: false, reason: "unknown" };
+      if (card.cardClass !== this.activeClass) return { ok: false, reason: "class" };
+      if (this.driveTotal >= DRIVE_DECK_SIZE) return { ok: false, reason: "full" };
       const limit = this.deckLimit(id, true);
       if (this.deckCount(id, true) >= limit) return { ok: false, reason: "copies" };
       if (finish === ROYAL_FINISH) {
         if ((this.driveRoyalCounts[id] || 0) >= this.ownedCount(id, ROYAL_FINISH)) return { ok: false, reason: "owned" };
         this.driveRoyalCounts[id] = (this.driveRoyalCounts[id] || 0) + 1;
       } else {
+        if ((this.driveCounts[id] || 0) >= this.ownedCount(id)) return { ok: false, reason: "owned" };
         this.driveCounts[id] = (this.driveCounts[id] || 0) + 1;
       }
       return { ok: true };
@@ -790,51 +488,34 @@
     openPack(packId) {
       const pack = this.packDefinitions.find((entry) => entry.id === packId) || this.packDefinitions[0];
       if (!pack) return { ok: false, reason: "empty", results: [] };
-      if (!this.isAuthorAccount && this.gems < PACK_COST) {
-        return { ok: false, reason: "gems", results: [], gems: this.gems };
-      }
+      if (!this.isAuthorAccount && this.gems < PACK_COST) return { ok: false, reason: "gems", results: [], gems: this.gems };
       if (!this.isAuthorAccount) this.activeAccountData.gems = Math.max(0, this.gems - PACK_COST);
-      const allPool = packPool(allPackCards());
-      const themePool = packPool(pack.cards);
+      const pool = pack.cards.length ? pack.cards : [...cardPool, ...drivePool];
       const results = [];
-      const royalPack = Math.random() < ROYAL_PACK_RATE;
-      for (let i = 0; i < PACK_SIZE - 1; i += 1) {
-        const card = pickWeighted(allPool);
+      for (let i = 0; i < PACK_SIZE; i += 1) {
+        const card = pool[Math.floor(Math.random() * pool.length)];
         if (!card) continue;
-        results.push(this.addPackResult(card, false, royalPack));
+        results.push(this.addPackResult(card, i === PACK_SIZE - 1));
       }
-      const guaranteed = pickWeighted(themePool);
-      if (guaranteed) results.push(this.addPackResult(guaranteed, true, royalPack));
       this.persist();
-      return { ok: true, pack, results, royalPack, gems: this.gems, cost: this.isAuthorAccount ? 0 : PACK_COST };
+      return { ok: true, pack, results, royalPack: false, gems: this.gems, cost: this.packCost };
     }
 
-    addPackResult(card, guaranteed = false, forceRoyal = false) {
-      const finish = forceRoyal || Math.random() < ROYAL_RATE ? ROYAL_FINISH : "normal";
-      const before = this.ownedCount(card.id, finish);
-      this.addOwned(card.id, 1, finish);
-      return {
-        id: card.id,
-        finish,
-        royalPack: forceRoyal,
-        before,
-        after: this.ownedCount(card.id, finish),
-        isNew: before === 0,
-        guaranteed,
-      };
+    addPackResult(card, guaranteed = false) {
+      const before = this.ownedCount(card.id);
+      this.addOwned(card.id, 1);
+      return { id: card.id, finish: "normal", before, after: this.ownedCount(card.id), isNew: before === 0, guaranteed };
     }
 
     addOwned(id, count = 1, finish = "normal") {
       if (!cards[id]) return 0;
-      const account = this.activeAccountData;
-      const collection = finish === ROYAL_FINISH ? (account.collectionRoyal ||= {}) : account.collection;
+      const collection = finish === ROYAL_FINISH ? (this.activeAccountData.collectionRoyal ||= {}) : this.activeAccountData.collection;
       collection[id] = Math.max(0, Number(collection[id] || 0) + count);
       return collection[id];
     }
 
     ownedCount(id, finish = "normal") {
       if (!cards[id]) return 0;
-      if (this.isAuthorAccount) return isDriveCard(cards[id]) ? MAX_DRIVE_COPIES : MAX_COPIES;
       const collection = finish === ROYAL_FINISH ? this.activeAccountData.collectionRoyal : this.activeAccountData.collection;
       return Math.max(0, Number(collection?.[id] || 0));
     }
@@ -845,7 +526,7 @@
 
     minimumOwnedCount(id, finish = "normal") {
       if (finish === ROYAL_FINISH || !cards[id]) return 0;
-      return Math.max(0, Number(this.initialCollection(starterDeck, starterDriveDeck)[id] || 0));
+      return Math.max(0, Number(this.initialCollection()[id] || 0));
     }
 
     dismantlableCount(id, finish = "normal") {
@@ -859,9 +540,8 @@
     }
 
     deckLimit(id, drive = false) {
-      const copyLimit = drive ? MAX_DRIVE_COPIES : MAX_COPIES;
       if (!cards[id]) return 0;
-      return copyLimit;
+      return drive ? MAX_DRIVE_COPIES : MAX_COPIES;
     }
 
     validateActiveDeckOwnership() {
@@ -871,10 +551,7 @@
         ...this.deckOwnershipIssues(this.driveCounts, true),
         ...this.deckOwnershipIssues(this.driveRoyalCounts, true, ROYAL_FINISH),
       ];
-      return {
-        ok: missing.length === 0,
-        missing,
-      };
+      return { ok: missing.length === 0, missing };
     }
 
     validateActiveDeckSize() {
@@ -892,27 +569,15 @@
     }
 
     deckOwnershipIssues(source, drive = false, finish = "normal") {
-      return Object.entries(source || {})
-        .map(([id, count]) => {
-          const owned = this.ownedCount(id, finish);
-          const copyLimit = drive ? MAX_DRIVE_COPIES : MAX_COPIES;
-          const limit = this.isAuthorAccount ? copyLimit : Math.min(copyLimit, owned);
-          return {
-            id,
-            name: cards[id]?.name || id,
-            count: Number(count) || 0,
-            owned,
-            drive,
-            finish,
-            limit,
-          };
-        })
-        .filter((entry) => entry.count > entry.limit);
+      return Object.entries(source || {}).map(([id, count]) => {
+        const owned = this.ownedCount(id, finish);
+        const limit = Math.min(this.deckLimit(id, drive), owned);
+        return { id, name: cards[id]?.name || id, count: Number(count) || 0, owned, drive, finish, limit };
+      }).filter((entry) => entry.count > entry.limit);
     }
 
     addGems(amount) {
       const gained = Math.max(0, Math.floor(Number(amount) || 0));
-      if (gained <= 0) return this.gems;
       this.activeAccountData.gems = this.gems + gained;
       this.persist();
       return this.gems;
@@ -920,39 +585,23 @@
 
     dismantleCard(id, finish = "normal") {
       if (!cards[id]) return { ok: false, reason: "unknown" };
-      if (this.isAuthorAccount) return { ok: false, reason: "author" };
-      const owned = this.ownedCount(id, finish);
-      if (owned < 1) return { ok: false, reason: "owned" };
-      const minimum = this.minimumOwnedCount(id, finish);
-      if (owned <= minimum) return { ok: false, reason: "minimum", minimum };
+      if (this.dismantlableCount(id, finish) < 1) return { ok: false, reason: "minimum" };
       const collection = finish === ROYAL_FINISH ? this.activeAccountData.collectionRoyal : this.activeAccountData.collection;
       const gained = finish === ROYAL_FINISH ? ROYAL_DUST_PER_DISMANTLE : DUST_PER_DISMANTLE;
-      collection[id] = owned - 1;
+      collection[id] = this.ownedCount(id, finish) - 1;
       this.activeAccountData.dust = this.dust + gained;
       this.persist();
-      return {
-        ok: true,
-        id,
-        finish,
-        ownedBefore: owned,
-        ownedAfter: this.ownedCount(id, finish),
-        gained,
-        dust: this.dust,
-      };
+      return { ok: true, id, finish, gained, dust: this.dust };
     }
 
     bulkDismantleExtras() {
-      if (this.isAuthorAccount) return { ok: false, reason: "author", dismantled: 0, gained: 0 };
       let dismantled = 0;
       let gained = 0;
-      const collection = this.activeAccountData.collection;
-      Object.entries(collection || {}).forEach(([id, count]) => {
-        if (!cards[id]) return;
-        const copyLimit = isDriveCard(cards[id]) ? MAX_DRIVE_COPIES : MAX_COPIES;
-        const keep = Math.max(copyLimit, this.minimumOwnedCount(id));
+      Object.entries(this.activeAccountData.collection || {}).forEach(([id, count]) => {
+        const keep = Math.max(this.deckLimit(id, isDriveCard(cards[id])), this.minimumOwnedCount(id));
         const extra = Math.max(0, Math.floor(Number(count) || 0) - keep);
         if (extra <= 0) return;
-        collection[id] = count - extra;
+        this.activeAccountData.collection[id] = count - extra;
         dismantled += extra;
         gained += extra * DUST_PER_DISMANTLE;
       });
@@ -964,18 +613,11 @@
 
     craftCard(id) {
       if (!cards[id]) return { ok: false, reason: "unknown" };
-      if (this.isAuthorAccount) return { ok: false, reason: "author" };
       if (this.dust < CRAFT_COST) return { ok: false, reason: "dust" };
       this.activeAccountData.dust = this.dust - CRAFT_COST;
       this.addOwned(id, 1);
       this.persist();
-      return {
-        ok: true,
-        id,
-        cost: CRAFT_COST,
-        owned: this.ownedCount(id),
-        dust: this.dust,
-      };
+      return { ok: true, id, cost: CRAFT_COST, owned: this.ownedCount(id), dust: this.dust };
     }
 
     rewardCpuResult(won) {
@@ -991,26 +633,99 @@
     }
 
     claimAllPresents() {
-      const presents = this.presents;
-      if (presents.length === 0) return { ok: false, reason: "empty", gems: 0, count: 0 };
-      const gainedGems = presents
-        .filter((present) => present.type === PRESENT_TYPE_GEMS)
-        .reduce((sum, present) => sum + present.amount, 0);
+      const count = this.presents.length;
       this.activeAccountData.presents = [];
-      if (gainedGems > 0) this.activeAccountData.gems = this.gems + gainedGems;
       this.persist();
-      return { ok: true, gems: gainedGems, count: presents.length };
+      return { ok: count > 0, gems: 0, count };
     }
 
     applyRankedSnapshot(snapshot) {
-      if (!snapshot) return this.ranked;
-      const incoming = normalizeRankedRecord(snapshot);
-      const current = normalizeRankedRecord(this.activeAccountData.ranked);
-      if (Date.parse(incoming.updatedAt) >= Date.parse(current.updatedAt)) {
-        this.activeAccountData.ranked = incoming;
-        this.persist();
-      }
+      this.activeAccountData.ranked = normalizeRankedRecord(snapshot);
+      this.persist();
       return this.ranked;
+    }
+
+    switchAccount(name) {
+      const accountName = normalizeAccountName(name);
+      if (!this.data.accounts[accountName]) this.data.accounts[accountName] = this.defaultAccount();
+      this.activeAccount = accountName;
+      this.data.activeAccount = accountName;
+      const account = this.activeAccountData;
+      this.loadPreset(account.activeDeckId);
+      return account;
+    }
+
+    async register() {
+      throw new Error("新ルール移行中のため、ローカルゲストで利用してください。");
+    }
+
+    async login() {
+      throw new Error("新ルール移行中のため、ローカルゲストで利用してください。");
+    }
+
+    async logout() {
+      this.saveAuth(null);
+      this.applyLoadedState(this.guestState());
+    }
+
+    updateDisplayName(displayName) {
+      const name = String(displayName || this.activeAccountData.displayName || this.activeAccount).trim().slice(0, 24);
+      this.activeAccountData.displayName = name || this.activeAccount;
+      this.activeAccountData.name = this.activeAccountData.displayName;
+      this.persist();
+      return this.activeAccountData.displayName;
+    }
+
+    applyAuthenticatedAccount(account) {
+      const accountName = normalizeAccountName(account.username || account.name || DEFAULT_ACCOUNT);
+      this.data.accounts[accountName] = this.normalizeAccount(accountName, account);
+      this.switchAccount(accountName);
+    }
+
+    applyLoadedState(loaded) {
+      this.data = loaded.data;
+      this.activeAccount = loaded.activeAccount;
+      this.activeDeckId = loaded.activeDeckId;
+      this.counts = loaded.counts;
+      this.royalCounts = loaded.royalCounts;
+      this.driveCounts = loaded.driveCounts;
+      this.driveRoyalCounts = loaded.driveRoyalCounts;
+      this.currentClassKey = this.activeDeck?.classKey || inferClassKey(this.counts) || "blader";
+      this.persist();
+    }
+
+    setPendingLoginBonus(reward) {
+      this.pendingLoginBonus = normalizeLoginBonusReward(reward);
+    }
+
+    takeLoginBonusReward() {
+      const reward = this.pendingLoginBonus;
+      this.pendingLoginBonus = null;
+      return reward;
+    }
+
+    persist() {
+      this.data.activeAccount = this.activeAccount;
+      this.activeAccountData.updatedAt = new Date().toISOString();
+      this.storage.setItem(STORAGE_KEY, JSON.stringify({
+        version: STORE_VERSION,
+        activeAccount: this.activeAccount,
+        accounts: this.data.accounts,
+      }));
+    }
+
+    persistLocalOnly() {
+      this.persist();
+    }
+
+    async syncActiveAccount() {
+      return this.activeAccountData;
+    }
+
+    saveRemoteAccount() {}
+
+    authHeaders() {
+      return { Authorization: `Bearer ${this.auth?.token || ""}`, "X-Account-Username": this.auth?.username || this.activeAccount || "" };
     }
 
     get total() {
@@ -1022,17 +737,11 @@
     }
 
     get list() {
-      return [
-        ...Object.entries(this.counts).flatMap(([id, count]) => Array(count).fill(id)),
-        ...Object.entries(this.royalCounts).flatMap(([id, count]) => Array(count).fill(id)),
-      ];
+      return [...countsToList(this.counts), ...countsToList(this.royalCounts)];
     }
 
     get driveList() {
-      return [
-        ...Object.entries(this.driveCounts).flatMap(([id, count]) => Array(count).fill(id)),
-        ...Object.entries(this.driveRoyalCounts).flatMap(([id, count]) => Array(count).fill(id)),
-      ];
+      return [...countsToList(this.driveCounts), ...countsToList(this.driveRoyalCounts)];
     }
 
     get royalBattleIds() {
@@ -1045,6 +754,10 @@
 
     get driveReady() {
       return this.driveTotal === DRIVE_DECK_SIZE;
+    }
+
+    get activeClass() {
+      return sanitizeClassKey(this.currentClassKey || this.activeDeck?.classKey || "blader");
     }
 
     get isAuthorAccount() {
@@ -1064,8 +777,7 @@
     }
 
     get rankedLabel() {
-      const ranked = this.ranked;
-      return `${rankName(ranked.points)} ${ranked.points} RP`;
+      return `ブロンズ ${this.ranked.points} RP`;
     }
 
     get presents() {
@@ -1093,7 +805,29 @@
     }
 
     get packDefinitions() {
-      return themePacks();
+      return [
+        {
+          id: "standard",
+          name: "クロノドライブ基本パック",
+          theme: "汎用",
+          description: "新ルール用カード全体から入手できます。",
+          count: cardPool.length + drivePool.length,
+          cover: "",
+          cards: [...cardPool, ...drivePool],
+        },
+        ...classEntries.map((entry) => {
+          const packCards = [...cardPool, ...drivePool].filter((card) => card.cardClass === entry.id || card.cardClass === "generic");
+          return {
+            id: entry.id,
+            name: `${entry.name}パック`,
+            theme: entry.name,
+            description: entry.description,
+            count: packCards.length,
+            cover: "",
+            cards: packCards,
+          };
+        }),
+      ];
     }
 
     get activeAccountData() {
@@ -1121,513 +855,171 @@
     }
 
     get deckPresets() {
-      return Object.values(this.activeAccountData.decks)
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      return Object.values(this.activeAccountData.decks).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     }
 
     nextDeckName() {
       return `デッキ ${this.deckPresets.length + 1}`;
     }
 
-    initialCollection(mainDeck = starterDeck, driveDeck = starterDriveDeck) {
+    initialCollection() {
       const result = {};
-      Object.entries(this.normalizeMain(mainDeck)).forEach(([id, count]) => {
-        result[id] = Math.max(result[id] || 0, Number(count) || 0);
+      cardPool.forEach((card) => {
+        result[card.id] = MAX_COPIES;
       });
-      Object.entries(this.normalizeDrive(driveDeck)).forEach(([id, count]) => {
-        result[id] = Math.max(result[id] || 0, Number(count) || 0);
+      drivePool.forEach((card) => {
+        result[card.id] = MAX_DRIVE_COPIES;
       });
       return result;
     }
 
-    normalizeCollection(collection = {}, decks = {}, finish = "normal") {
+    normalizeCollection(collection = {}, finish = "normal") {
       const result = {};
       Object.entries(collection || {}).forEach(([id, count]) => {
         if (!cards[id]) return;
         const safeCount = Math.max(0, Math.floor(Number(count) || 0));
         if (safeCount > 0) result[id] = safeCount;
       });
-
       if (finish !== ROYAL_FINISH) {
-        Object.entries(this.initialCollection(starterDeck, starterDriveDeck)).forEach(([id, count]) => {
+        Object.entries(this.initialCollection()).forEach(([id, count]) => {
           result[id] = Math.max(result[id] || 0, Number(count) || 0);
         });
       }
-
       return result;
     }
 
-    async syncActiveAccount() {
-      if (!canUseRemoteSync()) return this.activeAccountData;
-      if (!this.auth?.token) return this.activeAccountData;
-      if (this.remoteDirty || this.remoteSaveInFlight) {
-        this.saveRemoteAccount();
-        return this.activeAccountData;
-      }
-      const syncRevision = this.localRevision;
-      try {
-        const response = await fetch("/api/account", {
-          cache: "no-store",
-          headers: this.authHeaders(),
-        });
-        if (response.status === 401) {
-          this.saveAuth(null);
-          this.storage.removeItem(STORAGE_KEY);
-          this.applyLoadedState(this.guestState());
-          return this.activeAccountData;
-        }
-        if (!response.ok) throw new Error("account sync failed");
-        const remote = await response.json();
-        if (this.localRevision !== syncRevision || this.remoteDirty || this.remoteSaveInFlight) {
-          return this.activeAccountData;
-        }
-        if (remote?.account) {
-          if (remote.loginBonus) this.setPendingLoginBonus(remote.loginBonus);
-          this.mergeRemoteAccount(remote.account);
-          this.persistLocalOnly();
-          this.saveRemoteAccount();
-        } else {
-          this.saveRemoteAccount();
-        }
-      } catch {
-        return this.activeAccountData;
-      }
-      return this.activeAccountData;
-    }
-
-    mergeRemoteAccount(remote) {
-      const accountName = normalizeAccountName(remote.username || remote.name || this.activeAccount);
-      const local = this.data.accounts[accountName] || this.defaultAccount(starterDeck, starterDriveDeck);
-      const newer = accountUpdatedAt(remote) >= accountUpdatedAt(local) ? remote : local;
-      const loginBonusState = mergeLoginBonusState(local, remote);
-      const merged = this.normalizeAccount(accountName, {
-        ...local,
-        ...remote,
-        gems: newer.gems,
-        dust: newer.dust,
-        ranked: mergeRankedByUpdated(local.ranked, remote.ranked),
-        presents: loginBonusState.remoteHasNewerProgress ? remote.presents : newer.presents,
-        lastLoginBonusDate: loginBonusState.lastLoginBonusDate,
-        loginBonus: loginBonusState.loginBonus,
-        collection: newer.collection,
-        collectionRoyal: newer.collectionRoyal,
-        updatedAt: newer.updatedAt,
-        decks: mergeDecksByUpdated(local.decks, remote.decks),
-        activeDeckId: local.activeDeckId || remote.activeDeckId,
-      });
-      this.data.accounts[accountName] = merged;
-      this.activeAccount = accountName;
-      this.data.activeAccount = accountName;
-      this.activeDeckId = merged.activeDeckId;
-      const deck = merged.decks[this.activeDeckId];
-      this.counts = this.normalizeMain(deck.mainDeck);
-      this.royalCounts = this.normalizeMain(deck.mainDeckRoyal);
-      this.driveCounts = this.normalizeDrive(deck.driveDeck);
-      this.driveRoyalCounts = this.normalizeDrive(deck.driveDeckRoyal || {});
-    }
-
-    persistLocalOnly() {
-      this.data.activeAccount = this.activeAccount;
-      this.storage.setItem(STORAGE_KEY, JSON.stringify({
-        version: STORE_VERSION,
-        activeAccount: this.activeAccount,
-        accounts: this.data.accounts,
-      }));
-    }
-
-    saveRemoteAccount() {
-      if (!canUseRemoteSync()) return;
-      if (!this.auth?.token) return;
-      const saveRevision = this.localRevision;
-      window.clearTimeout(this.remoteSaveTimer);
-      this.remoteSaveTimer = window.setTimeout(() => {
-        const account = JSON.parse(JSON.stringify(this.activeAccountData));
-        this.remoteSaveInFlight = true;
-        fetch("/api/account", {
-          method: "PUT",
-          headers: {
-            ...this.authHeaders(),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ account }),
-        }).then((response) => {
-          if (response.ok && this.localRevision === saveRevision) this.remoteDirty = false;
-        }).catch(() => {}).finally(() => {
-          if (this.localRevision === saveRevision) this.remoteSaveInFlight = false;
-        });
-      }, 80);
-    }
-
-    authHeaders() {
-      return {
-        Authorization: `Bearer ${this.auth?.token || ""}`,
-        "X-Account-Username": this.auth?.username || this.activeAccount || "",
-      };
-    }
-
     get stats() {
-      return {
-        ...this.combinedStats,
-        reactions: this.list.map((id) => cards[id]).filter((card) => card.type === "リアクション").length,
-      };
+      return this.combinedStats;
     }
 
     get driveStats() {
-      const driveCards = this.driveList.map((id) => cards[id]);
-      return {
-        ...this.combinedStats,
-        units: driveCards.filter((card) => card.type === "ユニットドライブ").length,
-        reactions: driveCards.filter((card) => card.type === "リアクションドライブ").length,
-        spells: driveCards.filter((card) => card.type === "スペルドライブ").length,
-        cores: driveCards.filter((card) => card.type === "コアドライブ").length,
-      };
+      return this.combinedStats;
     }
 
     get combinedStats() {
-      const deckCards = [...this.list, ...this.driveList].map((id) => cards[id]);
-      const mainThemeInfo = this.mainThemeInfo;
-      const mainTheme = mainThemeInfo.theme;
-      const themed = mainTheme === "なし" ? 0 : mainThemeInfo.count;
-      const avgCost = deckCards.length
-        ? deckCards.reduce((sum, card) => sum + card.cost, 0) / deckCards.length
-        : 0;
-
+      const deckCards = [...this.list, ...this.driveList].map((id) => cards[id]).filter(Boolean);
+      const classKey = this.activeClass;
+      const themed = deckCards.filter((card) => card.cardClass === classKey).length;
+      const avgCost = deckCards.length ? deckCards.reduce((sum, card) => sum + Number(card.cost || 0), 0) / deckCards.length : 0;
       return {
         total: deckCards.length,
         themeRate: deckCards.length ? Math.round((themed / deckCards.length) * 100) : 0,
         avgCost,
-        mainTheme,
+        mainTheme: classLabels[classKey] || "なし",
       };
     }
 
     get mainThemeInfo() {
-      const themeCounts = new Map();
-      [...this.list, ...this.driveList].forEach((id) => {
-        const theme = cards[id]?.theme;
-        if (!theme) return;
-        themeCounts.set(theme, (themeCounts.get(theme) || 0) + 1);
-      });
-
-      let theme = "なし";
-      let count = 0;
-      themeCounts.forEach((currentCount, currentTheme) => {
-        if (currentCount > count) {
-          theme = currentTheme;
-          count = currentCount;
-        }
-      });
-
-      return {
-        theme: count > MAIN_THEME_THRESHOLD ? theme : "なし",
-        count,
-      };
+      return { theme: classLabels[this.activeClass] || "なし", count: this.total };
     }
   }
 
-  function themedDriveDeck(theme) {
-    const result = {};
-    const candidates = drivePool.filter((card) => card.theme === theme || !card.theme);
-    candidates.slice(0, DRIVE_DECK_SIZE).forEach((card) => {
-      result[card.id] = 1;
-    });
-
-    let index = 0;
-    while (deckTotal(result) < DRIVE_DECK_SIZE && candidates.length > 0) {
-      const card = candidates[index % candidates.length];
-      const current = result[card.id] || 0;
-      if (current < MAX_DRIVE_COPIES) result[card.id] = current + 1;
-      index += 1;
-      if (index > candidates.length * MAX_DRIVE_COPIES) break;
-    }
-    return result;
+  function cardAllowedInClass(card, classKey) {
+    return card?.cardClass === "generic" || card?.cardClass === classKey;
   }
 
-  function sortAutoBuildCandidates(a, b, theme = "") {
-    const themeA = autoBuildThemeRank(a, theme);
-    const themeB = autoBuildThemeRank(b, theme);
-    if (themeA !== themeB) return themeA - themeB;
-    const costA = Number.isFinite(a.cost) ? a.cost : 0;
-    const costB = Number.isFinite(b.cost) ? b.cost : 0;
-    if (costA !== costB) return costA - costB;
-    if (a.type !== b.type) return a.type.localeCompare(b.type, "ja");
-    return a.name.localeCompare(b.name, "ja");
-  }
-
-  function autoBuildThemeRank(card, theme = "") {
-    if (!theme) return 0;
-    if (card.theme === theme) return 0;
-    if (!card.theme) return 1;
-    return 2;
+  function sortAutoBuildCandidates(a, b, classKey) {
+    const aRank = a.cardClass === classKey ? 0 : 1;
+    const bRank = b.cardClass === classKey ? 0 : 1;
+    return aRank - bRank || Number(a.cost || 0) - Number(b.cost || 0) || a.name.localeCompare(b.name, "ja");
   }
 
   function isDriveCard(card) {
-    return Boolean(card?.driveKind || card?.type?.includes("ドライブ"));
+    return Boolean(card?.driveKind || card?.type === "ドライブユニット");
   }
 
   function trimDeck(source, size) {
     const result = {};
-    Object.entries(source).some(([id, count]) => {
-      const room = size - deckTotal(result);
-      if (room <= 0) return true;
-      result[id] = Math.min(count, room);
-      return false;
+    let total = 0;
+    Object.entries(source || {}).forEach(([id, count]) => {
+      if (!cards[id]) return;
+      const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+      const room = Math.max(0, size - total);
+      const keep = Math.min(safeCount, room);
+      if (keep > 0) {
+        result[id] = keep;
+        total += keep;
+      }
     });
     return result;
   }
 
   function deckTotal(source) {
-    return Object.values(source).reduce((sum, count) => sum + count, 0);
+    return Object.values(source || {}).reduce((sum, count) => sum + Math.max(0, Math.floor(Number(count) || 0)), 0);
   }
 
-  function allPackCards() {
-    return [...cardPool.filter((card) => card.type !== "環境"), ...drivePool];
-  }
-
-  function themePacks() {
-    const themes = [...new Set(allPackCards().map((card) => card.theme).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b, "ja"));
-    return themes.map((theme) => {
-      const themeCards = allPackCards().filter((card) => card.theme === theme);
-      const ace = PACK_COVERS[theme]?.ace || themeAceCard(themeCards)?.id || themeCards[0]?.id || "";
-      return {
-        id: themePackId(theme),
-        theme,
-        name: `${theme}パック`,
-        description: `5枚目は${theme}カード確定`,
-        cover: PACK_COVERS[theme]?.image || cards[ace]?.art || "",
-        ace,
-        cards: themeCards,
-        count: themeCards.length,
-      };
-    });
-  }
-
-  function themePackId(theme) {
-    return `theme_${Array.from(theme).map((char) => char.charCodeAt(0).toString(16)).join("_")}`;
-  }
-
-  function themeAceCard(themeCards) {
-    return themeCards
-      .filter((card) => card.type?.includes("ユニット"))
-      .sort((a, b) => (Number(b.cost) || 0) - (Number(a.cost) || 0) || (Number(b.atk) || 0) - (Number(a.atk) || 0))[0];
-  }
-
-  function packPool(source) {
-    return source.map((card) => ({
-      card,
-      weight: packWeight(card),
-    }));
-  }
-
-  function packWeight(card) {
-    if (!card) return 0;
-    if (isDriveCard(card)) return 8;
-    const cost = Number(card.cost) || 0;
-    if (cost >= 4) return 4;
-    if (cost >= 3) return 8;
-    if (cost >= 2) return 14;
-    return 22;
-  }
-
-  function pickWeighted(entries) {
-    const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
-    if (total <= 0) return null;
-    let roll = Math.random() * total;
-    for (const entry of entries) {
-      roll -= entry.weight;
-      if (roll <= 0) return entry.card;
-    }
-    return entries[entries.length - 1]?.card;
+  function countsToList(counts = {}) {
+    return Object.entries(counts).flatMap(([id, count]) => Array(Math.max(0, Math.floor(Number(count) || 0))).fill(id));
   }
 
   function countIds(list) {
-    return list.reduce((result, id) => {
-      const key = cardIdOf(id);
-      result[key] = (result[key] || 0) + 1;
-      return result;
+    return list.reduce((map, id) => {
+      map[id] = (map[id] || 0) + 1;
+      return map;
     }, {});
   }
 
-  function cardIdOf(entry) {
-    return typeof entry === "string" ? entry : entry?.id;
-  }
-
   function normalizeAccountName(name) {
-    const text = String(name || "").trim().replace(/\s+/g, " ");
-    return text.slice(0, 24) || DEFAULT_ACCOUNT;
+    return String(name || DEFAULT_ACCOUNT).trim().slice(0, 24) || DEFAULT_ACCOUNT;
   }
 
   function normalizeDeckName(name) {
-    const text = String(name || "").trim().replace(/\s+/g, " ");
-    return text.slice(0, 32) || "メインデッキ";
+    return String(name || "デッキ").trim().slice(0, 32) || "デッキ";
   }
 
   function sanitizeId(id) {
-    return String(id || DEFAULT_DECK_ID).replace(/[^a-zA-Z0-9_-]/g, "_") || DEFAULT_DECK_ID;
+    return String(id || "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 48) || uniqueId();
   }
 
   function uniqueDeckId(decks) {
-    let id = `deck_${Date.now().toString(36)}`;
-    while (decks[id]) id = `deck_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}`;
+    let index = Object.keys(decks || {}).length + 1;
+    let id = `deck_${index}`;
+    while (decks[id]) {
+      index += 1;
+      id = `deck_${index}`;
+    }
     return id;
   }
 
-  function mergeMaxCounts(a = {}, b = {}) {
-    const result = {};
-    [...Object.keys(a || {}), ...Object.keys(b || {})].forEach((id) => {
-      if (!cards[id]) return;
-      const count = Math.max(Number(a[id]) || 0, Number(b[id]) || 0);
-      if (count > 0) result[id] = count;
-    });
-    return result;
+  function uniqueId() {
+    return `deck_${Date.now().toString(36)}`;
   }
 
-  function mergeDecksByUpdated(local = {}, remote = {}) {
-    const result = { ...(remote || {}) };
-    Object.entries(local || {}).forEach(([id, deck]) => {
-      const existing = result[id];
-      if (!existing || String(deck.updatedAt || "") >= String(existing.updatedAt || "")) result[id] = deck;
+  function sanitizeClassKey(value) {
+    const key = String(value || "blader");
+    return CLASSES?.[key] ? key : "blader";
+  }
+
+  function inferClassKey(counts = {}) {
+    const tally = {};
+    Object.entries(counts || {}).forEach(([id, count]) => {
+      const card = cards[id];
+      if (!card || card.cardClass === "generic") return;
+      tally[card.cardClass] = (tally[card.cardClass] || 0) + Number(count || 0);
     });
-    return result;
+    return Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
   }
 
   function normalizeRankedRecord(source = {}) {
-    const record = source && typeof source === "object" ? source : {};
-    const rawPoints = Number(record.points ?? record.pointsAfter);
-    const points = Math.max(0, Math.floor(Number.isFinite(rawPoints) ? rawPoints : RANKED_INITIAL_POINTS));
     return {
-      points,
-      wins: Math.max(0, Math.floor(Number(record.wins) || 0)),
-      losses: Math.max(0, Math.floor(Number(record.losses) || 0)),
-      streak: Math.max(0, Math.floor(Number(record.streak) || 0)),
-      bestPoints: Math.max(points, Math.floor(Number(record.bestPoints) || points)),
-      updatedAt: String(record.updatedAt || new Date().toISOString()),
+      points: Math.max(0, Math.floor(Number(source.points) || 1000)),
+      wins: Math.max(0, Math.floor(Number(source.wins) || 0)),
+      losses: Math.max(0, Math.floor(Number(source.losses) || 0)),
+      streak: Math.max(0, Math.floor(Number(source.streak) || 0)),
+      updatedAt: String(source.updatedAt || new Date().toISOString()),
     };
-  }
-
-  function mergeRankedByUpdated(local = {}, remote = {}) {
-    if (!hasRankedRecord(remote)) return normalizeRankedRecord(local);
-    if (!hasRankedRecord(local)) return normalizeRankedRecord(remote);
-    const localRanked = normalizeRankedRecord(local);
-    const remoteRanked = normalizeRankedRecord(remote);
-    return Date.parse(remoteRanked.updatedAt) >= Date.parse(localRanked.updatedAt)
-      ? remoteRanked
-      : localRanked;
-  }
-
-  function hasRankedRecord(source) {
-    return Boolean(source && typeof source === "object" && (
-      source.points !== undefined ||
-      source.pointsAfter !== undefined ||
-      source.wins !== undefined ||
-      source.losses !== undefined ||
-      source.updatedAt !== undefined
-    ));
-  }
-
-  function rankName(points) {
-    if (points >= 2600) return "マスター";
-    if (points >= 2200) return "ダイヤ";
-    if (points >= 1800) return "プラチナ";
-    if (points >= 1500) return "ゴールド";
-    if (points >= 1200) return "シルバー";
-    return "ブロンズ";
   }
 
   function normalizePresents(source = []) {
-    if (!Array.isArray(source)) return [];
-    return source
-      .map((entry) => {
-        const type = entry?.type === PRESENT_TYPE_GEMS ? PRESENT_TYPE_GEMS : "";
-        const amount = Math.max(0, Math.floor(Number(entry?.amount) || 0));
-        if (!type || amount <= 0) return null;
-        return {
-          id: sanitizePresentId(entry.id) || `present_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}`,
-          type,
-          amount,
-          title: String(entry.title || "プレゼント").trim().slice(0, 32) || "プレゼント",
-          message: String(entry.message || "").trim().slice(0, 120),
-          createdAt: String(entry.createdAt || new Date().toISOString()),
-        };
-      })
-      .filter(Boolean)
-      .slice(-100);
+    return Array.isArray(source) ? source.filter(Boolean) : [];
   }
 
   function normalizeLoginBonusRecord(source = {}) {
-    const record = source && typeof source === "object" ? source : {};
-    return {
-      cycleDay: Math.max(0, Math.min(LOGIN_BONUS_CYCLE_DAYS, Math.floor(Number(record.cycleDay) || 0))),
-      totalClaims: Math.max(0, Math.floor(Number(record.totalClaims) || 0)),
-      updatedAt: String(record.updatedAt || ""),
-    };
-  }
-
-  function mergeLoginBonusState(local = {}, remote = {}) {
-    const localRecord = normalizeLoginBonusRecord(local.loginBonus);
-    const remoteRecord = normalizeLoginBonusRecord(remote.loginBonus);
-    const localDate = String(local.lastLoginBonusDate || "");
-    const remoteDate = String(remote.lastLoginBonusDate || "");
-    const localClaims = inferredLoginBonusClaims(localRecord, localDate);
-    const remoteClaims = inferredLoginBonusClaims(remoteRecord, remoteDate);
-    const useRemoteRecord = remoteClaims > localClaims || (
-      remoteClaims === localClaims &&
-      loginBonusUpdatedAt(remoteRecord, remote) >= loginBonusUpdatedAt(localRecord, local)
-    );
-
-    return {
-      remoteHasNewerProgress: remoteClaims > localClaims,
-      lastLoginBonusDate: latestLoginBonusDate(localDate, remoteDate),
-      loginBonus: useRemoteRecord ? remoteRecord : localRecord,
-    };
-  }
-
-  function inferredLoginBonusClaims(record = {}, lastLoginBonusDate = "") {
-    const clean = normalizeLoginBonusRecord(record);
-    const claims = Math.max(clean.totalClaims, clean.cycleDay);
-    return claims > 0 ? claims : (lastLoginBonusDate ? 1 : 0);
-  }
-
-  function latestLoginBonusDate(a = "", b = "") {
-    const left = String(a || "");
-    const right = String(b || "");
-    return right > left ? right : left;
-  }
-
-  function loginBonusUpdatedAt(record = {}, account = {}) {
-    const time = Date.parse(record.updatedAt || account.updatedAt || "");
-    return Number.isFinite(time) ? time : 0;
+    return { claimedDates: Array.isArray(source.claimedDates) ? source.claimedDates : [] };
   }
 
   function normalizeLoginBonusReward(source = {}) {
-    if (!source || typeof source !== "object") return null;
-    const type = source.type === PRESENT_TYPE_GEMS ? PRESENT_TYPE_GEMS : "";
-    const amount = Math.max(0, Math.floor(Number(source.amount) || 0));
-    if (!type || amount <= 0) return null;
-    return {
-      id: sanitizePresentId(source.id) || `login_${Date.now().toString(36)}`,
-      type,
-      amount,
-      date: String(source.date || ""),
-      cycleDay: Math.max(1, Math.min(LOGIN_BONUS_CYCLE_DAYS, Math.floor(Number(source.cycleDay) || 1))),
-      totalClaims: Math.max(0, Math.floor(Number(source.totalClaims) || 0)),
-      cycleDays: Math.max(1, Math.min(31, Math.floor(Number(source.cycleDays) || LOGIN_BONUS_CYCLE_DAYS))),
-      resetHour: Math.max(0, Math.min(23, Math.floor(Number(source.resetHour) || 0))),
-      timeZone: String(source.timeZone || "Asia/Tokyo"),
-    };
-  }
-
-  function sanitizePresentId(id) {
-    return String(id || "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 48);
-  }
-
-  function accountUpdatedAt(account = {}) {
-    const time = Date.parse(account.updatedAt || "");
-    return Number.isFinite(time) ? time : 0;
-  }
-
-  function canUseRemoteSync() {
-    return window.location.protocol !== "file:" && typeof fetch === "function";
+    return source && typeof source === "object" ? source : null;
   }
 
   window.Chrono.DeckStore = DeckStore;

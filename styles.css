@@ -2730,6 +2730,252 @@ select {
   background-size: cover;
 }
 
+/* New-rule card frame and unified field overrides */
+.type-unit,
+.type-spell,
+.type-core,
+.type-unit-drive {
+  --card-frame-image: url("assets/cards/frames/chrono-v2-card-frame.png");
+}
+
+.core-row,
+.reaction-row {
+  display: none !important;
+}
+
+.game-card .card-face {
+  position: relative;
+  overflow: hidden;
+}
+
+.game-card .card-mini-top {
+  position: absolute;
+  left: 17%;
+  right: 17%;
+  top: 5.5%;
+  z-index: 5;
+  min-height: 10%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.game-card .card-name {
+  max-width: 100%;
+  color: #f8f2d7;
+  font-size: clamp(0.42rem, 0.75em, 0.86rem);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  text-shadow: 0 1px 2px #000, 0 0 8px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.game-card .card-art {
+  position: absolute;
+  left: 13%;
+  top: 17%;
+  width: 74%;
+  height: 58%;
+  border-radius: 3px;
+  background-image: var(--card-art-url);
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 8px 18px rgba(0, 0, 0, 0.38);
+}
+
+.game-card .card-art.large {
+  top: 16%;
+  height: 60%;
+}
+
+.game-card .placeholder-art {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.2), rgba(24, 26, 38, 0.86));
+}
+
+.game-card .placeholder-art svg {
+  width: 42%;
+  height: 42%;
+  color: rgba(255, 255, 255, 0.54);
+}
+
+.game-card .rules-box {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: 12%;
+  z-index: 3;
+  min-height: 8%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.game-card .rules-box .type-line {
+  color: rgba(245, 237, 206, 0.82);
+  font-size: 0.52rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+}
+
+.game-card .card-effect,
+.game-card .battle-stats,
+.game-card .cost-chip {
+  display: none;
+}
+
+.card-stat-chip {
+  position: absolute;
+  z-index: 8;
+  width: 20%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff8df;
+  font-weight: 900;
+  font-size: clamp(0.74rem, 1.6em, 1.55rem);
+  line-height: 1;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.86);
+  box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.35), 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.card-cost-chip {
+  left: 1.5%;
+  top: 2%;
+  background: linear-gradient(145deg, #62dd69, #168e40 68%, #075225);
+}
+
+.card-drive-chip {
+  right: 2%;
+  top: 2.5%;
+  background: linear-gradient(145deg, #6fe5ff, #2479c9 62%, #133c7a);
+}
+
+.card-attack-chip {
+  left: 3%;
+  bottom: 2.5%;
+  background: linear-gradient(145deg, #4aa9ff, #154fba 62%, #0b2366);
+}
+
+.card-durability-chip {
+  right: 3%;
+  bottom: 2.5%;
+  background: linear-gradient(145deg, #ff625f, #b0182e 62%, #650817);
+}
+
+.tcg-card.small .card-stat-chip,
+.library-card .card-stat-chip {
+  font-size: clamp(0.48rem, 1.05em, 1rem);
+}
+
+.state-tag {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 22%;
+  z-index: 9;
+  padding: 0.18rem 0.28rem;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(11, 14, 24, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+  overflow-wrap: anywhere;
+}
+
+.drive-pile-field small {
+  position: relative;
+  z-index: 2;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.class-select-dialog {
+  width: min(760px, calc(100vw - 32px));
+}
+
+.class-select-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.class-select-card {
+  display: grid;
+  grid-template-rows: 132px auto;
+  gap: 10px;
+  min-height: 236px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(20, 25, 34, 0.92);
+  text-align: left;
+  cursor: pointer;
+}
+
+.class-select-card:hover,
+.class-select-card:focus-visible {
+  border-color: rgba(118, 213, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.class-select-art {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #111722;
+}
+
+.class-select-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.class-select-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.class-select-copy strong {
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.class-select-copy small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .class-select-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .class-select-card {
+    grid-template-columns: 112px 1fr;
+    grid-template-rows: auto;
+    min-height: 128px;
+  }
+}
+
 .mode-ranked[data-rank-tier="silver"] .duel-mode-visual-ranked {
   background-image: url("assets/ui/ranked/rank-silver.png");
 }
@@ -3562,6 +3808,68 @@ select {
 .opponent-side .charge-card.tcg-card.small.tapped,
 .opponent-side .charge-card.tcg-card.facedown.tapped {
   transform: translateY(-50%) rotate(270deg) translateY(2px);
+}
+
+/* Keep the new-rule layout last so legacy board/card rules cannot override it. */
+.type-unit,
+.type-spell,
+.type-core,
+.type-unit-drive {
+  --card-frame-image: url("assets/cards/frames/chrono-v2-card-frame.png");
+}
+
+.core-row,
+.reaction-row {
+  display: none !important;
+}
+
+.game-card .card-mini-top {
+  position: absolute;
+  left: 17%;
+  right: 17%;
+  top: 5.5%;
+  z-index: 5;
+  min-height: 10%;
+  display: grid;
+  place-items: center;
+}
+
+.game-card .card-art,
+.core-row .tcg-card.small .card-face .card-art,
+.reaction-row .tcg-card.small .card-face .card-art {
+  position: absolute;
+  left: 13%;
+  top: 17%;
+  width: 74%;
+  height: 58%;
+  border-radius: 3px;
+  background-image: var(--card-art-url);
+  background-size: cover;
+  background-position: center;
+}
+
+.game-card .rules-box {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: 12%;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.game-card .card-effect,
+.game-card .battle-stats,
+.game-card .cost-chip {
+  display: none !important;
+}
+
+.game-card .card-stat-chip {
+  display: grid;
 }
 
 .opponent-drive-pile,

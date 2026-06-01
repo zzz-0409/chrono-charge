@@ -1,15 +1,16 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260601-ranktable2";
+const CACHE_VERSION = "chrono-drive-pwa-20260601-newrules";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260601ranktable2",
+  "/styles.css?v=20260601newrules",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
   "/assets/cards/card-back.png",
+  "/assets/cards/frames/chrono-v2-card-frame.png",
   "/assets/ui/gacha-stone.png",
   "/assets/ui/dismantle-stone.png",
   "/assets/ui/duel-menu/button-frames.png",
@@ -36,21 +37,21 @@ const APP_SHELL_URLS = [
   "/assets/SE/koukahatudou.mp3",
   "/assets/SE/shouri.mp3",
   "/assets/SE/haiboku.mp3",
-  "/src/data/cards.js?v=20260601spelltext",
-  "/src/data/notices.js?v=20260601cyber",
-  "/src/core/deck-store.js?v=20260601cyber",
-  "/src/core/effect-resolver.js?v=20260601cyber",
-  "/src/core/cpu-controller.js?v=20260601cpurank",
-  "/src/core/duel-game.js?v=20260601cpurank",
+  "/src/data/cards.js?v=20260601newrules",
+  "/src/data/notices.js?v=20260601newrules",
+  "/src/core/deck-store.js?v=20260601newrules",
+  "/src/core/effect-resolver.js?v=20260601newrules",
+  "/src/core/cpu-controller.js?v=20260601newrules",
+  "/src/core/duel-game.js?v=20260601newrules",
   "/src/ui/scale-manager.js?v=20260524a",
-  "/src/ui/card-renderer.js?v=20260529duelrecover",
+  "/src/ui/card-renderer.js?v=20260601newrules",
   "/src/ui/sound-effects.js?v=20260529soundvolume",
   "/src/ui/card-zoom.js?v=20260522k",
-  "/src/ui/deck-builder-view.js?v=20260528loginbonusui",
+  "/src/ui/deck-builder-view.js?v=20260601newrules",
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
-  "/src/ui/duel-view.js?v=20260601cpurank",
-  "/src/main.js?v=20260601ranktable2"
+  "/src/ui/duel-view.js?v=20260601newrules",
+  "/src/main.js?v=20260601newrules"
 ];
 
 self.addEventListener("install", (event) => {

@@ -29,7 +29,7 @@
       this.openAppModal = options.openAppModal || (() => {});
       this.closeAppModal = options.closeAppModal || (() => {});
       this.deckMode = "main";
-      this.selectedCardId = "star_scout";
+      this.selectedCardId = "gen_front_runner";
       this.selectedFinish = "normal";
       this.ownedOnly = false;
       this.builderPointerDrag = null;
@@ -223,6 +223,7 @@
       this.renderResources();
       this.renderProfilePanel();
       this.renderTypeFilterOptions();
+      this.renderAttrFilterOptions();
       this.renderLibrary({ preserveScroll: Boolean(options.preserveLibraryScroll) });
       this.renderDeckPanel();
       CardRenderer.preview(this.selectedCardId, this.els.cardPreview, { finish: this.selectedFinish });
@@ -599,6 +600,17 @@
       select.value = types.includes(current) ? current : "all";
     }
 
+    renderAttrFilterOptions() {
+      const select = this.els.attrFilter;
+      if (!select) return;
+      const current = select.value;
+      const attrs = [...new Set(this.activePool().map((card) => card.attr).filter(Boolean))];
+      select.replaceChildren();
+      select.append(new Option("すべて", "all"));
+      attrs.forEach((attr) => select.append(new Option(attr, attr)));
+      select.value = attrs.includes(current) ? current : "all";
+    }
+
     handleCardClick(id, finish = "normal") {
       this.selectedCardId = id;
       this.selectedFinish = finish;
@@ -744,6 +756,10 @@
 
     toastDeckResult(result, driveMode = this.deckMode === "drive") {
       if (result.ok) return;
+      if (result.reason === "class") {
+        this.toast("選択中のクラスでは使えないカードです。");
+        return;
+      }
       if (result.reason === "owned") {
         this.toast("所持枚数が足りません。パックで入手してください。");
         return;
@@ -912,7 +928,10 @@
     }
 
     activePool() {
-      return this.deckMode === "drive" ? drivePool : cardPool.filter((card) => card.type !== "環境");
+      const classKey = this.store.activeClass || "blader";
+      const allowed = (card) => card.cardClass === "generic" || card.cardClass === classKey;
+      if (this.deckMode === "drive") return drivePool.filter((card) => card.cardClass === classKey);
+      return cardPool.filter(allowed);
     }
 
     activeCounts() {
@@ -921,7 +940,7 @@
 
     firstSelectedId() {
       const counts = this.activeCounts();
-      return Object.keys(counts)[0] || this.activePool()[0]?.id || "star_scout";
+      return Object.keys(counts)[0] || this.activePool()[0]?.id || "gen_front_runner";
     }
 
     ensureSelectedCard() {
