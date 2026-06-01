@@ -6981,3 +6981,147 @@ select {
   right: 3%;
   bottom: 2.5%;
 }
+
+/* Independent stat badge assets, layered over the card frame. */
+.card-stat-chip,
+.game-card .card-stat-chip {
+  width: 29%;
+  border: 0;
+  border-radius: 0;
+  background: var(--stat-badge-image) center / contain no-repeat !important;
+  box-shadow: none;
+  color: #fff8e9;
+  font-size: var(--new-card-chip-size, 18px);
+  font-weight: 950;
+  text-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.9),
+    0 0 7px rgba(0, 0, 0, 0.7);
+  filter: drop-shadow(0 5px 6px rgba(0, 0, 0, 0.58));
+}
+
+.card-cost-chip {
+  --stat-badge-image: url("assets/cards/badges/badge-cost.svg");
+  left: -8.5%;
+  top: -8.5%;
+}
+
+.card-drive-chip {
+  --stat-badge-image: url("assets/cards/badges/badge-drive.svg");
+  right: -8.5%;
+  top: -8.5%;
+}
+
+.card-attack-chip {
+  --stat-badge-image: url("assets/cards/badges/badge-attack.svg");
+  left: -8.5%;
+  bottom: -8.5%;
+}
+
+.card-durability-chip {
+  --stat-badge-image: url("assets/cards/badges/badge-durability.svg");
+  right: -8.5%;
+  bottom: -8.5%;
+}
+
+.tcg-card.small .card-stat-chip {
+  font-size: 12px;
+}
+
+.type-spell .card-drive-chip,
+.type-core .card-drive-chip {
+  right: -8.5%;
+  top: -8.5%;
+}
+
+.type-core .card-durability-chip {
+  right: -8.5%;
+  bottom: -8.5%;
+}
+
+.side-board .charge-row,
+.opponent-side .charge-row,
+.player-side .charge-row {
+  left: 104px;
+  right: auto;
+  bottom: 10px;
+  top: auto;
+  width: 142px;
+}
+
+.opponent-side .charge-row {
+  bottom: 10px;
+}
+
+.hand-zone {
+  position: relative;
+  height: 146px;
+  overflow: visible;
+  display: block;
+  padding: 0;
+}
+
+.hand-zone .tcg-card {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  z-index: var(--hand-z, 20);
+  transform:
+    translateX(-50%)
+    translateX(var(--hand-offset-x, 0px))
+    translateY(var(--hand-lift, 0px))
+    rotate(var(--hand-rotate, 0deg));
+  transform-origin: center 112%;
+}
+
+.hand-zone .tcg-card.interactive:hover,
+.hand-zone .tcg-card.selected {
+  z-index: 80;
+  transform:
+    translateX(-50%)
+    translateX(var(--hand-offset-x, 0px))
+    translateY(calc(var(--hand-lift, 0px) - 12px))
+    rotate(var(--hand-rotate, 0deg));
+}
+
+.hand-zone .tcg-card .card-stat-chip {
+  left: -12px;
+  right: auto;
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+}
+
+.hand-zone .tcg-card .card-cost-chip {
+  top: -10px;
+}
+
+.hand-zone .tcg-card .card-drive-chip {
+  top: 18px;
+}
+
+.hand-zone .tcg-card .card-attack-chip {
+  top: 46px;
+  bottom: auto;
+}
+
+.hand-zone .tcg-card .card-durability-chip {
+  top: auto;
+  bottom: -10px;
+}
+
+.hand-zone .type-spell .card-drive-chip,
+.hand-zone .type-spell .card-attack-chip,
+.hand-zone .type-spell .card-durability-chip,
+.hand-zone .type-core .card-attack-chip {
+  display: none !important;
+}
+
+.unit-row .state-tag {
+  display: none !important;
+}
+
+.side-board,
+.side-board.opponent-side,
+.side-board.player-side {
+  grid-template-columns: 252px minmax(390px, 1fr) 126px;
+}

@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260601-newrules-ui2";
+const CACHE_VERSION = "chrono-drive-pwa-20260601-newrules-ui3";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260601newrulesui2",
+  "/styles.css?v=20260601newrulesui3",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -13,6 +13,10 @@ const APP_SHELL_URLS = [
   "/assets/cards/frames/chrono-v2-card-frame.png",
   "/assets/cards/frames/chrono-v2-spell-frame.png",
   "/assets/cards/frames/chrono-v2-core-frame.png",
+  "/assets/cards/badges/badge-cost.svg",
+  "/assets/cards/badges/badge-drive.svg",
+  "/assets/cards/badges/badge-attack.svg",
+  "/assets/cards/badges/badge-durability.svg",
   "/assets/ui/gacha-stone.png",
   "/assets/ui/dismantle-stone.png",
   "/assets/ui/duel-menu/button-frames.png",
@@ -52,7 +56,7 @@ const APP_SHELL_URLS = [
   "/src/ui/deck-builder-view.js?v=20260601newrules",
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
-  "/src/ui/duel-view.js?v=20260601newrules",
+  "/src/ui/duel-view.js?v=20260601newrulesui3",
   "/src/main.js?v=20260601newrules"
 ];
 

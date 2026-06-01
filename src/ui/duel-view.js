@@ -238,12 +238,10 @@
         }
         const card = cards[entry.id];
         if (!card) return;
-        const stateTag = this.fieldStateTag(entry, card, player);
         const button = CardRenderer.tcgCard(card.id, {
           small: true,
           interactive: true,
           selected: this.isSelected(owner === "player" ? "playerUnit" : "enemyUnit", index, owner),
-          stateTag,
           finish: this.finishFor(card.id),
         });
         this.tagSelectableCard(button, owner === "player" ? "playerUnit" : "enemyUnit", index, owner);
@@ -364,7 +362,10 @@
         back.style.setProperty("--hand-offset", index);
         this.els.enemyHandZone.append(back);
       });
+      const handCount = this.game.player.hand.length;
+      const handStep = handCount > 1 ? Math.min(54, 420 / (handCount - 1)) : 0;
       this.game.player.hand.forEach((id, index) => {
+        const handOffset = index - ((handCount - 1) / 2);
         const cardData = cards[id];
         const unavailable = !cardData || !this.game.canPlayerAct() || !this.game.canPay(this.game.player, cardData.cost || 0) || !this.game.canPlayCard(this.game.player, cardData);
         const card = CardRenderer.tcgCard(id, {
@@ -372,6 +373,10 @@
           selected: this.isSelected("hand", index, "player"),
           finish: this.finishFor(id),
         });
+        card.style.setProperty("--hand-offset-x", `${Math.round(handOffset * handStep)}px`);
+        card.style.setProperty("--hand-rotate", `${Math.round(handOffset * 4)}deg`);
+        card.style.setProperty("--hand-lift", `${Math.round(Math.abs(handOffset) * -4)}px`);
+        card.style.setProperty("--hand-z", String(20 + index));
         this.tagSelectableCard(card, "hand", index, "player");
         card.classList.toggle("cost-unavailable-card", Boolean(unavailable));
         card.addEventListener("click", () => this.selectCard(id, { zone: "hand", index, owner: "player" }));
