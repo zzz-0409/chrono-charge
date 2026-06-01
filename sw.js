@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260601-spelltext";
+const CACHE_VERSION = "chrono-drive-pwa-20260601-rankart";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260601cpurank",
+  "/styles.css?v=20260601rankart",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -17,6 +17,12 @@ const APP_SHELL_URLS = [
   "/assets/ui/duel-menu/duel-mode-panels.png",
   "/assets/ui/duel-menu/mode-emblems.png",
   "/assets/ui/duel-menu/shell-icons.png",
+  "/assets/ui/ranked/rank-bronze.png",
+  "/assets/ui/ranked/rank-silver.png",
+  "/assets/ui/ranked/rank-gold.png",
+  "/assets/ui/ranked/rank-platinum.png",
+  "/assets/ui/ranked/rank-diamond.png",
+  "/assets/ui/ranked/rank-master.png",
   "/assets/home/home-bg.png",
   "/assets/title/title-bg.png",
   "/assets/board/duel-board-cyberpunk-layout.png",
@@ -44,7 +50,7 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
   "/src/ui/duel-view.js?v=20260601cpurank",
-  "/src/main.js?v=20260601cpurank"
+  "/src/main.js?v=20260601rankart"
 ];
 
 self.addEventListener("install", (event) => {

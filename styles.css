@@ -2724,7 +2724,32 @@ select {
   box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.32);
 }
 
-.duel-mode-visual-ranked { background-position: 33.333% 50%; }
+.duel-mode-visual-ranked {
+  background-image: url("assets/ui/ranked/rank-bronze.png");
+  background-position: center;
+  background-size: cover;
+}
+
+.mode-ranked[data-rank-tier="silver"] .duel-mode-visual-ranked {
+  background-image: url("assets/ui/ranked/rank-silver.png");
+}
+
+.mode-ranked[data-rank-tier="gold"] .duel-mode-visual-ranked {
+  background-image: url("assets/ui/ranked/rank-gold.png");
+}
+
+.mode-ranked[data-rank-tier="platinum"] .duel-mode-visual-ranked {
+  background-image: url("assets/ui/ranked/rank-platinum.png");
+}
+
+.mode-ranked[data-rank-tier="diamond"] .duel-mode-visual-ranked {
+  background-image: url("assets/ui/ranked/rank-diamond.png");
+}
+
+.mode-ranked[data-rank-tier="master"] .duel-mode-visual-ranked {
+  background-image: url("assets/ui/ranked/rank-master.png");
+}
+
 .duel-mode-visual-room { background-position: 66.666% 50%; }
 .duel-mode-visual-cpu { background-position: 100% 50%; }
 

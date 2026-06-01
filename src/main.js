@@ -44,6 +44,7 @@
     modeCpuDuelButton: document.querySelector("#modeCpuDuelButton"),
     modeRankedDuelButton: document.querySelector("#modeRankedDuelButton"),
     rankedLeaderboardButton: document.querySelector("#rankedLeaderboardButton"),
+    rankedModeCard: document.querySelector(".mode-ranked"),
     cpuLevelSelect: document.querySelector("#cpuLevelSelect"),
     cpuThemeSelect: document.querySelector("#cpuThemeSelect"),
     cpuFirstSelect: document.querySelector("#cpuFirstSelect"),
@@ -574,10 +575,22 @@
     if (!els.rankedStatusText) return;
     if (!store.isAuthenticated) {
       els.rankedStatusText.textContent = "ログインでランク記録";
+      if (els.rankedModeCard) els.rankedModeCard.dataset.rankTier = "bronze";
       return;
     }
     const ranked = store.ranked;
+    if (els.rankedModeCard) els.rankedModeCard.dataset.rankTier = rankedVisualTier(ranked.points);
     els.rankedStatusText.textContent = `${store.rankedLabel} / ${ranked.wins}勝 ${ranked.losses}敗`;
+  }
+
+  function rankedVisualTier(points) {
+    const value = Number(points) || 0;
+    if (value >= 2600) return "master";
+    if (value >= 2200) return "diamond";
+    if (value >= 1800) return "platinum";
+    if (value >= 1400) return "gold";
+    if (value >= 1100) return "silver";
+    return "bronze";
   }
 
   function renderShellResources() {
