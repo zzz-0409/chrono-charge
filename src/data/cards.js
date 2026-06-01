@@ -4,392 +4,2112 @@
   const DECK_SIZE = 40;
   const DRIVE_DECK_SIZE = 10;
   const MAX_COPIES = 3;
-  const MAX_DRIVE_COPIES = 1;
-  const MAX_LP = 20;
+  const MAX_DRIVE_COPIES = 3;
+  const MAX_LP = 8000;
   const UNIT_ZONES = 5;
-  const CORE_ZONES = 0;
-  const REACTION_ZONES = 0;
-  const MAX_AP = 10;
-  const MAX_DRIVE = 20;
-  const STORAGE_KEY = "chrono-charge-deck-v2";
-
-  const TYPES = {
-    UNIT: "ユニット",
-    SPELL: "スペル",
-    CORE: "コア",
-    DRIVE_UNIT: "ドライブユニット",
-  };
-
-  const RARITIES = {
-    bronze: { id: "bronze", label: "\u9285" },
-    silver: { id: "silver", label: "\u9280" },
-    gold: { id: "gold", label: "\u91d1" },
-    rainbow: { id: "rainbow", label: "\u8679" },
-  };
-
-  const CLASSES = {
-    blader: {
-      id: "blader",
-      name: "ブレイダー",
-      shortName: "斬撃",
-      description: "攻撃を割り振った回数を参照し、加速でテンポを取るクラス。",
-      art: "assets/cards/art/blade-arbiter.png",
-    },
-    fortress: {
-      id: "fortress",
-      name: "フォートレス",
-      shortName: "防衛",
-      description: "防衛とコアの耐久で攻撃先をずらし、長期戦で返すクラス。",
-      art: "assets/cards/art/generic-guardian.png",
-    },
-    alchemist: {
-      id: "alchemist",
-      name: "アルケミスト",
-      shortName: "錬成",
-      description: "表向きチャージを手札やドライブに変換して戦うクラス。",
-      art: "assets/cards/art/cyber-akari.png",
-    },
-  };
+  const CORE_ZONES = 2;
+  const REACTION_ZONES = 3;
+  const STORAGE_KEY = "chrono-charge-deck-v1";
 
   const typeIcons = {
-    [TYPES.UNIT]: "blade",
-    [TYPES.SPELL]: "star",
-    [TYPES.CORE]: "core",
-    [TYPES.DRIVE_UNIT]: "core",
+    "ユニット": "blade",
+    "スペル": "star",
+    "リアクション": "shield",
+    "コア": "core",
+    "ユニットドライブ": "blade",
+    "スペルドライブ": "star",
+    "リアクションドライブ": "shield",
+    "コアドライブ": "core",
   };
 
   const attrClass = {
-    ブレイダー: "attr-fire",
-    フォートレス: "attr-light",
-    アルケミスト: "attr-shadow",
-    汎用: "attr-neutral",
+    "光": "attr-light",
+    "炎": "attr-fire",
+    "影": "attr-shadow",
+    "星": "attr-light",
+    "無": "attr-neutral",
   };
 
   const typeClass = {
-    [TYPES.UNIT]: "type-unit",
-    [TYPES.SPELL]: "type-spell",
-    [TYPES.CORE]: "type-core",
-    [TYPES.DRIVE_UNIT]: "type-unit-drive drive-card-type",
+    "ユニット": "type-unit",
+    "スペル": "type-spell",
+    "リアクション": "type-reaction",
+    "コア": "type-core",
+    "ユニットドライブ": "type-unit-drive drive-card-type",
+    "スペルドライブ": "type-spell-drive drive-card-type",
+    "リアクションドライブ": "type-reaction-drive drive-card-type",
+    "コアドライブ": "type-core-drive drive-card-type",
   };
 
-  const classArt = {
-    blader: [
-      "assets/cards/art/blade-tracker.png",
-      "assets/cards/art/blade-marksmith.png",
-      "assets/cards/art/blade-edgeguard.png",
-      "assets/cards/art/blade-executioner.png",
-      "assets/cards/art/blade-arbiter.png",
-      "assets/cards/art/blade-cleave.png",
-    ],
-    fortress: [
-      "assets/cards/art/generic-guardian.png",
-      "assets/cards/art/generic-wall.png",
-      "assets/cards/art/generic-golem.png",
-      "assets/cards/art/generic-giant.png",
-      "assets/cards/art/black-tower.png",
-      "assets/cards/art/star-guard.png",
-    ],
-    alchemist: [
-      "assets/cards/art/cyber-mio.png",
-      "assets/cards/art/cyber-rei.png",
-      "assets/cards/art/cyber-shion.png",
-      "assets/cards/art/cyber-yuna.png",
-      "assets/cards/art/cyber-akari.png",
-      "assets/cards/art/cyber-network.png",
-    ],
-    generic: [
-      "assets/cards/art/generic-vanguard.png",
-      "assets/cards/art/generic-watch-drone.png",
-      "assets/cards/art/generic-field-medic.png",
-      "assets/cards/art/generic-supply-box.png",
-      "assets/cards/art/generic-transfer.png",
-      "assets/cards/art/generic-code.png",
-    ],
+  const cardPool = [
+    {
+      id: "star_scout",
+      name: "星導の斥候リーベ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 1200,
+      art: "assets/cards/art/star-scout.png",
+      theme: "星導",
+      effect: "starScout",
+      text: "通常召喚時：この効果を発動できる。デッキから「星導」と名のつくカード1枚を手札に加える。自分のチャージに「星導」が2枚以上あるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "star_lux",
+      name: "星導の戦士ルクス",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 1500,
+      art: "assets/cards/art/star-lux.png",
+      theme: "星導",
+      effect: "starLux",
+      text: "通常召喚時：この効果を発動できる。このターンにチャージしているなら、手札からコスト1以下の「星導」ユニット1体を追加召喚できる。",
+    },
+    {
+      id: "star_mira",
+      name: "星導の祈り手ミラ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 800,
+      art: "assets/cards/art/star-mira.png",
+      theme: "星導",
+      effect: "starMira",
+      text: "通常召喚時：この効果を発動できる。ロストゾーンから「星導」と名のつくスペル1枚を手札に戻す。戻せなかった場合、1枚ドロー。",
+    },
+    {
+      id: "star_guard",
+      name: "星導の衛士カイ",
+      type: "ユニット",
+      attr: "光",
+      cost: 2,
+      atk: 1900,
+      art: "assets/cards/art/star-guard.png",
+      theme: "星導",
+      effect: "starKai",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「星導」が3枚以上あるなら、相手に500ダメージ。このカードは自分のコア1枚につきATKを300アップする。",
+    },
+    {
+      id: "star_dragon",
+      name: "星導の星龍アルセア",
+      type: "ユニット",
+      attr: "光",
+      cost: 4,
+      atk: 2800,
+      art: "assets/cards/art/star-dragon.png",
+      theme: "星導",
+      effect: "starDragon",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「星導」が4枚以上あるなら、相手ユニット1体を破壊する。なければ相手に1200ダメージ。",
+    },
+    {
+      id: "star_invite",
+      name: "星導の誘い",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "星導",
+      art: "assets/cards/art/star-invite.png",
+      effect: "starInvite",
+      text: "デッキから「星導」と名のつくユニット1枚を手札に加える。自分のチャージに「星導」が2枚以上あるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "star_link",
+      name: "星導の連結",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "星導",
+      art: "assets/cards/art/star-link.png",
+      effect: "starLink",
+      text: "1枚ドロー。その後、自分フィールドに「星導」ユニットがいるなら、追加で手札からコスト1以下の「星導」ユニット1体を召喚できる。",
+    },
+    {
+      id: "star_reignite",
+      name: "星導の再点火",
+      type: "スペル",
+      attr: "炎",
+      cost: 2,
+      theme: "星導",
+      art: "assets/cards/art/star-reignite.png",
+      effect: "starReignite",
+      text: "ロストゾーンから「星導」と名のつくカード1枚を手札に戻す。自分の「星導」チャージ1枚をアクティブにする。",
+    },
+    {
+      id: "star_orbit",
+      name: "星導の軌道環",
+      type: "コア",
+      attr: "光",
+      cost: 1,
+      theme: "星導",
+      art: "assets/cards/art/star-orbit.png",
+      effect: "starOrbit",
+      text: "発動時：この効果を発動する。1枚ドロー。各ターン、自分が最初に「星導」ユニットを召喚した時、1枚ドロー。",
+    },
+    {
+      id: "star_wall",
+      name: "星導の防壁",
+      type: "リアクション",
+      attr: "光",
+      cost: 1,
+      theme: "星導",
+      trigger: "attack",
+      art: "assets/cards/art/star-wall.png",
+      effect: "negateAttackUntap",
+      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にし、自分のチャージ1枚をアクティブにする。",
+    },
+    {
+      id: "star_interference",
+      name: "星導の干渉波",
+      type: "リアクション",
+      attr: "光",
+      cost: 2,
+      theme: "星導",
+      trigger: "effect",
+      art: "assets/cards/art/star-interference.png",
+      effect: "negateEffectDraw",
+      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分のチャージに「星導」が3枚以上あるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "star_navigator",
+      name: "星導の航路士アステル",
+      type: "ユニット",
+      attr: "光",
+      cost: 2,
+      atk: 1700,
+      art: "assets/cards/art/star-navigator.png",
+      theme: "星導",
+      effect: "starNavigator",
+      text: "通常召喚時：この効果を発動できる。手札から「星導」と名のつくカード1枚を自分のチャージに置く。その後、デッキから「星導」と名のつくカード1枚を手札に加える。",
+    },
+    {
+      id: "star_chart",
+      name: "星導の帰還航路",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "星導",
+      art: "assets/cards/art/star-chart.png",
+      effect: "starChart",
+      text: "ロストゾーンから「星導」と名のつくカード1枚を自分のチャージに置く。自分フィールドに「星導」ユニットがいるなら、追加で自分のチャージ1枚をアクティブにできる。",
+    },
+    {
+      id: "star_surveyor_noll",
+      name: "星導の測星係ノル",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 900,
+      art: "assets/cards/art/star-surveyor-noll.png",
+      theme: "星導",
+      effect: "starSurveyorNoll",
+      text: "通常召喚時：この効果を発動できる。このターンにチャージしているなら、手札から「星導」と名のつくカード1枚を自分のチャージに置く。置いた後、自分のチャージに「星導」が3枚以上あるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "star_observation_record",
+      name: "星導の観測記録",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "星導",
+      art: "assets/cards/art/star-observation-record.png",
+      effect: "starObservationRecord",
+      text: "デッキから「星導」コア1枚を手札に加える。自分のチャージに「星導」が3枚以上あるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "black_grinder",
+      name: "黒機の分解者",
+      type: "ユニット",
+      attr: "影",
+      cost: 1,
+      atk: 1300,
+      theme: "黒機",
+      art: "assets/cards/art/black-grinder.png",
+      effect: "blackGrinder",
+      text: "通常召喚時：この効果を発動できる。相手ユニットがいるなら、相手に400ダメージ。自分のコアがあるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "black_gear",
+      name: "黒機の歯車兵",
+      type: "ユニット",
+      attr: "影",
+      cost: 2,
+      atk: 2000,
+      theme: "黒機",
+      art: "assets/cards/art/black-gear.png",
+      effect: "blackGear",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「黒機」が2枚以上あるなら、手札からコスト1以下の「黒機」ユニット1体を追加召喚できる。",
+    },
+    {
+      id: "black_anchor",
+      name: "黒機の固定砲",
+      type: "ユニット",
+      attr: "炎",
+      cost: 3,
+      atk: 2400,
+      theme: "黒機",
+      art: "assets/cards/art/black-anchor.png",
+      effect: "blackAnchor",
+      text: "通常召喚時：この効果を発動できる。相手ユニット1体を次の相手ターン終了まで行動済みにする。自分のコアがあるなら、追加で相手に700ダメージを与えられる。",
+    },
+    {
+      id: "black_tower",
+      name: "黒機の制圧塔",
+      type: "コア",
+      attr: "影",
+      cost: 2,
+      theme: "黒機",
+      art: "assets/cards/art/black-tower.png",
+      effect: "blackTower",
+      text: "発動時：この効果を発動する。相手に600ダメージ。自分の「黒機」ユニットはATKを200アップする。",
+    },
+    {
+      id: "black_raid",
+      name: "黒機の強襲",
+      type: "スペル",
+      attr: "炎",
+      cost: 1,
+      theme: "黒機",
+      art: "assets/cards/art/black-raid.png",
+      effect: "blackRaid",
+      text: "相手に800ダメージ。自分フィールドに「黒機」ユニットがいるなら、追加で相手ユニット1体を次の相手ターン終了まで行動済みにできる。",
+    },
+    {
+      id: "black_claw",
+      name: "黒機の遮断爪",
+      type: "リアクション",
+      attr: "影",
+      cost: 1,
+      theme: "黒機",
+      trigger: "attack",
+      art: "assets/cards/art/black-claw.png",
+      effect: "negateAttackDamage",
+      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にし、相手に500ダメージ。",
+    },
+    {
+      id: "black_supply_engineer",
+      name: "黒機の補給技師",
+      type: "ユニット",
+      attr: "影",
+      cost: 1,
+      atk: 900,
+      theme: "黒機",
+      art: "assets/cards/art/black-supply-engineer.png",
+      effect: "blackSupplyEngineer",
+      text: "通常召喚時：この効果を発動できる。自分フィールドに「黒機」コアがあるなら、デッキから「黒機」スペル1枚を手札に加える。なければ、相手に300ダメージ。",
+    },
+    {
+      id: "black_binding_gunner",
+      name: "黒機の拘束砲兵",
+      type: "ユニット",
+      attr: "炎",
+      cost: 2,
+      atk: 1700,
+      theme: "黒機",
+      art: "assets/cards/art/black-binding-gunner.png",
+      effect: "blackBindingGunner",
+      text: "通常召喚時：この効果を発動できる。自分フィールドに「黒機」コアがあるなら、相手ユニット1体を次の相手ターン終了まで行動済みにし、1枚ドロー。",
+    },
+    {
+      id: "blade_tracker",
+      name: "断刃の追跡者レン",
+      type: "ユニット",
+      attr: "影",
+      cost: 1,
+      atk: 1100,
+      theme: "断刃",
+      art: "assets/cards/art/blade-tracker.png",
+      effect: "bladeTracker",
+      text: "通常召喚時：この効果を発動できる。相手ユニット1体を次の相手ターン終了まで行動済みにする。できなかったなら、相手に300ダメージ。",
+    },
+    {
+      id: "blade_marksmith",
+      name: "断刃の刻印士ノア",
+      type: "ユニット",
+      attr: "影",
+      cost: 1,
+      atk: 1300,
+      theme: "断刃",
+      art: "assets/cards/art/blade-marksmith.png",
+      effect: "bladeMarksmith",
+      text: "通常召喚時：この効果を発動できる。相手の行動済みユニットがいるなら、1枚ドロー。",
+    },
+    {
+      id: "blade_edgeguard",
+      name: "断刃の影刃兵",
+      type: "ユニット",
+      attr: "影",
+      cost: 2,
+      atk: 1900,
+      theme: "断刃",
+      art: "assets/cards/art/blade-edgeguard.png",
+      effect: "bladeEdgeguard",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「断刃」が2枚以上あるなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+    },
+    {
+      id: "blade_executioner",
+      name: "断刃の処刑人",
+      type: "ユニット",
+      attr: "影",
+      cost: 2,
+      atk: 1700,
+      theme: "断刃",
+      art: "assets/cards/art/blade-executioner.png",
+      effect: "bladeExecutioner",
+      text: "通常召喚時：この効果を発動できる。相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+    },
+    {
+      id: "blade_arbiter",
+      name: "断刃の裁断者ヴェルグ",
+      type: "ユニット",
+      attr: "炎",
+      cost: 4,
+      atk: 2600,
+      theme: "断刃",
+      art: "assets/cards/art/blade-arbiter.png",
+      effect: "bladeArbiter",
+      text: "通常召喚時：この効果を発動できる。相手の行動済みユニット1体を破壊する。自分のチャージに「断刃」が4枚以上あるなら、かわりに相手ユニット1体を破壊する。",
+    },
+    {
+      id: "blade_mark",
+      name: "断刃の刻印",
+      type: "スペル",
+      attr: "影",
+      cost: 1,
+      theme: "断刃",
+      art: "assets/cards/art/blade-mark.png",
+      effect: "bladeMark",
+      text: "相手ユニット1体を次の相手ターン終了まで行動済みにする。自分フィールドに「断刃」ユニットがいるなら、追加で相手に400ダメージを与えられる。",
+    },
+    {
+      id: "blade_cleave",
+      name: "断刃の断罪斬",
+      type: "スペル",
+      attr: "炎",
+      cost: 2,
+      theme: "断刃",
+      art: "assets/cards/art/blade-cleave.png",
+      effect: "bladeCleave",
+      text: "相手の行動済みユニット1体を破壊する。破壊できなかったなら、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+    },
+    {
+      id: "blade_warrant",
+      name: "断刃の追跡令",
+      type: "スペル",
+      attr: "影",
+      cost: 1,
+      theme: "断刃",
+      art: "assets/cards/art/blade-warrant.png",
+      effect: "bladeWarrant",
+      text: "デッキから「断刃」と名のつくユニット1枚を手札に加える。相手の行動済みユニットがいるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "blade_scaffold",
+      name: "断刃の処刑台",
+      type: "コア",
+      attr: "影",
+      cost: 2,
+      theme: "断刃",
+      art: "assets/cards/art/blade-scaffold.png",
+      effect: "bladeScaffold",
+      text: "発動時：この効果を発動する。相手ユニット1体を次の相手ターン終了まで行動済みにする。自分の「断刃」ユニットはATKを200アップする。",
+    },
+    {
+      id: "blade_counter",
+      name: "断刃の返し刃",
+      type: "リアクション",
+      attr: "影",
+      cost: 1,
+      theme: "断刃",
+      trigger: "attack",
+      art: "assets/cards/art/blade-counter.png",
+      effect: "bladeCounter",
+      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にする。自分のチャージに「断刃」が3枚以上あるなら、追加でそのユニットを破壊できる。",
+    },
+    {
+      id: "cyber_mio",
+      name: "電脳の転校生ミオ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 1100,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-mio.png",
+      effect: "cyberMio",
+      text: "通常召喚時：この効果を発動できる。手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。",
+    },
+    {
+      id: "cyber_rei",
+      name: "電脳の委員長レイ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 1300,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-rei.png",
+      specialEffect: "cyberReiSpecial",
+      text: "追加召喚時：この効果を発動できる。デッキから「電脳」と名のつくリアクション1枚を手札に加える。",
+    },
+    {
+      id: "cyber_shion",
+      name: "電脳のハッカーシオン",
+      type: "ユニット",
+      attr: "影",
+      cost: 2,
+      atk: 1800,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-shion.png",
+      specialEffect: "cyberShionSpecial",
+      text: "追加召喚時：この効果を発動できる。相手のセットリアクション1枚を表向きにする。表向きにしたなら、追加で相手に500ダメージを与えられる。",
+    },
+    {
+      id: "cyber_yuna",
+      name: "電脳の風紀ランナーユナ",
+      type: "ユニット",
+      attr: "光",
+      cost: 2,
+      atk: 2100,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-yuna.png",
+      effect: "cyberYuna",
+      specialEffect: "cyberYunaSpecial",
+      text: "通常召喚時：この効果を発動できる。手札からコスト2以下の「電脳」ユニット1体を追加召喚できる。追加召喚時：この効果を発動できる。自分のタップ済みチャージ1枚をアクティブにする。",
+    },
+    {
+      id: "cyber_akari",
+      name: "電脳の生徒会長アカリ",
+      type: "ユニット",
+      attr: "炎",
+      cost: 4,
+      atk: 2600,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-akari.png",
+      specialEffect: "cyberAkariSpecial",
+      text: "追加召喚時：この効果を発動できる。2枚ドロー。その後、手札1枚をロストゾーンに送る。相手の表向きリアクション1枚をロストゾーンに送る。",
+    },
+    {
+      id: "cyber_packet_mana",
+      name: "電脳の通信係マナ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 900,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-packet-mana.png",
+      effect: "cyberPacketMana",
+      text: "通常召喚時：この効果を発動できる。デッキから「電脳」スペル1枚を手札に加える。加えたなら、その後、相手の公開状態リアクションがあるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "cyber_log_rin",
+      name: "電脳のログ係リン",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 700,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-log-rin.png",
+      effect: "cyberLogRin",
+      text: "通常召喚時：この効果を発動できる。デッキから「電脳」コア1枚を手札に加える。加えたなら、その後、追加で手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。",
+    },
+    {
+      id: "cyber_preview",
+      name: "電脳の予習",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-preview.png",
+      effect: "cyberPreview",
+      text: "手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。追加召喚したなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "cyber_intrusion",
+      name: "電脳の侵入コード",
+      type: "スペル",
+      attr: "影",
+      cost: 2,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-intrusion.png",
+      effect: "cyberIntrusion",
+      text: "相手のセットリアクション1枚を表向きにする。自分フィールドに「電脳」ユニットが2体以上いるなら、追加で手札から「電脳」ユニット1体を追加召喚できる。",
+    },
+    {
+      id: "cyber_network",
+      name: "電脳の校内ネット",
+      type: "コア",
+      attr: "光",
+      cost: 1,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-network.png",
+      effect: "cyberNetwork",
+      text: "発動時：この効果を発動する。手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。自分の「電脳」ユニットはATKを100アップする。",
+    },
+    {
+      id: "cyber_backchannel",
+      name: "電脳の裏回線",
+      type: "スペル",
+      attr: "影",
+      cost: 1,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-backchannel.png",
+      effect: "cyberBackchannel",
+      text: "デッキから「電脳」または無属性のリアクション1枚を手札に加える。相手のセット中リアクション1枚を公開状態にする。公開状態のリアクションがあるなら、追加で手札からコスト2以下の「電脳」ユニット1体を追加召喚できる。",
+    },
+    {
+      id: "cyber_trace_route",
+      name: "電脳の追跡ルート",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-trace-route.png",
+      effect: "cyberTraceRoute",
+      text: "相手のセットリアクション1枚を公開状態にする。公開できたなら、追加でデッキからコスト1以下の「電脳」ユニット1枚を手札に加えられる。",
+    },
+    {
+      id: "cyber_cache_sync",
+      name: "電脳のキャッシュ同期",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "電脳",
+      art: "assets/cards/art/cyber-cache-sync.png",
+      effect: "cyberCacheSync",
+      text: "デッキからコスト2以下の「電脳」ユニット1枚を手札に加える。加えたなら、その後、自分フィールドに「電脳」ユニットがいるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "cyber_shield",
+      name: "電脳の即応シールド",
+      type: "リアクション",
+      attr: "光",
+      cost: 1,
+      theme: "電脳",
+      trigger: "attack",
+      art: "assets/cards/art/cyber-shield.png",
+      effect: "cyberShield",
+      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にする。自分フィールドに「電脳」ユニットが2体以上いるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "cyber_counterhack",
+      name: "電脳のカウンターハック",
+      type: "リアクション",
+      attr: "影",
+      cost: 2,
+      theme: "電脳",
+      trigger: "effect",
+      art: "assets/cards/art/cyber-counterhack.png",
+      effect: "cyberCounterhack",
+      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分フィールドに「電脳」ユニットが2体以上いるなら、追加で相手のセットリアクション1枚を表向きにできる。",
+    },
+    {
+      id: "sosai_hikari",
+      name: "双彩のヒカリ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 1000,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-hikari.png",
+      effect: "sosaiHikari",
+      text: "通常召喚時：この効果を発動できる。デッキから「双彩のミント」1枚を手札に加える。自分フィールドに「双彩のミント」がいるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "sosai_mint",
+      name: "双彩のミント",
+      type: "ユニット",
+      attr: "影",
+      cost: 1,
+      atk: 1200,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-mint.png",
+      effect: "sosaiMint",
+      text: "通常召喚時：この効果を発動できる。相手のセットリアクション1枚を表向きにする。自分フィールドに「双彩のヒカリ」がいるなら、追加で相手の表向きリアクション1枚をロストゾーンに送れる。",
+    },
+    {
+      id: "sosai_nene",
+      name: "双彩のネネ",
+      type: "ユニット",
+      attr: "炎",
+      cost: 2,
+      atk: 1700,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-nene.png",
+      effect: "sosaiNene",
+      text: "通常召喚時：この効果を発動できる。デッキから「双彩のルリ」1枚を手札に加える。自分フィールドに「双彩のルリ」がいるなら、追加で相手ユニット1体を手札に戻せる。",
+    },
+    {
+      id: "sosai_ruri",
+      name: "双彩のルリ",
+      type: "ユニット",
+      attr: "星",
+      cost: 2,
+      atk: 1600,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-ruri.png",
+      effect: "sosaiRuri",
+      text: "通常召喚時：この効果を発動できる。デッキから「双彩のネネ」1枚を手札に加える。自分フィールドに「双彩のネネ」がいるなら、追加で相手に700ダメージを与え、1枚ドローできる。",
+    },
+    {
+      id: "sosai_coco",
+      name: "双彩のココ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 800,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-coco.png",
+      effect: "sosaiCoco",
+      text: "通常召喚時：この効果を発動できる。デッキから「双彩のルナ」1枚を手札に加える。自分フィールドに「双彩のルナ」がいるなら、追加で自分のタップ済みチャージ1枚をアクティブにし、1枚ドローできる。",
+    },
+    {
+      id: "sosai_luna",
+      name: "双彩のルナ",
+      type: "ユニット",
+      attr: "星",
+      cost: 3,
+      atk: 2300,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-luna.png",
+      effect: "sosaiLuna",
+      text: "通常召喚時：この効果を発動できる。相手に700ダメージ。自分フィールドに「双彩のココ」がいるなら、追加で相手ユニット1体を破壊できる。",
+    },
+    {
+      id: "sosai_live_start",
+      name: "双彩ライブ開始",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-live-start.png",
+      effect: "sosaiLiveStart",
+      text: "デッキから「双彩」ユニット1枚を手札に加える。自分フィールドに「双彩」のペアがそろっているなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "sosai_heart_sync",
+      name: "双彩ハート同調",
+      type: "スペル",
+      attr: "光",
+      cost: 2,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-heart-sync.png",
+      effect: "sosaiHeartSync",
+      text: "手札からコスト2以下の「双彩」ユニット1体を追加召喚できる。自分フィールドに「双彩」のペアがそろっているなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "sosai_pop_stage",
+      name: "双彩ポップ配信室",
+      type: "コア",
+      attr: "光",
+      cost: 1,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-pop-stage.png",
+      effect: "sosaiPopStage",
+      text: "発動時：この効果を発動する。1枚ドロー。自分の「双彩」ユニットは、相方がいるならATKを300アップする。",
+    },
+    {
+      id: "sosai_stream_cancel",
+      name: "双彩の緊急停止",
+      type: "リアクション",
+      attr: "光",
+      cost: 2,
+      theme: "双彩",
+      trigger: "effect",
+      art: "assets/cards/art/sosai-stream-cancel.png",
+      effect: "sosaiStreamCancel",
+      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分フィールドに「双彩」のペアがそろっているなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "sosai_partner_call_ai",
+      name: "双彩の相方係アイ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 700,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-partner-call-ai.png",
+      effect: "sosaiPartnerCallAi",
+      text: "通常召喚時：この効果を発動できる。自分フィールドに「双彩のヒカリ」/「双彩のミント」、「双彩のネネ」/「双彩のルリ」、「双彩のココ」/「双彩のルナ」のうち片方だけがいるペアがあるなら、そのペアのもう片方1枚をデッキから手札に加える。",
+    },
+    {
+      id: "sosai_backstage_call",
+      name: "双彩バックステージコール",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-backstage-call.png",
+      effect: "sosaiBackstageCall",
+      text: "ロストゾーンから、自分フィールドにいる「双彩のヒカリ」/「双彩のミント」、「双彩のネネ」/「双彩のルリ」、「双彩のココ」/「双彩のルナ」の相方1枚を手札に戻す。戻したなら、追加で自分のタップ済みチャージ1枚をアクティブにできる。",
+    },
+    {
+      id: "keikan_scribe_yura",
+      name: "契環の書記ユラ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 900,
+      theme: "契環",
+      art: "assets/cards/art/keikan-scribe-yura.png",
+      effect: "keikanScribeYura",
+      text: "通常召喚時：この効果を発動できる。デッキから「契環」スペル1枚を手札に加える。自分のチャージに「契環」のカード種類が2種類以上あるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "keikan_charm_ren",
+      name: "契環の護符兵レン",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 1400,
+      theme: "契環",
+      art: "assets/cards/art/keikan-charm-ren.png",
+      effect: "keikanCharmRen",
+      text: "通常召喚時：この効果を発動できる。手札から「契環」カード1枚を自分のチャージに置く。置いた後、自分のチャージに「契環」のカード種類が2種類以上あるなら、追加で自分の「契環」チャージ1枚をアクティブにできる。",
+    },
+    {
+      id: "keikan_mediator_sae",
+      name: "契環の調停者サエ",
+      type: "ユニット",
+      attr: "光",
+      cost: 2,
+      atk: 1700,
+      theme: "契環",
+      art: "assets/cards/art/keikan-mediator-sae.png",
+      effect: "keikanMediatorSae",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「契環」のカード種類が3種類以上あるなら、ロストゾーンから「契環」カード1枚を手札に戻し、相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+    },
+    {
+      id: "keikan_oathbearer_kuga",
+      name: "契環の誓衛クガ",
+      type: "ユニット",
+      attr: "影",
+      cost: 2,
+      atk: 2000,
+      theme: "契環",
+      art: "assets/cards/art/keikan-oathbearer-kuga.png",
+      effect: "keikanOathbearerKuga",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「契環」カードが4枚以上あるなら、手札からコスト1以下の「契環」ユニット1体を追加召喚できる。",
+    },
+    {
+      id: "keikan_ring_adept_may",
+      name: "契環の環術師メイ",
+      type: "ユニット",
+      attr: "炎",
+      cost: 2,
+      atk: 1500,
+      theme: "契環",
+      art: "assets/cards/art/keikan-ring-adept-may.png",
+      effect: "keikanRingAdeptMay",
+      text: "通常召喚時：この効果を発動できる。自分のチャージに「契環」のカード種類が2種類以上あるなら、自分の「契環」チャージ1枚をアクティブにする。自分フィールドに「契環」コアがあるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "keikan_ledger_keeper_io",
+      name: "契環の台帳係イオ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 600,
+      theme: "契環",
+      art: "assets/cards/art/keikan-ledger-keeper-io.png",
+      effect: "keikanLedgerKeeperIo",
+      text: "通常召喚時：この効果を発動できる。デッキから「契環」コア1枚を手札に加える。追加で手札から「契環」カード1枚を自分のチャージに置ける。",
+    },
+    {
+      id: "keikan_oath_script",
+      name: "契環の誓約書",
+      type: "スペル",
+      attr: "光",
+      cost: 1,
+      theme: "契環",
+      art: "assets/cards/art/keikan-oath-script.png",
+      effect: "keikanOathScript",
+      text: "デッキから「契環」ユニット1枚を手札に加える。追加で手札から「契環」カード1枚を自分のチャージに置ける。",
+    },
+    {
+      id: "keikan_seal_exchange",
+      name: "契環の封印交換",
+      type: "スペル",
+      attr: "影",
+      cost: 1,
+      theme: "契環",
+      art: "assets/cards/art/keikan-seal-exchange.png",
+      effect: "keikanSealExchange",
+      text: "ロストゾーンから「契環」カード1枚を自分のチャージに置く。置いた後、自分のチャージに「契環」のカード種類が3種類以上あるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "keikan_pretrial_record",
+      name: "契環の予備審理",
+      type: "スペル",
+      attr: "影",
+      cost: 1,
+      theme: "契環",
+      art: "assets/cards/art/keikan-pretrial-record.png",
+      effect: "keikanPretrialRecord",
+      text: "相手ユニット1体を次の相手ターン終了まで行動済みにする。自分のチャージに「契環」のカード種類が3種類以上あるなら、追加でロストゾーンから「契環」リアクション1枚を手札に戻せる。",
+    },
+    {
+      id: "keikan_witness_ring",
+      name: "契環の証環",
+      type: "コア",
+      attr: "光",
+      cost: 1,
+      theme: "契環",
+      art: "assets/cards/art/keikan-witness-ring.png",
+      effect: "keikanWitnessRing",
+      text: "発動時：この効果を発動する。1枚ドロー。自分の「契環」ユニットは、自分のチャージに「契環」のカード種類が3種類以上あるならATKを300アップする。",
+    },
+    {
+      id: "keikan_binding_clause",
+      name: "契環の拘束条項",
+      type: "リアクション",
+      attr: "光",
+      cost: 1,
+      theme: "契環",
+      trigger: "attack",
+      art: "assets/cards/art/keikan-binding-clause.png",
+      effect: "keikanBindingClause",
+      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にする。自分のチャージに「契環」のカード種類が3種類以上あるなら、追加でそのユニットを次の相手ターン終了まで行動済みにできる。",
+    },
+    {
+      id: "keikan_null_clause",
+      name: "契環の無効条項",
+      type: "リアクション",
+      attr: "影",
+      cost: 2,
+      theme: "契環",
+      trigger: "effect",
+      art: "assets/cards/art/keikan-null-clause.png",
+      effect: "keikanNullClause",
+      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。自分のチャージに「契環」のカード種類が3種類以上あるなら、追加で1枚ドローできる。",
+    },
+    {
+      id: "generic_vanguard",
+      name: "汎用歩兵ヴァン",
+      type: "ユニット",
+      attr: "無",
+      cost: 1,
+      atk: 1600,
+      theme: "",
+      art: "assets/cards/art/generic-vanguard.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_survey_team",
+      name: "前線測量班",
+      type: "ユニット",
+      attr: "無",
+      cost: 1,
+      atk: 700,
+      theme: "",
+      art: "assets/cards/art/generic-survey-team.png",
+      effect: "genericSurveyTeam",
+      text: "通常召喚時：この効果を発動できる。自分のチャージ枚数が相手より少ないなら、手札1枚を自分のチャージに置く。",
+    },
+    {
+      id: "generic_watchman",
+      name: "鋼盾の見張り",
+      type: "ユニット",
+      attr: "無",
+      cost: 1,
+      atk: 900,
+      theme: "",
+      art: "assets/cards/art/generic-watchman.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_watch_drone",
+      name: "汎用警戒ドローン",
+      type: "ユニット",
+      attr: "無",
+      cost: 2,
+      atk: 2200,
+      theme: "",
+      art: "assets/cards/art/generic-watch-drone.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_probe_drone",
+      name: "汎用探索ドローン",
+      type: "ユニット",
+      attr: "無",
+      cost: 1,
+      atk: 1000,
+      theme: "",
+      art: "assets/cards/art/generic-watchman.png",
+      effect: "probeDrone",
+      text: "通常召喚時：この効果を発動できる。相手のセット中リアクション1枚を公開状態にする。公開できたなら、追加で手札からコスト1以下の「電脳」ユニット1体を追加召喚できる。",
+    },
+    {
+      id: "generic_field_medic",
+      name: "汎用救護員",
+      type: "ユニット",
+      attr: "無",
+      cost: 1,
+      atk: 800,
+      theme: "",
+      art: "assets/cards/art/generic-field-medic.png",
+      effect: "genericFieldMedic",
+      text: "通常召喚時：この効果を発動できる。自分のLPが相手より少ないなら、1枚ドロー。",
+    },
+    {
+      id: "generic_supply_box",
+      name: "汎用補給箱",
+      type: "スペル",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      art: "assets/cards/art/generic-supply-box.png",
+      effect: "genericSupplyBox",
+      text: "1枚ドロー。その後、自分の手札が3枚以下なら、追加で手札1枚を自分のチャージに置ける。",
+    },
+    {
+      id: "generic_rearguard_aide",
+      name: "汎用後衛補佐員",
+      type: "ユニット",
+      attr: "無",
+      cost: 1,
+      atk: 600,
+      theme: "",
+      art: "assets/cards/art/generic-rearguard-aide.png",
+      effect: "genericRearguardAide",
+      text: "通常召喚時：この効果を発動できる。自分フィールドにほかのユニットがいるなら、1枚ドロー。その後、手札1枚をロストゾーンに送る。",
+    },
+    {
+      id: "generic_repair_cart",
+      name: "汎用修理カート",
+      type: "ユニット",
+      attr: "無",
+      cost: 1,
+      atk: 900,
+      theme: "",
+      art: "assets/cards/art/generic-repair-cart.png",
+      effect: "genericRepairCart",
+      text: "通常召喚時：この効果を発動できる。自分フィールドにコアがあるなら、1枚ドロー。その後、手札1枚をロストゾーンに送る。",
+    },
+    {
+      id: "generic_emergency_wire",
+      name: "汎用応急配線",
+      type: "スペル",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      art: "assets/cards/art/generic-emergency-wire.png",
+      effect: "genericEmergencyWire",
+      text: "自分の手札が相手より少ないなら、1枚ドロー。その後、自分のチャージ枚数が相手より少ないなら、追加で手札1枚を自分のチャージに置ける。",
+    },
+    {
+      id: "generic_duelist",
+      name: "路地裏の剣士",
+      type: "ユニット",
+      attr: "無",
+      cost: 2,
+      atk: 2100,
+      theme: "",
+      art: "assets/cards/art/generic-duelist.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_carrier",
+      name: "装甲キャリア",
+      type: "ユニット",
+      attr: "無",
+      cost: 2,
+      atk: 1500,
+      theme: "",
+      art: "assets/cards/art/generic-carrier.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_lancer",
+      name: "突撃ランサー",
+      type: "ユニット",
+      attr: "無",
+      cost: 2,
+      atk: 2300,
+      theme: "",
+      art: "assets/cards/art/generic-lancer.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_walker",
+      name: "量産型ウォーカー",
+      type: "ユニット",
+      attr: "無",
+      cost: 2,
+      atk: 1900,
+      theme: "",
+      art: "assets/cards/art/generic-walker.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_golem",
+      name: "城塞ゴーレム",
+      type: "ユニット",
+      attr: "無",
+      cost: 3,
+      atk: 2100,
+      theme: "",
+      art: "assets/cards/art/generic-golem.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_crusher",
+      name: "重装クラッシャー",
+      type: "ユニット",
+      attr: "無",
+      cost: 3,
+      atk: 2700,
+      theme: "",
+      art: "assets/cards/art/generic-crusher.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_giant",
+      name: "星屑の巨兵",
+      type: "ユニット",
+      attr: "無",
+      cost: 4,
+      atk: 3000,
+      theme: "",
+      art: "assets/cards/art/generic-giant.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_guardian",
+      name: "無銘の守護騎士",
+      type: "ユニット",
+      attr: "無",
+      cost: 4,
+      atk: 2500,
+      theme: "",
+      art: "assets/cards/art/generic-guardian.png",
+      text: "効果なし。",
+    },
+    {
+      id: "generic_code",
+      name: "遮断コード",
+      type: "リアクション",
+      attr: "無",
+      cost: 2,
+      theme: "",
+      trigger: "effect",
+      art: "assets/cards/art/generic-code.png",
+      effect: "negateEffect",
+      text: "相手がカード効果を発動した時に発動できる。その効果を無効にする。",
+    },
+    {
+      id: "generic_wall",
+      name: "汎用防壁",
+      type: "リアクション",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      trigger: "attack",
+      art: "assets/cards/art/generic-wall.png",
+      effect: "negateAttack",
+      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にする。",
+    },
+    {
+      id: "generic_transfer",
+      name: "緊急転送",
+      type: "スペル",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      art: "assets/cards/art/generic-transfer.png",
+      effect: "drawDiscard",
+      text: "2枚ドロー。その後、手札1枚をロストゾーンに送る。",
+    },
+    {
+      id: "generic_watch_signal",
+      name: "見張り信号",
+      type: "リアクション",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      trigger: "attack",
+      art: "assets/cards/art/generic-wall.png",
+      effect: "watchSignal",
+      text: "相手ユニットの攻撃宣言時に発動できる。1枚ドローする。この効果では攻撃を無効にしない。",
+    },
+    {
+      id: "generic_noise_ping",
+      name: "ノイズピン",
+      type: "リアクション",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      trigger: "effect",
+      art: "assets/cards/art/generic-code.png",
+      effect: "noisePing",
+      text: "相手がカード効果を発動した時に発動できる。相手のセットリアクション1枚を公開状態にする。この効果ではその効果を無効にしない。",
+    },
+    {
+      id: "generic_field_notes",
+      name: "前線メモ",
+      type: "スペル",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      art: "assets/cards/art/generic-field-notes.png",
+      effect: "genericFieldNotes",
+      text: "1枚ドロー。自分フィールドにユニットがいないなら、追加で手札1枚を自分のチャージに置ける。",
+    },
+    {
+      id: "generic_bind",
+      name: "次元拘束",
+      type: "スペル",
+      attr: "影",
+      cost: 2,
+      theme: "",
+      art: "assets/cards/art/generic-bind.png",
+      effect: "bindUnit",
+      text: "相手ユニット1体を次の相手ターン終了まで行動済みにする。相手に500ダメージ。",
+    },
+    {
+      id: "generic_recall",
+      name: "ロスト回収",
+      type: "スペル",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      art: "assets/cards/art/generic-recall.png",
+      effect: "recallUnit",
+      text: "ロストゾーンからユニット1体を手札に戻す。",
+    },
+    {
+      id: "generic_zero",
+      name: "ゼロシフト装置",
+      type: "コア",
+      attr: "無",
+      cost: 2,
+      theme: "",
+      art: "assets/cards/art/generic-zero.png",
+      effect: "zeroCore",
+      text: "発動時：この効果を発動する。1枚ドロー。各ターン、自分が最初にチャージした時、1枚ドローし、手札1枚をロストゾーンに送る。",
+    },
+  ];
+
+  const drivePool = [
+    {
+      id: "drive_star_unit",
+      name: "星導・天星龍セレス",
+      type: "ユニットドライブ",
+      attr: "光",
+      cost: 7,
+      atk: 3200,
+      theme: "星導",
+      art: "assets/cards/art/drive/star-unit.png",
+      driveKind: "unit",
+      driveCost: { materials: [{ theme: "星導", type: "ユニット", count: 1 }, { theme: "星導", count: 1 }] },
+      driveEffect: "driveStarUnit",
+      text: "召喚条件：手札か場の「星導」ユニット1枚と、手札か場の任意の「星導」カード1枚をロストゾーンに送る。召喚時：この効果を発動できる。相手ユニット1体を手札に戻し、2枚ドローする。",
+    },
+    {
+      id: "drive_star_core",
+      name: "星導・天球儀",
+      type: "コアドライブ",
+      attr: "光",
+      cost: 2,
+      theme: "星導",
+      art: "assets/cards/art/drive/star-core.png",
+      driveKind: "core",
+      driveCost: { materials: [{ theme: "星導", type: "コア", count: 1 }, { theme: "星導", count: 1 }] },
+      driveEffect: "driveStarCore",
+      text: "発動条件：手札か場の「星導」コア1枚と、手札か場の任意の「星導」カード1枚をロストゾーンに送る。発動時：この効果を発動する。1枚ドローする。自分の「星導」ユニットはATKを300アップする。1ターンに1度、このカードを選んで発動できる。1枚ドローする。",
+    },
+    {
+      id: "drive_star_spell",
+      name: "星導・流星招来",
+      type: "スペルドライブ",
+      attr: "光",
+      cost: 3,
+      theme: "星導",
+      art: "assets/cards/art/drive/star-spell.png",
+      driveKind: "spell",
+      driveCost: { materials: [{ theme: "星導", type: "スペル", count: 1 }, { theme: "星導", count: 1 }] },
+      driveEffect: "driveStarSpell",
+      text: "発動条件：手札か場の「星導」スペル1枚と、手札か場の任意の「星導」カード1枚をロストゾーンに送る。デッキから「星導」カード1枚を手札に加え、1枚ドローし、自分のチャージ2枚をアクティブにする。ロスト効果：このカードをロストゾーンからアビスゾーンに送って発動できる。ロストゾーンから「星導」カード1枚を自分のチャージに置く。置けないなら1枚ドローする。",
+    },
+    {
+      id: "drive_star_react_attack",
+      name: "星導・恒星防壁",
+      type: "リアクションドライブ",
+      attr: "光",
+      cost: 0,
+      theme: "星導",
+      art: "assets/cards/art/drive/star-react-attack.png",
+      trigger: "attack",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "星導", type: "リアクション", count: 1 }, { theme: "星導", count: 1 }] },
+      driveEffect: "driveStarReactAttack",
+      text: "発動条件：相手ユニットの攻撃宣言時、手札か場の「星導」リアクション1枚と、手札か場の任意の「星導」カード1枚をロストゾーンに送る。この効果は無効化されない。効果：その攻撃を無効にし、そのユニットを手札に戻し、1枚ドローする。",
+    },
+    {
+      id: "drive_star_react_effect",
+      name: "星導・因果遮断",
+      type: "リアクションドライブ",
+      attr: "光",
+      cost: 3,
+      theme: "星導",
+      art: "assets/cards/art/drive/star-react-effect.png",
+      trigger: "effect",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "星導", type: "リアクション", count: 1 }, { theme: "星導", count: 1 }] },
+      driveEffect: "driveStarReactEffect",
+      text: "発動条件：相手がカード効果を発動した時、手札か場の「星導」リアクション1枚と、手札か場の任意の「星導」カード1枚をロストゾーンに送る。この効果は無効化されない。効果：その効果を無効にし、発動元が場のカードなら持ち主の手札に戻す。ドライブカードならドライブデッキに戻す。その後、1枚ドローする。",
+    },
+    {
+      id: "drive_black_unit",
+      name: "黒機・殲滅機兵オルド",
+      type: "ユニットドライブ",
+      attr: "影",
+      cost: 7,
+      atk: 3400,
+      theme: "黒機",
+      art: "assets/cards/art/drive/black-unit.png",
+      driveKind: "unit",
+      driveCost: { materials: [{ theme: "黒機", type: "ユニット", count: 1 }, { theme: "黒機", count: 1 }] },
+      driveEffect: "driveBlackUnit",
+      text: "召喚条件：手札か場の「黒機」ユニット1枚と、手札か場の任意の「黒機」カード1枚をロストゾーンに送る。召喚時：この効果を発動できる。相手に2000ダメージ。相手ユニット1体を破壊する。",
+    },
+    {
+      id: "drive_black_core",
+      name: "黒機・重圧炉",
+      type: "コアドライブ",
+      attr: "影",
+      cost: 2,
+      theme: "黒機",
+      art: "assets/cards/art/drive/black-core.png",
+      driveKind: "core",
+      driveCost: { materials: [{ theme: "黒機", type: "コア", count: 1 }, { theme: "黒機", count: 1 }] },
+      driveEffect: "driveBlackCore",
+      text: "発動条件：手札か場の「黒機」コア1枚と、手札か場の任意の「黒機」カード1枚をロストゾーンに送る。発動時：この効果を発動する。相手に1000ダメージ。自分の「黒機」ユニットはATKを300アップする。1ターンに1度、このカードを選び、チャージ1を支払って発動できる。相手に800ダメージ。",
+    },
+    {
+      id: "drive_black_spell",
+      name: "黒機・総分解",
+      type: "スペルドライブ",
+      attr: "影",
+      cost: 5,
+      theme: "黒機",
+      art: "assets/cards/art/drive/black-spell.png",
+      driveKind: "spell",
+      driveCost: { materials: [{ theme: "黒機", type: "スペル", count: 1 }, { theme: "黒機", count: 2 }] },
+      driveEffect: "driveBlackSpell",
+      text: "発動条件：手札か場の「黒機」スペル1枚と、手札か場の任意の「黒機」カード2枚をロストゾーンに送る。相手ユニット1体と相手コア1枚を破壊し、相手に1500ダメージ。ロスト効果：このカードをロストゾーンからアビスゾーンに送って発動できる。相手に600ダメージ。",
+    },
+    {
+      id: "drive_black_react_attack",
+      name: "黒機・反撃砲列",
+      type: "リアクションドライブ",
+      attr: "影",
+      cost: 3,
+      theme: "黒機",
+      art: "assets/cards/art/drive/black-react-attack.png",
+      trigger: "attack",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "黒機", type: "リアクション", count: 1 }, { theme: "黒機", count: 2 }] },
+      driveEffect: "driveBlackReactAttack",
+      text: "発動条件：相手ユニットの攻撃宣言時、手札か場の「黒機」リアクション1枚と、手札か場の任意の「黒機」カード2枚をロストゾーンに送る。この効果は無効化されない。効果：その攻撃を無効にし、そのユニットを破壊し、相手に1500ダメージ。",
+    },
+    {
+      id: "drive_black_react_effect",
+      name: "黒機・回路封鎖",
+      type: "リアクションドライブ",
+      attr: "影",
+      cost: 3,
+      theme: "黒機",
+      art: "assets/cards/art/drive/black-react-effect.png",
+      trigger: "effect",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "黒機", type: "リアクション", count: 1 }, { theme: "黒機", count: 2 }] },
+      driveEffect: "driveBlackReactEffect",
+      text: "発動条件：相手がカード効果を発動した時、手札か場の「黒機」リアクション1枚と、手札か場の任意の「黒機」カード2枚をロストゾーンに送る。この効果は無効化されない。効果：その効果を無効にし、発動元が場のカードなら破壊する。その後、相手に1200ダメージ。",
+    },
+    {
+      id: "drive_blade_unit",
+      name: "断刃・終刃ヴァルク",
+      type: "ユニットドライブ",
+      attr: "影",
+      cost: 7,
+      atk: 3300,
+      theme: "断刃",
+      art: "assets/cards/art/drive/blade-unit.png",
+      driveKind: "unit",
+      driveCost: { materials: [{ theme: "断刃", type: "ユニット", count: 1 }, { theme: "断刃", count: 1 }] },
+      driveEffect: "driveBladeUnit",
+      text: "召喚条件：手札か場の「断刃」ユニット1枚と、手札か場の任意の「断刃」カード1枚をロストゾーンに送る。召喚時：この効果を発動できる。相手ユニットすべてを次の相手ターン終了まで行動済みにする。",
+    },
+    {
+      id: "drive_blade_core",
+      name: "断刃・審判台",
+      type: "コアドライブ",
+      attr: "影",
+      cost: 2,
+      theme: "断刃",
+      art: "assets/cards/art/drive/blade-core.png",
+      driveKind: "core",
+      driveCost: { materials: [{ theme: "断刃", type: "コア", count: 1 }, { theme: "断刃", count: 1 }] },
+      driveEffect: "driveBladeCore",
+      text: "発動条件：手札か場の「断刃」コア1枚と、手札か場の任意の「断刃」カード1枚をロストゾーンに送る。発動時：この効果を発動する。相手ユニット1体を次の相手ターン終了まで行動済みにする。自分の「断刃」ユニットはATKを300アップする。1ターンに1度、このカードを選び、チャージ1を支払って発動できる。相手の行動済みユニット1体を破壊する。破壊できなければ相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+    },
+    {
+      id: "drive_blade_spell",
+      name: "断刃・無明一閃",
+      type: "スペルドライブ",
+      attr: "影",
+      cost: 5,
+      theme: "断刃",
+      art: "assets/cards/art/drive/blade-spell.png",
+      driveKind: "spell",
+      driveCost: { materials: [{ theme: "断刃", type: "スペル", count: 1 }, { theme: "断刃", count: 2 }] },
+      driveEffect: "driveBladeSpell",
+      text: "発動条件：手札か場の「断刃」スペル1枚と、手札か場の任意の「断刃」カード2枚をロストゾーンに送る。相手ユニット1体を次の相手ターン終了まで行動済みにし、行動済みユニット1体を破壊する。ロスト効果：このカードをロストゾーンからアビスゾーンに送って発動できる。相手ユニット1体を次の相手ターン終了まで行動済みにする。できなければ相手に500ダメージ。",
+    },
+    {
+      id: "drive_blade_react_attack",
+      name: "断刃・見切り返し",
+      type: "リアクションドライブ",
+      attr: "影",
+      cost: 3,
+      theme: "断刃",
+      art: "assets/cards/art/drive/blade-react-attack.png",
+      trigger: "attack",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "断刃", type: "リアクション", count: 1 }, { theme: "断刃", count: 2 }] },
+      driveEffect: "driveBladeReactAttack",
+      text: "発動条件：相手ユニットの攻撃宣言時、手札か場の「断刃」リアクション1枚と、手札か場の任意の「断刃」カード2枚をロストゾーンに送る。この効果は無効化されない。効果：その攻撃を無効にし、そのユニットを次の相手ターン終了まで行動済みにし、その後そのユニットを破壊する。",
+    },
+    {
+      id: "drive_blade_react_effect",
+      name: "断刃・裁きの間",
+      type: "リアクションドライブ",
+      attr: "影",
+      cost: 3,
+      theme: "断刃",
+      art: "assets/cards/art/drive/blade-react-effect.png",
+      trigger: "effect",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "断刃", type: "リアクション", count: 1 }, { theme: "断刃", count: 2 }] },
+      driveEffect: "driveBladeReactEffect",
+      text: "発動条件：相手がカード効果を発動した時、手札か場の「断刃」リアクション1枚と、手札か場の任意の「断刃」カード2枚をロストゾーンに送る。この効果は無効化されない。効果：その効果を無効にし、発動元が場のカードなら破壊する。破壊できなければ相手の行動済みユニット1体を破壊する。それもできなければ相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+    },
+    {
+      id: "drive_cyber_unit",
+      name: "電脳・量子姫アリア",
+      type: "ユニットドライブ",
+      attr: "光",
+      cost: 6,
+      atk: 3000,
+      theme: "電脳",
+      art: "assets/cards/art/drive/cyber-unit.png",
+      driveKind: "unit",
+      driveCost: { materials: [{ theme: "電脳", type: "ユニット", count: 1 }, { theme: "電脳", count: 1 }] },
+      driveEffect: "driveCyberUnit",
+      text: "召喚条件：手札か場の「電脳」ユニット1枚と、手札か場の任意の「電脳」カード1枚をロストゾーンに送る。召喚時：この効果を発動できる。相手のセットリアクション2枚を表向きにし、表向きのリアクション1枚をロストゾーンに送る。",
+    },
+    {
+      id: "drive_cyber_core",
+      name: "電脳・量子中枢",
+      type: "コアドライブ",
+      attr: "光",
+      cost: 2,
+      theme: "電脳",
+      art: "assets/cards/art/drive/cyber-core.png",
+      driveKind: "core",
+      driveCost: { materials: [{ theme: "電脳", type: "コア", count: 1 }, { theme: "電脳", count: 1 }] },
+      driveEffect: "driveCyberCore",
+      text: "発動条件：手札か場の「電脳」コア1枚と、手札か場の任意の「電脳」カード1枚をロストゾーンに送る。発動時：この効果を発動する。相手のセットリアクション1枚を表向きにし、手札からコスト3以下の「電脳」ユニット1体を追加召喚できる。自分の「電脳」ユニットはATKを200アップする。1ターンに1度、このカードを選び、チャージ1を支払って発動できる。相手のセットリアクション1枚を表向きにし、表向きのリアクション1枚をロストゾーンに送る。",
+    },
+    {
+      id: "drive_cyber_spell",
+      name: "電脳・全域侵入",
+      type: "スペルドライブ",
+      attr: "光",
+      cost: 2,
+      theme: "電脳",
+      art: "assets/cards/art/drive/cyber-spell.png",
+      driveKind: "spell",
+      driveCost: { materials: [{ theme: "電脳", type: "スペル", count: 1 }, { theme: "電脳", count: 1 }] },
+      driveEffect: "driveCyberSpell",
+      text: "発動条件：手札か場の「電脳」スペル1枚と、手札か場の任意の「電脳」カード1枚をロストゾーンに送る。相手のセットリアクションを2枚まで表向きにし、表向きのリアクション1枚をロストゾーンに送り、デッキから「電脳」カード1枚を手札に加え、1枚ドローする。ロスト効果：このカードをロストゾーンからアビスゾーンに送って発動できる。相手のセットリアクション1枚を表向きにし、表向きのリアクション1枚をロストゾーンに送る。表向きにできなければ1枚ドローする。",
+    },
+    {
+      id: "drive_cyber_react_attack",
+      name: "電脳・絶対防壁",
+      type: "リアクションドライブ",
+      attr: "光",
+      cost: 0,
+      theme: "電脳",
+      art: "assets/cards/art/drive/cyber-react-attack.png",
+      trigger: "attack",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "電脳", type: "リアクション", count: 1 }, { theme: "電脳", count: 1 }] },
+      driveEffect: "driveCyberReactAttack",
+      text: "発動条件：相手ユニットの攻撃宣言時、手札か場の「電脳」リアクション1枚と、手札か場の任意の「電脳」カード1枚をロストゾーンに送る。この効果は無効化されない。効果：その攻撃を無効にし、相手のセットリアクション1枚を表向きにし、表向きのリアクション1枚をロストゾーンに送る。",
+    },
+    {
+      id: "drive_cyber_react_effect",
+      name: "電脳・管理者権限",
+      type: "リアクションドライブ",
+      attr: "光",
+      cost: 3,
+      theme: "電脳",
+      art: "assets/cards/art/drive/cyber-react-effect.png",
+      trigger: "effect",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "電脳", type: "リアクション", count: 1 }, { theme: "電脳", count: 1 }] },
+      driveEffect: "driveCyberReactEffect",
+      text: "発動条件：相手がカード効果を発動した時、手札か場の「電脳」リアクション1枚と、手札か場の任意の「電脳」カード1枚をロストゾーンに送る。この効果は無効化されない。効果：その効果を無効にし、相手のセットリアクション2枚を表向きにし、表向きのリアクション1枚をロストゾーンに送る。",
+    },
+    {
+      id: "drive_sosai_unit",
+      name: "双彩・ヒカリ＆ミント",
+      type: "ユニットドライブ",
+      attr: "光",
+      cost: 6,
+      atk: 3100,
+      theme: "双彩",
+      art: "assets/cards/art/drive/sosai-unit.png",
+      driveKind: "unit",
+      driveCost: { materials: [{ id: "sosai_hikari", count: 1 }, { id: "sosai_mint", count: 1 }] },
+      driveEffect: "driveSosaiUnit",
+      text: "召喚条件：手札か場の「双彩のヒカリ」と手札か場の「双彩のミント」をロストゾーンに送る。召喚時：この効果を発動できる。デッキから「双彩」ユニット1枚を手札に加え、相手ユニット1体を手札に戻す。",
+    },
+    {
+      id: "drive_sosai_nene_ruri_unit",
+      name: "双彩・ネネ＆ルリ",
+      type: "ユニットドライブ",
+      attr: "光",
+      cost: 6,
+      atk: 3200,
+      theme: "双彩",
+      art: "assets/cards/art/drive/sosai-nene-ruri-unit.png",
+      driveKind: "unit",
+      driveCost: { materials: [{ id: "sosai_nene", count: 1 }, { id: "sosai_ruri", count: 1 }] },
+      driveEffect: "driveSosaiNeneRuriUnit",
+      text: "召喚条件：手札か場の「双彩のネネ」と手札か場の「双彩のルリ」をロストゾーンに送る。召喚時：この効果を発動できる。相手ユニット1体を手札に戻し、相手に1000ダメージ。1枚ドローする。",
+    },
+    {
+      id: "drive_sosai_coco_luna_unit",
+      name: "双彩・ココ＆ルナ",
+      type: "ユニットドライブ",
+      attr: "光",
+      cost: 6,
+      atk: 3000,
+      theme: "双彩",
+      art: "assets/cards/art/drive/sosai-coco-luna-unit.png",
+      driveKind: "unit",
+      driveCost: { materials: [{ id: "sosai_coco", count: 1 }, { id: "sosai_luna", count: 1 }] },
+      driveEffect: "driveSosaiCocoLunaUnit",
+      text: "召喚条件：手札か場の「双彩のココ」と手札か場の「双彩のルナ」をロストゾーンに送る。召喚時：この効果を発動できる。自分のタップ済みチャージ2枚をアクティブにし、相手ユニット1体を破壊する。",
+    },
+    {
+      id: "drive_sosai_core",
+      name: "双彩・プリズムステージ",
+      type: "コアドライブ",
+      attr: "光",
+      cost: 2,
+      theme: "双彩",
+      art: "assets/cards/art/drive/sosai-core.png",
+      driveKind: "core",
+      driveCost: { materials: [{ theme: "双彩", type: "コア", count: 1 }, { theme: "双彩", count: 1 }] },
+      driveEffect: "driveSosaiCore",
+      text: "発動条件：手札か場の「双彩」コア1枚と、手札か場の任意の「双彩」カード1枚をロストゾーンに送る。発動時：この効果を発動する。1枚ドローする。自分の「双彩」ユニットは、相方がいるならATKを500アップする。1ターンに1度、このカードを選んで発動できる。1枚ドローする。自分フィールドに「双彩」のペアがいるなら自分のチャージ1枚をアクティブにする。",
+    },
+    {
+      id: "drive_sosai_spell",
+      name: "双彩・満員アンコール",
+      type: "スペルドライブ",
+      attr: "光",
+      cost: 3,
+      theme: "双彩",
+      art: "assets/cards/art/drive/sosai-spell.png",
+      driveKind: "spell",
+      driveCost: { materials: [{ theme: "双彩", type: "スペル", count: 1 }, { theme: "双彩", count: 1 }] },
+      driveEffect: "driveSosaiSpell",
+      text: "発動条件：手札か場の「双彩」スペル1枚と、手札か場の任意の「双彩」カード1枚をロストゾーンに送る。ロストゾーンから「双彩」ユニット1体を手札に戻し、手札からコスト3以下の「双彩」ユニット1体を追加召喚できる。追加召喚したなら自分のチャージ1枚をアクティブにする。その後、1枚ドローする。ロスト効果：このカードをロストゾーンからアビスゾーンに送って発動できる。ロストゾーンから「双彩」ユニット1体を手札に戻す。戻せなければ1枚ドローする。",
+    },
+    {
+      id: "drive_sosai_react_attack",
+      name: "双彩・ハートガード",
+      type: "リアクションドライブ",
+      attr: "光",
+      cost: 0,
+      theme: "双彩",
+      art: "assets/cards/art/drive/sosai-react-attack.png",
+      trigger: "attack",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "双彩", type: "リアクション", count: 1 }, { theme: "双彩", count: 1 }] },
+      driveEffect: "driveSosaiReactAttack",
+      text: "発動条件：相手ユニットの攻撃宣言時、手札か場の「双彩」リアクション1枚と、手札か場の任意の「双彩」カード1枚をロストゾーンに送る。この効果は無効化されない。効果：その攻撃を無効にし、1枚ドローする。自分フィールドに「双彩」のペアがいるならそのユニットを手札に戻す。",
+    },
+    {
+      id: "drive_sosai_react_effect",
+      name: "双彩・シンクロカーテン",
+      type: "リアクションドライブ",
+      attr: "光",
+      cost: 3,
+      theme: "双彩",
+      art: "assets/cards/art/drive/sosai-react-effect.png",
+      trigger: "effect",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "双彩", type: "リアクション", count: 1 }, { theme: "双彩", count: 1 }] },
+      driveEffect: "driveSosaiReactEffect",
+      text: "発動条件：相手がカード効果を発動した時、手札か場の「双彩」リアクション1枚と、手札か場の任意の「双彩」カード1枚をロストゾーンに送る。この効果は無効化されない。効果：その効果を無効にし、1枚ドローする。自分フィールドに「双彩」のペアがいるなら発動元が場のカードを持ち主の手札に戻す。ドライブカードならドライブデッキに戻す。",
+    },
+    {
+      id: "drive_keikan_unit",
+      name: "契環・円環審判リヴァ",
+      type: "ユニットドライブ",
+      attr: "光",
+      cost: 6,
+      atk: 3100,
+      theme: "契環",
+      art: "assets/cards/art/drive/keikan-unit.png",
+      driveKind: "unit",
+      driveCost: { materials: [{ theme: "契環", type: "ユニット", count: 1 }, { theme: "契環", type: "スペル", count: 1 }, { theme: "契環", type: "リアクション", count: 1 }] },
+      driveEffect: "driveKeikanUnit",
+      text: "召喚条件：手札か場の「契環」ユニット1枚、手札か場の「契環」スペル1枚、手札か場の「契環」リアクション1枚をロストゾーンに送る。召喚時：この効果を発動できる。デッキから「契環」カード1枚を手札に加え、1枚ドローし、自分の「契環」ユニットすべてのATKを300アップする。",
+    },
+    {
+      id: "drive_keikan_core",
+      name: "契環・盟約の玉座",
+      type: "コアドライブ",
+      attr: "光",
+      cost: 2,
+      theme: "契環",
+      art: "assets/cards/art/drive/keikan-core.png",
+      driveKind: "core",
+      driveCost: { materials: [{ theme: "契環", type: "コア", count: 1 }, { theme: "契環", count: 1 }] },
+      driveEffect: "driveKeikanCore",
+      text: "発動条件：手札か場の「契環」コア1枚と、手札か場の任意の「契環」カード1枚をロストゾーンに送る。発動時：この効果を発動する。1枚ドロー。自分の「契環」ユニットはATKを300アップする。1ターンに1度、このカードを選んで発動できる。ロストゾーンから「契環」カード1枚を自分のチャージに置く。",
+    },
+    {
+      id: "drive_keikan_react_effect",
+      name: "契環・破約裁定",
+      type: "リアクションドライブ",
+      attr: "影",
+      cost: 3,
+      theme: "契環",
+      art: "assets/cards/art/drive/keikan-react-effect.png",
+      trigger: "effect",
+      driveKind: "reaction",
+      driveCost: { materials: [{ theme: "契環", type: "リアクション", count: 1 }, { theme: "契環", count: 1 }] },
+      driveEffect: "driveKeikanReactEffect",
+      text: "発動条件：相手がカード効果を発動した時、手札か場の「契環」リアクション1枚と、手札か場の任意の「契環」カード1枚をロストゾーンに送る。この効果は無効化されない。効果：その効果を無効にし、発動元が場のカードなら持ち主の手札に戻す。戻せなければ1枚ドローする。",
+    },
+    {
+      id: "drive_generic_unit",
+      name: "クロノガーディアン",
+      type: "ユニットドライブ",
+      attr: "無",
+      cost: 6,
+      atk: 2800,
+      theme: "",
+      art: "assets/cards/art/drive/generic-unit.png",
+      driveKind: "unit",
+      driveCost: { materials: [{ type: "ユニット", count: 2 }] },
+      driveEffect: "driveGenericUnit",
+      text: "召喚条件：手札か場のユニット2枚をロストゾーンに送る。召喚時：この効果を発動できる。相手ユニット1体を次の相手ターン終了まで行動済みにする。",
+    },
+    {
+      id: "drive_generic_core",
+      name: "クロノ炉",
+      type: "コアドライブ",
+      attr: "無",
+      cost: 2,
+      theme: "",
+      art: "assets/cards/art/drive/generic-core.png",
+      driveKind: "core",
+      driveCost: { materials: [{ type: "コア", count: 2 }] },
+      driveEffect: "driveGenericCore",
+      text: "発動条件：手札か場のコア2枚をロストゾーンに送る。発動時：この効果を発動する。2枚ドローし、手札1枚をロストゾーンに送る。1ターンに1度、このカードを選んで発動できる。1枚ドローし、手札1枚をロストゾーンに送る。",
+    },
+    {
+      id: "drive_generic_spell",
+      name: "時空圧縮",
+      type: "スペルドライブ",
+      attr: "無",
+      cost: 2,
+      theme: "",
+      art: "assets/cards/art/drive/generic-spell.png",
+      driveKind: "spell",
+      driveCost: { materials: [{ type: "スペル", count: 2 }] },
+      driveEffect: "driveGenericSpell",
+      text: "発動条件：手札か場のスペル2枚をロストゾーンに送る。相手ユニット1体を次の相手ターン終了まで行動済みにし、行動済みユニット1体を破壊する。ロスト効果：このカードをロストゾーンからアビスゾーンに送って発動できる。1枚ドローし、手札1枚をロストゾーンに送る。",
+    },
+    {
+      id: "drive_generic_react_attack",
+      name: "時防壁",
+      type: "リアクションドライブ",
+      attr: "無",
+      cost: 0,
+      theme: "",
+      art: "assets/cards/art/drive/generic-react-attack.png",
+      trigger: "attack",
+      driveKind: "reaction",
+      driveCost: { materials: [{ type: "リアクション", count: 2 }] },
+      driveEffect: "driveGenericReactAttack",
+      text: "発動条件：相手ユニットの攻撃宣言時、手札か場のリアクション2枚をロストゾーンに送る。この効果は無効化されない。効果：その攻撃を無効にし、そのユニットを次の相手ターン終了まで行動済みにする。自分のチャージ1枚をアクティブにする。",
+    },
+    {
+      id: "drive_generic_react_effect",
+      name: "無効領域",
+      type: "リアクションドライブ",
+      attr: "無",
+      cost: 3,
+      theme: "",
+      art: "assets/cards/art/drive/generic-react-effect.png",
+      trigger: "effect",
+      driveKind: "reaction",
+      driveCost: { materials: [{ type: "リアクション", count: 2 }] },
+      driveEffect: "driveGenericReactEffect",
+      text: "発動条件：相手がカード効果を発動した時、手札か場のリアクション2枚をロストゾーンに送る。この効果は無効化されない。効果：その効果を無効にし、発動元が場のカードなら破壊する。破壊できなければ1枚ドローする。",
+    },
+  ];
+
+  const cards = Object.fromEntries([...cardPool, ...drivePool].map((card) => [card.id, card]));
+
+  const starterDeck = {
+    star_scout: 3,
+    star_lux: 3,
+    star_mira: 3,
+    star_guard: 2,
+    star_dragon: 2,
+    star_navigator: 3,
+    star_surveyor_noll: 1,
+    star_invite: 3,
+    star_link: 2,
+    star_reignite: 2,
+    star_chart: 3,
+    star_observation_record: 1,
+    star_orbit: 3,
+    star_wall: 2,
+    star_interference: 2,
+    generic_code: 2,
+    generic_wall: 2,
+    generic_transfer: 1,
   };
 
-  function art(cardClass, index = 0) {
-    const list = classArt[cardClass] || classArt.generic;
-    return list[index % list.length];
-  }
+  const cpuDeck = {
+    black_grinder: 3,
+    black_gear: 3,
+    black_anchor: 3,
+    black_tower: 3,
+    black_raid: 3,
+    black_claw: 3,
+    black_supply_engineer: 3,
+    black_binding_gunner: 2,
+    generic_code: 3,
+    generic_wall: 3,
+    generic_transfer: 3,
+    generic_bind: 3,
+    generic_recall: 2,
+    generic_survey_team: 1,
+    generic_zero: 2,
+  };
 
-  function defaultRarity(spec) {
-    const cost = Number(spec.driveCost ?? spec.cost ?? 0);
-    if (spec.driveKind || spec.type === TYPES.DRIVE_UNIT) {
-      if (cost >= 15) return RARITIES.rainbow.id;
-      return RARITIES.gold.id;
-    }
-    if (cost >= 5) return RARITIES.gold.id;
-    if (cost >= 3) return RARITIES.silver.id;
-    return RARITIES.bronze.id;
-  }
+  const starterDriveDeck = {
+    drive_star_unit: 1,
+    drive_star_core: 1,
+    drive_star_spell: 1,
+    drive_star_react_attack: 1,
+    drive_star_react_effect: 1,
+    drive_generic_unit: 1,
+    drive_generic_core: 1,
+    drive_generic_spell: 1,
+    drive_generic_react_attack: 1,
+    drive_generic_react_effect: 1,
+  };
 
-  function baseCard(spec) {
+  const cpuDriveDeck = {
+    drive_black_unit: 1,
+    drive_black_core: 1,
+    drive_black_spell: 1,
+    drive_black_react_attack: 1,
+    drive_black_react_effect: 1,
+    drive_generic_unit: 1,
+    drive_generic_core: 1,
+    drive_generic_spell: 1,
+    drive_generic_react_attack: 1,
+    drive_generic_react_effect: 1,
+  };
+
+  const cpuDecks = [
+    {
+      name: "CPU: 星導",
+      deck: starterDeck,
+      driveDeck: starterDriveDeck,
+    },
+    {
+      name: "CPU: 黒機",
+      deck: cpuDeck,
+      driveDeck: cpuDriveDeck,
+    },
+    {
+      name: "CPU: 断刃",
+      deck: {
+        blade_tracker: 3,
+        blade_marksmith: 3,
+        blade_edgeguard: 3,
+        blade_executioner: 3,
+        blade_arbiter: 2,
+        blade_mark: 3,
+        blade_cleave: 3,
+        blade_warrant: 3,
+        blade_scaffold: 3,
+        blade_counter: 3,
+        black_anchor: 2,
+        black_raid: 2,
+        generic_code: 2,
+        generic_wall: 2,
+        generic_transfer: 1,
+        generic_zero: 2,
+      },
+      driveDeck: {
+        drive_blade_unit: 1,
+        drive_blade_core: 1,
+        drive_blade_spell: 1,
+        drive_blade_react_attack: 1,
+        drive_blade_react_effect: 1,
+        drive_generic_unit: 1,
+        drive_generic_core: 1,
+        drive_generic_spell: 1,
+        drive_generic_react_attack: 1,
+        drive_generic_react_effect: 1,
+      },
+    },
+    {
+      name: "CPU: 電脳",
+      deck: {
+        cyber_mio: 3,
+        cyber_rei: 3,
+        cyber_shion: 3,
+        cyber_yuna: 3,
+        cyber_akari: 2,
+        cyber_packet_mana: 2,
+        cyber_log_rin: 2,
+        cyber_preview: 3,
+        cyber_intrusion: 1,
+        cyber_network: 3,
+        cyber_backchannel: 2,
+        cyber_trace_route: 2,
+        cyber_cache_sync: 2,
+        cyber_shield: 3,
+        cyber_counterhack: 2,
+        generic_code: 2,
+        generic_wall: 1,
+        generic_zero: 1,
+      },
+      driveDeck: {
+        drive_cyber_unit: 1,
+        drive_cyber_core: 1,
+        drive_cyber_spell: 1,
+        drive_cyber_react_attack: 1,
+        drive_cyber_react_effect: 1,
+        drive_generic_unit: 1,
+        drive_generic_core: 1,
+        drive_generic_spell: 1,
+        drive_generic_react_attack: 1,
+        drive_generic_react_effect: 1,
+      },
+    },
+    {
+      name: "CPU: 双彩",
+      deck: {
+        sosai_hikari: 3,
+        sosai_mint: 3,
+        sosai_partner_call_ai: 1,
+        sosai_nene: 3,
+        sosai_ruri: 3,
+        sosai_coco: 3,
+        sosai_luna: 2,
+        sosai_live_start: 3,
+        sosai_heart_sync: 3,
+        sosai_backstage_call: 1,
+        sosai_pop_stage: 3,
+        sosai_stream_cancel: 3,
+        generic_transfer: 3,
+        generic_code: 2,
+        generic_wall: 2,
+        generic_zero: 2,
+      },
+      driveDeck: {
+        drive_sosai_unit: 1,
+        drive_sosai_core: 1,
+        drive_sosai_spell: 1,
+        drive_sosai_react_attack: 1,
+        drive_sosai_react_effect: 1,
+        drive_generic_unit: 1,
+        drive_generic_core: 1,
+        drive_generic_spell: 1,
+        drive_generic_react_attack: 1,
+        drive_generic_react_effect: 1,
+      },
+    },
+    {
+      name: "CPU: 契環",
+      deck: {
+        keikan_scribe_yura: 3,
+        keikan_charm_ren: 3,
+        keikan_mediator_sae: 3,
+        keikan_oathbearer_kuga: 2,
+        keikan_ring_adept_may: 3,
+        keikan_ledger_keeper_io: 2,
+        keikan_oath_script: 3,
+        keikan_seal_exchange: 3,
+        keikan_pretrial_record: 2,
+        keikan_witness_ring: 3,
+        keikan_binding_clause: 3,
+        keikan_null_clause: 3,
+        generic_supply_box: 3,
+        generic_transfer: 2,
+        generic_wall: 1,
+        generic_code: 1,
+      },
+      driveDeck: {
+        drive_keikan_unit: 2,
+        drive_keikan_core: 2,
+        drive_keikan_react_effect: 1,
+        drive_generic_unit: 1,
+        drive_generic_core: 1,
+        drive_generic_spell: 1,
+        drive_generic_react_attack: 1,
+        drive_generic_react_effect: 1,
+      },
+    },
+  ];
+
+  const CPU_GENERIC_MAIN_POOL = [
+    "generic_vanguard",
+    "generic_survey_team",
+    "generic_watch_drone",
+    "generic_probe_drone",
+    "generic_field_medic",
+    "generic_supply_box",
+    "generic_rearguard_aide",
+    "generic_repair_cart",
+    "generic_duelist",
+    "generic_carrier",
+    "generic_lancer",
+    "generic_walker",
+    "generic_crusher",
+    "generic_guardian",
+    "generic_code",
+    "generic_wall",
+    "generic_transfer",
+    "generic_emergency_wire",
+    "generic_watch_signal",
+    "generic_noise_ping",
+    "generic_field_notes",
+    "generic_bind",
+    "generic_recall",
+    "generic_zero",
+  ];
+
+  function createCpuDeckVariant(source = {}, options = {}) {
+    const theme = options.theme || dominantDeckTheme(source.deck) || "";
+    const aiLevel = Math.max(1, Math.min(5, Math.floor(Number(options.aiLevel) || 3)));
+    const allowSplash = options.allowSplash !== false;
+    const main = normalizeCpuCounts(source.deck || starterDeck, false);
+    const drive = normalizeCpuCounts(source.driveDeck || starterDriveDeck, true);
+    const mainVariant = varyCpuMainDeck(main, theme, { aiLevel, allowSplash });
+    const driveVariant = varyCpuDriveDeck(drive, theme, { aiLevel, allowSplash });
     return {
-      attr: classLabel(spec.cardClass),
-      theme: spec.cardClass === "generic" ? "汎用" : classLabel(spec.cardClass),
-      text: spec.text || "",
-      art: spec.art || art(spec.cardClass || "generic", spec.artIndex || 0),
-      ...spec,
-      rarity: spec.rarity || defaultRarity(spec),
+      ...source,
+      name: cpuVariantName(source.name, mainVariant.label, aiLevel),
+      deck: mainVariant.deck,
+      driveDeck: driveVariant.deck,
+      variantLabel: mainVariant.label,
     };
   }
 
-  function unit(spec) {
-    return baseCard({
-      type: TYPES.UNIT,
-      attack: 1,
-      durability: 1,
-      drive: 1,
-      accelerate: 0,
-      defense: 0,
-      ...spec,
+  function cpuVariantName(name = "CPU", label = "", aiLevel = 3) {
+    const base = String(name || "CPU").replace(/\s+$/, "");
+    const suffix = label || (aiLevel >= 4 ? "調整型" : aiLevel <= 2 ? "純構築型" : "標準型");
+    return `${base}・${suffix}`;
+  }
+
+  function varyCpuMainDeck(base, theme, options = {}) {
+    const deck = { ...base };
+    const aiLevel = options.aiLevel || 3;
+    const labels = [];
+    const variationSteps = aiLevel >= 4 ? 8 : aiLevel >= 3 ? 6 : 4;
+    const themeFloor = Math.max(24, Math.min(32, countThemeCards(deck, theme) - (aiLevel >= 4 ? 7 : 5)));
+    const splashChance = options.allowSplash ? (aiLevel >= 4 ? 0.24 : aiLevel >= 3 ? 0.16 : 0.08) : 0;
+    const stabilityChance = aiLevel >= 4 ? 0.42 : aiLevel >= 3 ? 0.28 : 0.16;
+
+    for (let i = 0; i < variationSteps; i += 1) {
+      const removed = removeFlexibleCpuCard(deck, theme, themeFloor, false);
+      if (!removed) break;
+      const roll = Math.random();
+      const candidate = roll < stabilityChance
+        ? chooseCpuCandidate(deck, theme, "theme")
+        : roll < stabilityChance + splashChance
+          ? chooseCpuCandidate(deck, theme, "splash")
+          : chooseCpuCandidate(deck, theme, "generic");
+      if (candidate) {
+        deck[candidate] = (deck[candidate] || 0) + 1;
+        labels.push(cards[candidate]?.theme && cards[candidate].theme !== theme ? "出張" : roll < stabilityChance ? "安定" : "汎用");
+      } else {
+        deck[removed] = (deck[removed] || 0) + 1;
+      }
+    }
+
+    repairCpuDeck(deck, theme, themeFloor, DECK_SIZE, false);
+    return {
+      deck,
+      label: chooseVariantLabel(labels, aiLevel),
+    };
+  }
+
+  function varyCpuDriveDeck(base, theme, options = {}) {
+    const deck = { ...base };
+    const aiLevel = options.aiLevel || 3;
+    const steps = aiLevel >= 4 ? 2 : 1;
+    const themeFloor = Math.max(4, countThemeCards(deck, theme) - 1);
+    for (let i = 0; i < steps; i += 1) {
+      const removed = removeFlexibleCpuCard(deck, theme, themeFloor, true);
+      if (!removed) break;
+      const kind = options.allowSplash && aiLevel >= 4 && Math.random() < 0.22 ? "splash" : Math.random() < 0.55 ? "theme" : "generic";
+      const candidate = chooseCpuDriveCandidate(deck, theme, kind);
+      if (candidate) deck[candidate] = (deck[candidate] || 0) + 1;
+      else deck[removed] = (deck[removed] || 0) + 1;
+    }
+    repairCpuDeck(deck, theme, themeFloor, DRIVE_DECK_SIZE, true);
+    return { deck };
+  }
+
+  function chooseVariantLabel(labels, aiLevel) {
+    if (labels.includes("出張")) return aiLevel >= 4 ? "出張調整型" : "小型出張型";
+    if (labels.filter((label) => label === "安定").length >= 3) return "安定型";
+    if (labels.filter((label) => label === "汎用").length >= 3) return "汎用入り";
+    return aiLevel >= 4 ? "高レート型" : aiLevel <= 2 ? "純構築型" : "標準型";
+  }
+
+  function normalizeCpuCounts(source = {}, drive = false) {
+    const limit = drive ? MAX_DRIVE_COPIES : MAX_COPIES;
+    const pool = drive ? drivePool : cardPool.filter((card) => !card.driveKind && card.type !== "環境");
+    const validIds = new Set(pool.map((card) => card.id));
+    const result = {};
+    Object.entries(source || {}).forEach(([id, rawCount]) => {
+      const count = Math.max(0, Math.min(limit, Math.floor(Number(rawCount) || 0)));
+      if (count > 0 && validIds.has(id)) result[id] = count;
     });
+    return result;
   }
 
-  function spell(spec) {
-    return baseCard({
-      type: TYPES.SPELL,
-      attack: 0,
-      durability: 0,
-      drive: 0,
-      ...spec,
+  function removeFlexibleCpuCard(deck, theme, themeFloor, drive) {
+    const entries = Object.entries(deck)
+      .filter(([, count]) => count > 0)
+      .map(([id, count]) => ({ id, count, card: cards[id] }))
+      .filter((entry) => entry.card && entry.count > cpuMinCopies(entry.id, entry.card, theme, drive))
+      .filter((entry) => !cardHasThemeValue(entry.card, theme) || countThemeCards(deck, theme) > themeFloor)
+      .sort((a, b) => cpuRemoveScore(b, theme, drive) - cpuRemoveScore(a, theme, drive));
+    const chosen = weightedPick(entries.slice(0, 8));
+    if (!chosen) return "";
+    deck[chosen.id] -= 1;
+    if (deck[chosen.id] <= 0) delete deck[chosen.id];
+    return chosen.id;
+  }
+
+  function cpuMinCopies(id, card, theme, drive) {
+    if (drive) return cardHasThemeValue(card, theme) ? 1 : 0;
+    if (cardHasThemeValue(card, theme)) return cards[id]?.cost <= 1 ? 2 : 1;
+    return 0;
+  }
+
+  function cpuRemoveScore(entry, theme, drive) {
+    let score = 10;
+    if (!cardHasThemeValue(entry.card, theme)) score += 14;
+    if (entry.count >= 3) score += 10;
+    if (drive && !cardHasThemeValue(entry.card, theme)) score += 6;
+    if (entry.card.type === "リアクション") score += 3;
+    return score + Math.random() * 8;
+  }
+
+  function chooseCpuCandidate(deck, theme, kind) {
+    const pool = cardPool
+      .filter((card) => !card.driveKind && card.type !== "環境")
+      .filter((card) => (deck[card.id] || 0) < MAX_COPIES)
+      .filter((card) => {
+        if (kind === "theme") return cardHasThemeValue(card, theme);
+        if (kind === "splash") return card.theme && card.theme !== theme && card.cost <= 2 && card.type !== "リアクション";
+        return CPU_GENERIC_MAIN_POOL.includes(card.id) && !card.theme;
+      })
+      .sort((a, b) => cpuCandidateScore(b, deck, theme, kind) - cpuCandidateScore(a, deck, theme, kind));
+    return weightedPick(pool.slice(0, 10))?.id || "";
+  }
+
+  function chooseCpuDriveCandidate(deck, theme, kind) {
+    const pool = drivePool
+      .filter((card) => (deck[card.id] || 0) < MAX_DRIVE_COPIES)
+      .filter((card) => {
+        if (kind === "theme") return cardHasThemeValue(card, theme);
+        if (kind === "splash") return card.theme && card.theme !== theme && card.driveKind !== "reaction";
+        return !card.theme;
+      })
+      .sort((a, b) => cpuCandidateScore(b, deck, theme, kind) - cpuCandidateScore(a, deck, theme, kind));
+    return weightedPick(pool.slice(0, 8))?.id || "";
+  }
+
+  function cpuCandidateScore(card, deck, theme, kind) {
+    let score = Math.random() * 12;
+    if (cardHasThemeValue(card, theme)) score += 20;
+    if (kind === "splash" && card.type === "ユニット") score += 7;
+    if (kind === "splash" && card.type === "コア") score += 4;
+    if (kind === "generic" && ["generic_code", "generic_wall", "generic_transfer", "generic_zero", "generic_supply_box", "generic_emergency_wire"].includes(card.id)) score += 8;
+    if ((deck[card.id] || 0) === 2) score += 8;
+    if ((deck[card.id] || 0) === 1) score += 4;
+    if (card.effect || card.driveEffect) score += 5;
+    return score;
+  }
+
+  function repairCpuDeck(deck, theme, themeFloor, targetSize, drive) {
+    const limit = drive ? MAX_DRIVE_COPIES : MAX_COPIES;
+    while (deckTotal(deck) > targetSize) {
+      if (!removeFlexibleCpuCard(deck, theme, themeFloor, drive)) break;
+    }
+    while (deckTotal(deck) < targetSize) {
+      const kind = countThemeCards(deck, theme) < themeFloor ? "theme" : Math.random() < 0.35 ? "generic" : "theme";
+      const id = drive ? chooseCpuDriveCandidate(deck, theme, kind) : chooseCpuCandidate(deck, theme, kind);
+      if (!id) break;
+      deck[id] = Math.min(limit, (deck[id] || 0) + 1);
+    }
+  }
+
+  function deckTotal(source = {}) {
+    return Object.values(source).reduce((sum, count) => sum + Math.max(0, Math.floor(Number(count) || 0)), 0);
+  }
+
+  function countThemeCards(deck, theme) {
+    if (!theme) return 0;
+    return Object.entries(deck || {}).reduce((sum, [id, count]) => {
+      return sum + (cardHasThemeValue(cards[id], theme) ? Math.max(0, Math.floor(Number(count) || 0)) : 0);
+    }, 0);
+  }
+
+  function dominantDeckTheme(deck = {}) {
+    const counts = new Map();
+    Object.entries(deck || {}).forEach(([id, count]) => {
+      const theme = cards[id]?.theme || "";
+      if (!theme) return;
+      counts.set(theme, (counts.get(theme) || 0) + Math.max(0, Math.floor(Number(count) || 0)));
     });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
   }
 
-  function core(spec) {
-    return baseCard({
-      type: TYPES.CORE,
-      attack: 0,
-      durability: 2,
-      drive: 0,
-      ...spec,
-    });
+  function cardHasThemeValue(card, theme) {
+    return Boolean(card && theme && (card.theme === theme || card.name.includes(theme)));
   }
 
-  function driveUnit(spec) {
-    return baseCard({
-      type: TYPES.DRIVE_UNIT,
-      driveKind: "unit",
-      cost: spec.driveCost,
-      attack: 2,
-      durability: 2,
-      drive: 2,
-      accelerate: 0,
-      defense: 0,
-      ...spec,
-    });
+  function weightedPick(list) {
+    if (!Array.isArray(list) || list.length === 0) return null;
+    const index = Math.floor(Math.random() * Math.min(list.length, 4));
+    return list[index] || list[0];
   }
 
-  function classLabel(cardClass) {
-    return CLASSES[cardClass]?.name || "汎用";
-  }
-
-  const genericCards = [
-    unit({ id: "gen_front_runner", name: "前線ランナー", cardClass: "generic", cost: 1, attack: 1, durability: 1, drive: 1, accelerate: 1, text: "加速1。" }),
-    unit({ id: "gen_watch_guard", name: "見張り衛兵", cardClass: "generic", cost: 1, attack: 1, durability: 2, drive: 1, defense: 1, text: "防衛1。" }),
-    unit({ id: "gen_line_duelist", name: "ラインデュエリスト", cardClass: "generic", cost: 2, attack: 2, durability: 1, drive: 1, text: "攻撃回数が高い標準ユニット。" }),
-    unit({ id: "gen_core_keeper", name: "コア番", cardClass: "generic", cost: 2, attack: 1, durability: 2, drive: 1, defense: 1, text: "防衛1。" }),
-    unit({ id: "gen_drive_scout", name: "ドライブ斥候", cardClass: "generic", cost: 2, attack: 1, durability: 1, drive: 2, text: "ターン開始時のドライブ増加量が高い。" }),
-    unit({ id: "gen_steady_attacker", name: "定石の攻め手", cardClass: "generic", cost: 3, attack: 2, durability: 2, drive: 1, text: "扱いやすい中型ユニット。" }),
-    unit({ id: "gen_iron_wall", name: "即席バリケード", cardClass: "generic", cost: 3, attack: 1, durability: 3, drive: 1, defense: 2, text: "防衛2。" }),
-    unit({ id: "gen_heavy_vanguard", name: "重装先鋒", cardClass: "generic", cost: 4, attack: 2, durability: 3, drive: 2, text: "耐久に優れる標準ユニット。" }),
-    spell({ id: "gen_quick_draw", name: "クイックドロー", cardClass: "generic", cost: 1, effect: "draw1", text: "カードを1枚引く。" }),
-    spell({ id: "gen_field_medic", name: "フィールドメディック", cardClass: "generic", cost: 2, effect: "heal2", text: "自分のライフを2回復する。" }),
-    spell({ id: "gen_point_shot", name: "ポイントショット", cardClass: "generic", cost: 2, effect: "pingEnemy1", text: "相手の場のカード1枚の耐久を1減らす。" }),
-    spell({ id: "gen_tactical_shift", name: "タクティカルシフト", cardClass: "generic", cost: 2, effect: "chargeExchange3", text: "自分のチャージからコスト3以下のカード1枚を手札1枚と交換する。" }),
-    spell({ id: "gen_drive_spark", name: "ドライブスパーク", cardClass: "generic", cost: 3, effect: "gainDrive2", text: "ドライブ+2。" }),
-    core({ id: "gen_supply_core", name: "補給コア", cardClass: "generic", cost: 2, durability: 2, effect: "draw1", text: "登場時、カードを1枚引く。" }),
-    core({ id: "gen_repair_core", name: "修復コア", cardClass: "generic", cost: 2, durability: 3, activate: { ap: 1, effect: "heal1" }, text: "起動: AP1を払う。自分のライフを1回復する。" }),
-    core({ id: "gen_drive_core", name: "駆動コア", cardClass: "generic", cost: 3, durability: 2, activate: { ap: 2, effect: "gainDrive2" }, text: "起動: AP2を払う。ドライブ+2。" }),
-  ];
-
-  const bladerCards = [
-    unit({ id: "bla_cut_runner", name: "切込ランナー", cardClass: "blader", cost: 1, attack: 1, durability: 1, drive: 1, accelerate: 1, text: "加速1。" }),
-    unit({ id: "bla_twin_edge", name: "双刃の斬り手", cardClass: "blader", cost: 2, attack: 2, durability: 1, drive: 1, text: "2回攻撃を割り振れる軽量ユニット。" }),
-    unit({ id: "bla_spark_fencer", name: "閃光フェンサー", cardClass: "blader", cost: 2, attack: 1, durability: 1, drive: 1, accelerate: 1, effect: "bladerMomentum", text: "加速1。登場時、このターン攻撃を2回以上割り振っていればカードを1枚引く。" }),
-    unit({ id: "bla_mark_blade", name: "刻印ブレード", cardClass: "blader", cost: 3, attack: 2, durability: 2, drive: 1, effect: "gainDriveIfAttacked3", text: "登場時、このターン攻撃を3回以上割り振っていればドライブ+2。" }),
-    unit({ id: "bla_step_slasher", name: "ステップスラッシャー", cardClass: "blader", cost: 3, attack: 3, durability: 1, drive: 1, text: "攻撃回数が多いが耐久は低い。" }),
-    unit({ id: "bla_edge_guard", name: "刃の護衛", cardClass: "blader", cost: 3, attack: 1, durability: 2, drive: 1, defense: 1, text: "防衛1。" }),
-    unit({ id: "bla_chain_dancer", name: "連鎖剣舞", cardClass: "blader", cost: 4, attack: 2, durability: 2, drive: 2, effect: "leaderDamageIfAttacked4", text: "登場時、このターン攻撃を4回以上割り振っていれば相手リーダーに1ダメージ。" }),
-    unit({ id: "bla_cross_raider", name: "クロスレイダー", cardClass: "blader", cost: 4, attack: 3, durability: 2, drive: 1, text: "攻撃回数で圧をかける中型ユニット。" }),
-    spell({ id: "bla_opening_cut", name: "開幕斬り", cardClass: "blader", cost: 1, effect: "pingEnemy1", text: "相手の場のカード1枚の耐久を1減らす。" }),
-    spell({ id: "bla_follow_through", name: "追撃姿勢", cardClass: "blader", cost: 2, effect: "drawIfAttacked3", text: "このターン攻撃を3回以上割り振っていればカードを2枚引く。そうでないなら1枚引く。" }),
-    core({ id: "bla_training_ring", name: "訓練リング", cardClass: "blader", cost: 2, durability: 2, activate: { ap: 1, effect: "gainDriveIfAttacked3" }, text: "起動: AP1を払う。このターン攻撃を3回以上割り振っていればドライブ+2。" }),
-    core({ id: "bla_blade_lane", name: "ブレードレーン", cardClass: "blader", cost: 3, durability: 3, activate: { ap: 2, effect: "leaderDamageIfAttacked4" }, text: "起動: AP2を払う。このターン攻撃を4回以上割り振っていれば相手リーダーに1ダメージ。" }),
-  ];
-
-  const fortressCards = [
-    unit({ id: "for_gate_guard", name: "門番ガード", cardClass: "fortress", cost: 1, attack: 1, durability: 2, drive: 1, defense: 1, text: "防衛1。" }),
-    unit({ id: "for_shield_bearer", name: "盾持ち兵", cardClass: "fortress", cost: 2, attack: 1, durability: 2, drive: 1, defense: 2, text: "防衛2。" }),
-    unit({ id: "for_core_mason", name: "コア石工", cardClass: "fortress", cost: 2, attack: 1, durability: 1, drive: 1, effect: "repairOwnCore1", text: "登場時、自分のコア1枚の耐久を1回復する。" }),
-    unit({ id: "for_bastion_squire", name: "砦の従士", cardClass: "fortress", cost: 3, attack: 1, durability: 3, drive: 1, defense: 1, text: "防衛1。" }),
-    unit({ id: "for_counter_wall", name: "反撃ウォール", cardClass: "fortress", cost: 3, attack: 2, durability: 2, drive: 1, defense: 1, effect: "gainDriveIfCore", text: "防衛1。登場時、自分の場にコアがあればドライブ+2。" }),
-    unit({ id: "for_bulwark_knight", name: "城壁騎士", cardClass: "fortress", cost: 4, attack: 2, durability: 3, drive: 2, defense: 2, text: "防衛2。" }),
-    unit({ id: "for_hold_line", name: "戦線維持兵", cardClass: "fortress", cost: 4, attack: 1, durability: 4, drive: 2, defense: 2, text: "防衛2。高耐久の守り役。" }),
-    unit({ id: "for_gate_colossus", name: "ゲートコロッサス", cardClass: "fortress", cost: 5, attack: 2, durability: 4, drive: 2, defense: 3, text: "防衛3。" }),
-    spell({ id: "for_repair_order", name: "修復命令", cardClass: "fortress", cost: 1, effect: "repairOwnCore1", text: "自分のコア1枚の耐久を1回復する。対象がなければカードを1枚引く。" }),
-    spell({ id: "for_safe_route", name: "退避ルート", cardClass: "fortress", cost: 2, effect: "heal2", text: "自分のライフを2回復する。" }),
-    core({ id: "for_watchtower", name: "見張り塔", cardClass: "fortress", cost: 2, durability: 3, activate: { ap: 1, effect: "gainDriveIfCore" }, text: "起動: AP1を払う。自分の場に他のコアがあればドライブ+2。" }),
-    core({ id: "for_citadel_core", name: "城塞コア", cardClass: "fortress", cost: 4, durability: 4, activate: { ap: 2, effect: "heal2" }, text: "起動: AP2を払う。自分のライフを2回復する。" }),
-  ];
-
-  const alchemistCards = [
-    unit({ id: "alc_vial_runner", name: "試薬ランナー", cardClass: "alchemist", cost: 1, attack: 1, durability: 1, drive: 1, effect: "gainDriveIfCharge4", text: "登場時、自分のチャージが4枚以上ならドライブ+1。" }),
-    unit({ id: "alc_charge_apprentice", name: "チャージ見習い", cardClass: "alchemist", cost: 2, attack: 1, durability: 1, drive: 2, text: "ドライブ値が高い軽量ユニット。" }),
-    unit({ id: "alc_retort_guard", name: "レトルトガード", cardClass: "alchemist", cost: 2, attack: 1, durability: 2, drive: 1, defense: 1, text: "防衛1。" }),
-    unit({ id: "alc_formula_scribe", name: "式写しの書記", cardClass: "alchemist", cost: 3, attack: 1, durability: 2, drive: 2, effect: "chargeExchange3", text: "登場時、自分のチャージからコスト3以下のカード1枚を手札1枚と交換できる。" }),
-    unit({ id: "alc_catalyst_mage", name: "触媒術師", cardClass: "alchemist", cost: 3, attack: 2, durability: 1, drive: 2, effect: "gainDrive2", text: "登場時、ドライブ+2。" }),
-    unit({ id: "alc_gear_homunculus", name: "歯車ホムンクルス", cardClass: "alchemist", cost: 4, attack: 2, durability: 2, drive: 2, effect: "drawIfCharge6", text: "登場時、自分のチャージが6枚以上ならカードを2枚引く。そうでないなら1枚引く。" }),
-    unit({ id: "alc_reactor_sage", name: "反応炉の賢者", cardClass: "alchemist", cost: 4, attack: 2, durability: 2, drive: 3, text: "高いドライブ値で中盤以降のドライブを早める。" }),
-    unit({ id: "alc_gold_engine", name: "金色エンジン", cardClass: "alchemist", cost: 5, attack: 2, durability: 3, drive: 3, text: "盤面に残ると大きくドライブを伸ばす。" }),
-    spell({ id: "alc_transmute", name: "トランスミュート", cardClass: "alchemist", cost: 1, effect: "chargeExchange3", text: "自分のチャージからコスト3以下のカード1枚を手札1枚と交換する。" }),
-    spell({ id: "alc_overcharge", name: "オーバーチャージ", cardClass: "alchemist", cost: 2, effect: "gainDrive2", text: "ドライブ+2。" }),
-    core({ id: "alc_converter", name: "変換炉", cardClass: "alchemist", cost: 2, durability: 2, activate: { ap: 1, effect: "chargeExchange3" }, text: "起動: AP1を払う。チャージ交換を行う。" }),
-    core({ id: "alc_drive_lab", name: "ドライブ実験室", cardClass: "alchemist", cost: 3, durability: 3, activate: { ap: 2, effect: "gainDrive3" }, text: "起動: AP2を払う。ドライブ+3。" }),
-  ];
-
-  const driveCards = [
-    driveUnit({ id: "drive_bla_crimson_edge", name: "紅蓮ドライブ・一閃", cardClass: "blader", driveCost: 5, attack: 2, durability: 2, drive: 2, accelerate: 1, effect: "pingEnemy1", text: "加速1。登場時、相手の場のカード1枚の耐久を1減らす。" }),
-    driveUnit({ id: "drive_bla_rapid_tempest", name: "迅風ドライブ・連閃", cardClass: "blader", driveCost: 7, attack: 3, durability: 2, drive: 2, accelerate: 1, text: "加速1。3回攻撃を割り振れる。" }),
-    driveUnit({ id: "drive_bla_marked_finisher", name: "刻印ドライブ・終刃", cardClass: "blader", driveCost: 8, attack: 3, durability: 3, drive: 2, activate: { ap: 2, effect: "leaderDamageIfAttacked4" }, text: "起動: AP2を払う。このターン攻撃を4回以上割り振っていれば相手リーダーに1ダメージ。" }),
-    driveUnit({ id: "drive_bla_shadow_duo", name: "影双ドライブ", cardClass: "blader", driveCost: 10, attack: 4, durability: 2, drive: 2, accelerate: 1, text: "加速1。攻撃回数が非常に高い。" }),
-    driveUnit({ id: "drive_bla_final_arc", name: "終弧ドライブ・アーク", cardClass: "blader", driveCost: 12, attack: 4, durability: 3, drive: 3, activate: { ap: 3, effect: "pingEnemy2" }, text: "起動: AP3を払う。相手の場のカード1枚の耐久を2減らす。" }),
-    driveUnit({ id: "drive_bla_flash_code", name: "閃刃コード", cardClass: "blader", driveCost: 13, attack: 3, durability: 3, drive: 3, effect: "drawIfAttacked3", text: "登場時、このターン攻撃を3回以上割り振っていればカードを2枚引く。" }),
-    driveUnit({ id: "drive_bla_zenith_slash", name: "天頂斬", cardClass: "blader", driveCost: 15, attack: 4, durability: 4, drive: 3, text: "高い攻撃回数と耐久を持つ切り札。" }),
-    driveUnit({ id: "drive_bla_storm_ronin", name: "嵐浪人", cardClass: "blader", driveCost: 16, attack: 5, durability: 2, drive: 3, accelerate: 1, text: "加速1。放置すると大きな打点になる。" }),
-    driveUnit({ id: "drive_bla_limit_breaker", name: "リミットブレイカー", cardClass: "blader", driveCost: 18, attack: 5, durability: 3, drive: 4, activate: { ap: 2, discard: 1, effect: "leaderDamage2" }, text: "起動: AP2を払い手札1枚を捨てる。相手リーダーに2ダメージ。" }),
-    driveUnit({ id: "drive_bla_last_drive", name: "ラストドライブ・無尽", cardClass: "blader", driveCost: 20, attack: 6, durability: 3, drive: 4, text: "攻撃回数6。試合を決めに行く最終ドライブ。" }),
-
-    driveUnit({ id: "drive_for_shield_angel", name: "盾天ドライブ", cardClass: "fortress", driveCost: 5, attack: 1, durability: 3, drive: 2, defense: 2, text: "防衛2。" }),
-    driveUnit({ id: "drive_for_bastion_gate", name: "城門ドライブ", cardClass: "fortress", driveCost: 7, attack: 2, durability: 3, drive: 2, defense: 2, effect: "heal2", text: "防衛2。登場時、自分のライフを2回復する。" }),
-    driveUnit({ id: "drive_for_iron_citadel", name: "鉄壁ドライブ・城塞", cardClass: "fortress", driveCost: 8, attack: 2, durability: 4, drive: 2, defense: 3, text: "防衛3。" }),
-    driveUnit({ id: "drive_for_core_paladin", name: "コア聖騎士", cardClass: "fortress", driveCost: 10, attack: 2, durability: 4, drive: 3, defense: 2, effect: "repairOwnCore1", text: "防衛2。登場時、自分のコア1枚の耐久を1回復する。" }),
-    driveUnit({ id: "drive_for_counter_fort", name: "反攻要塞", cardClass: "fortress", driveCost: 12, attack: 3, durability: 4, drive: 3, defense: 2, activate: { ap: 2, effect: "gainDriveIfCore" }, text: "起動: AP2を払う。自分の場にコアがあればドライブ+2。" }),
-    driveUnit({ id: "drive_for_silver_wall", name: "銀壁ドライブ", cardClass: "fortress", driveCost: 13, attack: 2, durability: 5, drive: 3, defense: 3, text: "防衛3。非常に高い耐久を持つ。" }),
-    driveUnit({ id: "drive_for_guardian_line", name: "守護戦列", cardClass: "fortress", driveCost: 15, attack: 3, durability: 4, drive: 3, defense: 3, effect: "draw1", text: "防衛3。登場時、カードを1枚引く。" }),
-    driveUnit({ id: "drive_for_cannon_keep", name: "砲台城塞", cardClass: "fortress", driveCost: 16, attack: 3, durability: 4, drive: 3, activate: { ap: 3, effect: "pingEnemy2" }, text: "起動: AP3を払う。相手の場のカード1枚の耐久を2減らす。" }),
-    driveUnit({ id: "drive_for_oath_bastion", name: "誓約の砦", cardClass: "fortress", driveCost: 18, attack: 3, durability: 5, drive: 4, defense: 4, text: "防衛4。相手の攻撃割り振りを強く縛る。" }),
-    driveUnit({ id: "drive_for_world_wall", name: "ワールドウォール", cardClass: "fortress", driveCost: 20, attack: 4, durability: 6, drive: 4, defense: 4, activate: { ap: 2, discard: 1, effect: "heal2" }, text: "防衛4。起動: AP2を払い手札1枚を捨てる。自分のライフを2回復する。" }),
-
-    driveUnit({ id: "drive_alc_quick_synthesis", name: "高速錬成ドライブ", cardClass: "alchemist", driveCost: 5, attack: 2, durability: 2, drive: 3, effect: "chargeExchange3", text: "登場時、チャージ交換を行う。" }),
-    driveUnit({ id: "drive_alc_gold_formula", name: "黄金式ドライブ", cardClass: "alchemist", driveCost: 7, attack: 2, durability: 2, drive: 3, effect: "drawIfCharge6", text: "登場時、自分のチャージが6枚以上ならカードを2枚引く。そうでないなら1枚引く。" }),
-    driveUnit({ id: "drive_alc_reactor_drake", name: "反応炉ドレイク", cardClass: "alchemist", driveCost: 8, attack: 2, durability: 3, drive: 3, activate: { ap: 1, effect: "gainDrive2" }, text: "起動: AP1を払う。ドライブ+2。" }),
-    driveUnit({ id: "drive_alc_vessel_zero", name: "零式ベッセル", cardClass: "alchemist", driveCost: 10, attack: 3, durability: 2, drive: 3, effect: "gainDrive3", text: "登場時、ドライブ+3。" }),
-    driveUnit({ id: "drive_alc_clockwork_sage", name: "時計仕掛けの賢者", cardClass: "alchemist", driveCost: 12, attack: 3, durability: 3, drive: 3, activate: { ap: 2, effect: "chargeExchangeAny" }, text: "起動: AP2を払う。チャージからカード1枚を手札1枚と交換する。" }),
-    driveUnit({ id: "drive_alc_storm_alembic", name: "嵐のアランビック", cardClass: "alchemist", driveCost: 13, attack: 3, durability: 3, drive: 4, text: "高いドライブ値を持つ中型ドライブ。" }),
-    driveUnit({ id: "drive_alc_catalyst_queen", name: "触媒の女王", cardClass: "alchemist", driveCost: 15, attack: 3, durability: 4, drive: 4, activate: { ap: 2, discard: 1, effect: "pingEnemy2" }, text: "起動: AP2を払い手札1枚を捨てる。相手の場のカード1枚の耐久を2減らす。" }),
-    driveUnit({ id: "drive_alc_prism_engine", name: "プリズムエンジン", cardClass: "alchemist", driveCost: 16, attack: 4, durability: 3, drive: 4, effect: "draw1", text: "登場時、カードを1枚引く。" }),
-    driveUnit({ id: "drive_alc_grand_reaction", name: "大反応ドライブ", cardClass: "alchemist", driveCost: 18, attack: 4, durability: 4, drive: 4, activate: { ap: 3, effect: "gainDrive3" }, text: "起動: AP3を払う。ドライブ+3。" }),
-    driveUnit({ id: "drive_alc_philosopher_core", name: "賢者核ドライブ", cardClass: "alchemist", driveCost: 20, attack: 5, durability: 4, drive: 5, activate: { ap: 2, discard: 1, effect: "draw2" }, text: "起動: AP2を払い手札1枚を捨てる。カードを2枚引く。" }),
-  ];
-
-  const cardPool = [
-    ...genericCards,
-    ...bladerCards,
-    ...fortressCards,
-    ...alchemistCards,
-  ];
-
-  const drivePool = driveCards;
-  const cards = Object.fromEntries([...cardPool, ...drivePool].map((card) => [card.id, card]));
-
-  const classDecks = {
-    blader: {
-      bla_cut_runner: 3,
-      bla_twin_edge: 3,
-      bla_spark_fencer: 3,
-      bla_mark_blade: 2,
-      bla_step_slasher: 2,
-      bla_edge_guard: 2,
-      bla_chain_dancer: 2,
-      bla_cross_raider: 2,
-      bla_opening_cut: 2,
-      bla_follow_through: 2,
-      bla_training_ring: 1,
-      bla_blade_lane: 1,
-      gen_front_runner: 2,
-      gen_watch_guard: 2,
-      gen_line_duelist: 2,
-      gen_quick_draw: 2,
-      gen_point_shot: 2,
-      gen_tactical_shift: 1,
-      gen_drive_spark: 1,
-      gen_supply_core: 3,
-    },
-    fortress: {
-      for_gate_guard: 3,
-      for_shield_bearer: 3,
-      for_core_mason: 3,
-      for_bastion_squire: 2,
-      for_counter_wall: 2,
-      for_bulwark_knight: 2,
-      for_hold_line: 2,
-      for_gate_colossus: 2,
-      for_repair_order: 2,
-      for_safe_route: 2,
-      for_watchtower: 2,
-      for_citadel_core: 1,
-      gen_watch_guard: 2,
-      gen_core_keeper: 2,
-      gen_iron_wall: 2,
-      gen_quick_draw: 2,
-      gen_field_medic: 2,
-      gen_tactical_shift: 1,
-      gen_repair_core: 1,
-      gen_drive_core: 2,
-    },
-    alchemist: {
-      alc_vial_runner: 3,
-      alc_charge_apprentice: 3,
-      alc_retort_guard: 3,
-      alc_formula_scribe: 3,
-      alc_catalyst_mage: 2,
-      alc_gear_homunculus: 2,
-      alc_reactor_sage: 2,
-      alc_gold_engine: 2,
-      alc_transmute: 3,
-      alc_overcharge: 2,
-      alc_converter: 2,
-      alc_drive_lab: 1,
-      gen_front_runner: 2,
-      gen_drive_scout: 2,
-      gen_quick_draw: 2,
-      gen_tactical_shift: 2,
-      gen_drive_spark: 2,
-      gen_supply_core: 2,
-    },
-  };
-
-  const classDriveDecks = {
-    blader: makeDriveDeck("blader"),
-    fortress: makeDriveDeck("fortress"),
-    alchemist: makeDriveDeck("alchemist"),
-  };
-
-  const starterDeck = classDecks.blader;
-  const starterDriveDeck = classDriveDecks.blader;
-  const cpuDeck = classDecks.fortress;
-  const cpuDriveDeck = classDriveDecks.fortress;
-
-  const cpuDecks = Object.values(CLASSES).map((entry) => ({
-    name: `CPU: ${entry.name}`,
-    classKey: entry.id,
-    deck: classDecks[entry.id],
-    driveDeck: classDriveDecks[entry.id],
-  }));
-
-  function makeDriveDeck(cardClass) {
-    return Object.fromEntries(
-      drivePool
-        .filter((card) => card.cardClass === cardClass)
-        .slice(0, DRIVE_DECK_SIZE)
-        .map((card) => [card.id, 1])
-    );
-  }
-
-  function createCpuDeckVariant(source = {}) {
-    return source;
-  }
 
   window.Chrono = window.Chrono || {};
   Object.assign(window.Chrono, {
@@ -401,25 +2121,18 @@
     UNIT_ZONES,
     CORE_ZONES,
     REACTION_ZONES,
-    MAX_AP,
-    MAX_DRIVE,
     STORAGE_KEY,
-    TYPES,
-    RARITIES,
-    CLASSES,
     typeIcons,
     attrClass,
     typeClass,
     cardPool,
     drivePool,
     cards,
-    classDecks,
-    classDriveDecks,
     starterDeck,
-    starterDriveDeck,
     cpuDeck,
-    cpuDriveDeck,
     cpuDecks,
     createCpuDeckVariant,
+    starterDriveDeck,
+    cpuDriveDeck,
   });
 })();

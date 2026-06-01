@@ -14,7 +14,6 @@
     DuelGame,
     SoundEffects,
     cards,
-    CLASSES,
     CardRenderer,
     CardZoom,
     notices: noticeEntries = [],
@@ -846,7 +845,7 @@
       if (!theme) return;
       counts.set(theme, (counts.get(theme) || 0) + 1);
     });
-    let bestTheme = deck.classKey && CLASSES?.[deck.classKey] ? CLASSES[deck.classKey].name : "混成";
+    let bestTheme = "混成";
     let bestCount = 0;
     counts.forEach((count, theme) => {
       if (count > bestCount) {
@@ -994,52 +993,15 @@
   }
 
   function createDeckPresetForEdit() {
-    openClassSelectForNewDeck();
-  }
-
-  function openClassSelectForNewDeck() {
-    const classes = Object.values(CLASSES || {});
-    const modal = document.createElement("div");
-    modal.className = "modal-dialog class-select-dialog";
-    modal.innerHTML = `
-      <div class="grave-dialog-head">
-        <div>
-          <p class="eyebrow">Class Select</p>
-          <h2>クラスを選択</h2>
-          <p class="small-note">選んだクラスのカードと汎用カードでデッキ編集を開始します。</p>
-        </div>
-      </div>
-      <div class="class-select-grid">
-        ${classes.map((entry) => `
-          <button class="class-select-card" type="button" data-class-key="${escapeHtml(entry.id)}">
-            <span class="class-select-art">${entry.art ? `<img src="${escapeHtml(entry.art)}" alt="">` : ""}</span>
-            <span class="class-select-copy">
-              <strong>${escapeHtml(entry.name)}</strong>
-              <small>${escapeHtml(entry.description || "")}</small>
-            </span>
-          </button>
-        `).join("")}
-      </div>
-      <div class="modal-actions modal-actions-row">
-        <button class="ghost-button" type="button" data-action="cancel">キャンセル</button>
-      </div>
-    `;
-    modal.querySelector(".class-select-grid")?.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-class-key]");
-      if (!button) return;
-      const classKey = button.dataset.classKey;
-      const classInfo = CLASSES[classKey];
-      store.autoBuild(classKey, { ownedOnly: false });
-      const deck = store.saveAs(`${classInfo?.name || "新規"}デッキ`);
-      closeAppModal();
-      builderView.selectedCardId = builderView.firstSelectedId();
-      builderView.render();
-      renderDeckSelectView();
+    if (!builderView.validateDeckBeforeSave()) {
       setView("builder");
-      toast(`${deck.name}を作成しました。`);
-    });
-    modal.querySelector('[data-action="cancel"]').addEventListener("click", closeAppModal);
-    openAppModal(modal);
+      return;
+    }
+    const deck = store.saveAs(store.nextDeckName());
+    builderView.selectedCardId = builderView.firstSelectedId();
+    builderView.render();
+    setView("builder");
+    toast(`${deck.name}を作成しました。`);
   }
 
   function openDuelDeckSelector() {
@@ -1107,7 +1069,8 @@
   };
 
   const canUseOnline = () => {
-    toast("オンライン/ランク戦は新ルールへ移行中です。今はCPU戦で調整してください。");
+    if (window.location.protocol !== "file:") return true;
+    toast("オンラインは node server.js で起動してから使えます。");
     return false;
   };
 

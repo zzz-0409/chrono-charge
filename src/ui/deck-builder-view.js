@@ -29,7 +29,7 @@
       this.openAppModal = options.openAppModal || (() => {});
       this.closeAppModal = options.closeAppModal || (() => {});
       this.deckMode = "main";
-      this.selectedCardId = "gen_front_runner";
+      this.selectedCardId = "star_scout";
       this.selectedFinish = "normal";
       this.ownedOnly = false;
       this.builderPointerDrag = null;
@@ -223,27 +223,11 @@
       this.renderResources();
       this.renderProfilePanel();
       this.renderTypeFilterOptions();
-      this.renderAttrFilterOptions();
       this.renderLibrary({ preserveScroll: Boolean(options.preserveLibraryScroll) });
       this.renderDeckPanel();
       CardRenderer.preview(this.selectedCardId, this.els.cardPreview, { finish: this.selectedFinish });
-      this.renderPreviewEffectText();
       this.renderPreviewDeckControls();
       if (options.preserveDeckScroll && this.els.deckList) this.els.deckList.scrollTop = deckScrollTop;
-    }
-
-    renderPreviewEffectText() {
-      const target = this.els.cardPreview;
-      const card = cards[this.selectedCardId];
-      if (!target || !card) return;
-      const rarityLabel = window.Chrono.RARITIES?.[card.rarity]?.label;
-      const meta = `${CardRenderer.metaLabelHtml(card, { shortDrive: true })}${rarityLabel ? ` / ${CardRenderer.rubyText(rarityLabel)}` : ""}`;
-      target.insertAdjacentHTML("beforeend", `
-        <div class="preview-effect-panel">
-          <div class="preview-effect-meta">${meta}</div>
-          <div class="preview-effect-text">${CardRenderer.rubyText(card.text || "効果なし")}</div>
-        </div>
-      `);
     }
 
     makeBuilderCardDraggable(element, payload) {
@@ -615,17 +599,6 @@
       select.value = types.includes(current) ? current : "all";
     }
 
-    renderAttrFilterOptions() {
-      const select = this.els.attrFilter;
-      if (!select) return;
-      const current = select.value;
-      const attrs = [...new Set(this.activePool().map((card) => card.attr).filter(Boolean))];
-      select.replaceChildren();
-      select.append(new Option("すべて", "all"));
-      attrs.forEach((attr) => select.append(new Option(attr, attr)));
-      select.value = attrs.includes(current) ? current : "all";
-    }
-
     handleCardClick(id, finish = "normal") {
       this.selectedCardId = id;
       this.selectedFinish = finish;
@@ -771,10 +744,6 @@
 
     toastDeckResult(result, driveMode = this.deckMode === "drive") {
       if (result.ok) return;
-      if (result.reason === "class") {
-        this.toast("選択中のクラスでは使えないカードです。");
-        return;
-      }
       if (result.reason === "owned") {
         this.toast("所持枚数が足りません。パックで入手してください。");
         return;
@@ -943,10 +912,7 @@
     }
 
     activePool() {
-      const classKey = this.store.activeClass || "blader";
-      const allowed = (card) => card.cardClass === "generic" || card.cardClass === classKey;
-      if (this.deckMode === "drive") return drivePool.filter((card) => card.cardClass === classKey);
-      return cardPool.filter(allowed);
+      return this.deckMode === "drive" ? drivePool : cardPool.filter((card) => card.type !== "環境");
     }
 
     activeCounts() {
@@ -955,7 +921,7 @@
 
     firstSelectedId() {
       const counts = this.activeCounts();
-      return Object.keys(counts)[0] || this.activePool()[0]?.id || "gen_front_runner";
+      return Object.keys(counts)[0] || this.activePool()[0]?.id || "star_scout";
     }
 
     ensureSelectedCard() {
