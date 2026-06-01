@@ -363,7 +363,7 @@
         this.els.enemyHandZone.append(back);
       });
       const handCount = this.game.player.hand.length;
-      const handStep = handCount > 1 ? Math.min(54, 420 / (handCount - 1)) : 0;
+      const handStep = handCount > 1 ? Math.min(70, 560 / (handCount - 1)) : 0;
       this.game.player.hand.forEach((id, index) => {
         const handOffset = index - ((handCount - 1) / 2);
         const cardData = cards[id];
