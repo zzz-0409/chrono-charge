@@ -168,15 +168,11 @@
     }
 
     static cornerStats(card) {
-      const driveValue = this.hasDriveValue(card) ? card.drive : "-";
-      const attackValue = this.hasAtk(card) ? card.attack : "-";
-      const durabilityValue = this.hasDurability(card) ? card.durability : "-";
-      return `
-        <span class="card-stat-chip card-cost-chip">${card.cost}</span>
-        <span class="card-stat-chip card-drive-chip">${driveValue}</span>
-        <span class="card-stat-chip card-attack-chip">${attackValue}</span>
-        <span class="card-stat-chip card-durability-chip">${durabilityValue}</span>
-      `;
+      const chips = [`<span class="card-stat-chip card-cost-chip">${card.cost}</span>`];
+      if (this.hasDriveValue(card)) chips.push(`<span class="card-stat-chip card-drive-chip">${card.drive}</span>`);
+      if (this.hasAtk(card)) chips.push(`<span class="card-stat-chip card-attack-chip">${card.attack}</span>`);
+      if (this.hasDurability(card)) chips.push(`<span class="card-stat-chip card-durability-chip">${card.durability}</span>`);
+      return chips.join("");
     }
 
     static rulesBox(card) {

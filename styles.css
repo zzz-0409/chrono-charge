@@ -6929,3 +6929,55 @@ select {
   top: 15px;
   transform: none !important;
 }
+
+/* Card-face model: name + tall artwork + only the stat circles that the card actually uses. */
+.type-unit,
+.type-unit-drive {
+  --card-frame-image: url("assets/cards/frames/chrono-v2-card-frame.png");
+}
+
+.type-spell {
+  --card-frame: var(--spell-frame);
+  --card-frame-image: url("assets/cards/frames/chrono-v2-spell-frame.png");
+  --card-glow: rgba(79, 189, 226, 0.2);
+  --card-top: rgba(79, 189, 226, 0.15);
+}
+
+.type-core {
+  --card-frame: var(--core-frame);
+  --card-frame-image: url("assets/cards/frames/chrono-v2-core-frame.png");
+  --card-glow: rgba(143, 206, 122, 0.22);
+  --card-top: rgba(143, 206, 122, 0.16);
+}
+
+.game-card .card-art,
+.game-card .card-face .card-art {
+  left: 13%;
+  top: 15.5%;
+  width: 74%;
+  height: 73%;
+}
+
+.game-card .rules-box,
+.game-card .card-face .rules-box,
+.game-card .rules-box .type-line,
+.game-card .card-face .type-line {
+  display: none !important;
+}
+
+.type-spell .card-attack-chip,
+.type-spell .card-durability-chip,
+.type-core .card-attack-chip {
+  display: none !important;
+}
+
+.type-spell .card-drive-chip,
+.type-core .card-drive-chip {
+  right: 2%;
+  top: 2.5%;
+}
+
+.type-core .card-durability-chip {
+  right: 3%;
+  bottom: 2.5%;
+}
