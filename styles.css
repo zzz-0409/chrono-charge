@@ -7593,3 +7593,72 @@ select {
 .hand-zone {
   height: 160px;
 }
+
+/* Card text readability pass: push labels into their sockets and make stats bold. */
+.game-card .card-mini-top,
+.game-card .card-face .card-mini-top {
+  left: 23%;
+  right: 23%;
+  top: 8.6%;
+  justify-content: center;
+}
+
+.game-card .card-name,
+.game-card .card-face .card-name {
+  font-size: var(--card-name-design-size, 15px) !important;
+  font-weight: 1000;
+  flex: 1 1 100%;
+  width: 100%;
+  text-align: center;
+  text-shadow:
+    0 2px 2px rgba(0, 0, 0, 1),
+    0 0 7px rgba(0, 0, 0, 0.92),
+    0 0 10px rgba(255, 246, 202, 0.36);
+}
+
+.game-card .card-stat-chip,
+.tcg-card.small .card-stat-chip,
+.library-card .card-stat-chip,
+.preview-card .card-stat-chip,
+.focus-mini-card .card-stat-chip,
+.hand-zone .tcg-card .card-stat-chip {
+  width: 22% !important;
+  font-size: var(--card-stat-design-size, 32px) !important;
+  font-weight: 1000;
+  line-height: 1;
+  color: #fffdf2;
+  text-align: center;
+  text-shadow:
+    0 3px 2px rgba(0, 0, 0, 1),
+    0 0 7px rgba(0, 0, 0, 0.95),
+    0 0 12px rgba(255, 255, 255, 0.44),
+    0 0 18px rgba(255, 241, 166, 0.32);
+}
+
+.game-card .card-cost-chip,
+.hand-zone .tcg-card .card-cost-chip,
+.builder-view .library-card .card-cost-chip {
+  left: 4.4% !important;
+  top: 4.2% !important;
+}
+
+.game-card .card-drive-chip,
+.hand-zone .tcg-card .card-drive-chip,
+.builder-view .library-card .card-drive-chip {
+  right: 4.6% !important;
+  top: 4.1% !important;
+}
+
+.game-card .card-attack-chip,
+.hand-zone .tcg-card .card-attack-chip,
+.builder-view .library-card .card-attack-chip {
+  left: 4.1% !important;
+  bottom: 4.2% !important;
+}
+
+.game-card .card-durability-chip,
+.hand-zone .tcg-card .card-durability-chip,
+.builder-view .library-card .card-durability-chip {
+  right: 4.2% !important;
+  bottom: 4.3% !important;
+}
