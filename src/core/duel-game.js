@@ -453,12 +453,25 @@
         const target = defender.units[targetIndex];
         const targetCard = cards[target?.id];
         if (targetCard?.defense) target.defenseTaken = Number(target.defenseTaken || 0) + safeAmount;
+        const counterAmount = this.counterattackAmount(targetCard, safeAmount);
+        const targetName = targetCard?.name || "対象";
+        this.log(`${attackerCard.name}が${targetName}へ${safeAmount}回攻撃。`);
         this.damageBoardEntry(defender, targetIndex, safeAmount);
-        this.log(`${attackerCard.name}が${targetCard?.name || "対象"}へ${safeAmount}回攻撃。`);
+        if (counterAmount > 0) {
+          this.damageBoardEntry(player, attackerIndex, counterAmount);
+          this.log(`${targetName}の反撃。${attackerCard.name}に${counterAmount}ダメージ。`);
+        }
       }
       this.checkGameEnd();
       this.notify();
       return true;
+    }
+
+    counterattackAmount(targetCard, attackAmount) {
+      if (!isAttacker(targetCard)) return 0;
+      const allocated = Math.max(1, Math.floor(Number(attackAmount) || 1));
+      const counterLimit = Math.max(0, Math.floor(Number(targetCard.attack || 0)));
+      return Math.min(allocated, counterLimit);
     }
 
     attackTargets(player, attackerIndex, amount = 1) {
