@@ -7126,27 +7126,31 @@ select {
   grid-template-columns: 252px minmax(390px, 1fr) 126px;
 }
 
-/* Rarity changes glow only; the card type keeps ownership of the frame art. */
+/* Rarity keeps the original socket card frame; artwork is layered underneath it. */
 .rarity-bronze {
   --card-frame: #b8783c;
+  --card-frame-image: url("assets/cards/frames/socket-stat-frame.png?v=20260601socketrestore");
   --card-glow: rgba(205, 126, 66, 0.22);
   --card-top: rgba(205, 126, 66, 0.14);
 }
 
 .rarity-silver {
   --card-frame: #b8c6d7;
+  --card-frame-image: url("assets/cards/frames/socket-stat-frame.png?v=20260601socketrestore");
   --card-glow: rgba(188, 213, 238, 0.22);
   --card-top: rgba(188, 213, 238, 0.13);
 }
 
 .rarity-gold {
   --card-frame: #e5b442;
+  --card-frame-image: url("assets/cards/frames/socket-stat-frame.png?v=20260601socketrestore");
   --card-glow: rgba(255, 213, 92, 0.26);
   --card-top: rgba(255, 213, 92, 0.15);
 }
 
 .rarity-rainbow {
   --card-frame: #f4ddff;
+  --card-frame-image: url("assets/cards/frames/socket-stat-frame.png?v=20260601socketrestore");
   --card-glow: rgba(110, 231, 255, 0.28);
   --card-top: rgba(255, 119, 220, 0.16);
 }
@@ -7205,10 +7209,10 @@ select {
 .game-card .card-art,
 .game-card .card-face .card-art {
   z-index: 4;
-  left: 17%;
-  top: 24%;
-  width: 66%;
-  height: 50%;
+  left: 13%;
+  top: 18%;
+  width: 74%;
+  height: 64%;
   border-radius: 0;
   box-shadow: none;
   overflow: hidden;
