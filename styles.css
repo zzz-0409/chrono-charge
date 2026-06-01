@@ -7160,26 +7160,84 @@ select {
 .preview-card,
 .library-card,
 .focus-mini-card {
+  border: 0 !important;
   overflow: visible;
+}
+
+.game-card:not(.facedown),
+.tcg-card:not(.facedown),
+.preview-card:not(.facedown),
+.library-card:not(.facedown),
+.focus-mini-card:not(.facedown) {
+  background: linear-gradient(180deg, #11171e, #05080c) !important;
+}
+
+.tcg-card.facedown,
+.focus-mini-card.facedown,
+.card-zoom-facedown {
+  border: 2px solid rgba(112, 223, 230, 0.42) !important;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 12, 0.02), rgba(5, 8, 12, 0.18)),
+    url("assets/cards/card-back.png"),
+    #141a22 !important;
+  background-size: cover !important;
+  background-position: center !important;
 }
 
 .game-card .card-face,
 .game-card.finish-royal .card-face {
+  position: absolute !important;
+  inset: 0 !important;
+  isolation: isolate;
   overflow: visible !important;
+}
+
+.game-card::after {
+  content: none !important;
+  display: none !important;
+}
+
+.game-card .card-face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  pointer-events: none;
+  background: var(--card-frame-image) center / 100% 100% no-repeat;
 }
 
 .game-card .card-art,
 .game-card .card-face .card-art {
-  left: 13.6%;
-  top: 18.5%;
-  width: 72.8%;
-  height: 63.8%;
+  z-index: 4;
+  left: 13%;
+  top: 18%;
+  width: 74%;
+  height: 64%;
+  border-radius: 0;
+  box-shadow: none;
   overflow: hidden;
+}
+
+.game-card .card-mini-top,
+.game-card .card-face .card-mini-top {
+  z-index: 24;
+  left: 19%;
+  right: 19%;
+  top: 7.3%;
+  min-height: 7.4%;
+  place-items: center start;
+}
+
+.game-card .card-name,
+.game-card .card-face .card-name {
+  padding-left: 0;
+  transform: none;
+  text-align: left;
 }
 
 .game-card .card-stat-chip {
   z-index: 30;
-  width: 18%;
+  width: 18.5%;
   border: 0;
   border-radius: 0;
   background: none !important;
@@ -7193,78 +7251,78 @@ select {
 }
 
 .card-cost-chip {
-  left: 0.8%;
-  top: 0.9%;
+  left: 0.7%;
+  top: 1.5%;
 }
 
 .card-drive-chip {
-  right: 0.8%;
-  top: 0.9%;
+  right: 0.7%;
+  top: 1.5%;
 }
 
 .card-attack-chip {
-  left: 0.8%;
-  bottom: 0.9%;
+  left: 0.7%;
+  bottom: 1.5%;
 }
 
 .card-durability-chip {
-  right: 0.8%;
-  bottom: 0.9%;
+  right: 0.7%;
+  bottom: 1.5%;
 }
 
 .tcg-card.small .card-stat-chip,
 .library-card .card-stat-chip {
-  width: 18%;
+  width: 18.5%;
   font-size: calc(var(--new-card-chip-size, 12px) + 1px);
 }
 
 .preview-card .card-stat-chip,
 .focus-mini-card .card-stat-chip {
-  width: 18%;
+  width: 18.5%;
 }
 
 .type-spell .card-drive-chip,
 .type-core .card-drive-chip {
-  right: 0.8%;
-  top: 0.9%;
+  right: 0.7%;
+  top: 1.5%;
 }
 
 .type-core .card-durability-chip {
-  right: 0.8%;
-  bottom: 0.9%;
+  right: 0.7%;
+  bottom: 1.5%;
 }
 
 .hand-zone .tcg-card .card-stat-chip {
-  width: 18%;
+  width: 18.5%;
   font-size: calc(var(--new-card-chip-size, 12px) + 1px);
 }
 
 .hand-zone .tcg-card .card-cost-chip {
-  left: 0.8%;
+  left: 0.7%;
   right: auto;
-  top: 0.9%;
+  top: 1.5%;
   bottom: auto;
 }
 
 .hand-zone .tcg-card .card-drive-chip {
   left: auto;
-  right: 0.8%;
-  top: 0.9%;
+  right: 0.7%;
+  top: 1.5%;
   bottom: auto;
 }
 
 .hand-zone .tcg-card .card-attack-chip {
-  left: 0.8%;
+  left: 0.7%;
   right: auto;
   top: auto;
-  bottom: 0.9%;
+  bottom: 1.5%;
 }
 
 .hand-zone .tcg-card .card-durability-chip {
   left: auto;
-  right: 0.8%;
+  right: 0.7%;
   top: auto;
-  bottom: 0.9%;
+  bottom: 1.5%;
 }
 
 /* Deck editor: keep thumbnails in 3 columns while the frame sockets carry the color. */
@@ -7293,27 +7351,27 @@ select {
 }
 
 .builder-view .library-card .card-stat-chip {
-  width: 18%;
+  width: 18.5%;
 }
 
 .builder-view .library-card .card-cost-chip {
-  left: 0.8%;
-  top: 0.9%;
+  left: 0.7%;
+  top: 1.5%;
 }
 
 .builder-view .library-card .card-drive-chip {
-  right: 0.8%;
-  top: 0.9%;
+  right: 0.7%;
+  top: 1.5%;
 }
 
 .builder-view .library-card .card-attack-chip {
-  left: 0.8%;
-  bottom: 0.9%;
+  left: 0.7%;
+  bottom: 1.5%;
 }
 
 .builder-view .library-card .card-durability-chip {
-  right: 0.8%;
-  bottom: 0.9%;
+  right: 0.7%;
+  bottom: 1.5%;
 }
 
 .preview-panel {
