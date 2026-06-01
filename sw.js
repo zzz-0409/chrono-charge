@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260601-newrules-ui4";
+const CACHE_VERSION = "chrono-drive-pwa-20260601-newrules-ui5";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260601newrulesui4",
+  "/styles.css?v=20260601newrulesui5",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -57,7 +57,7 @@ const APP_SHELL_URLS = [
   "/src/ui/card-renderer.js?v=20260601newrulesui4",
   "/src/ui/sound-effects.js?v=20260529soundvolume",
   "/src/ui/card-zoom.js?v=20260522k",
-  "/src/ui/deck-builder-view.js?v=20260601newrules",
+  "/src/ui/deck-builder-view.js?v=20260601newrulesui5",
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
   "/src/ui/duel-view.js?v=20260601newrulesui3",

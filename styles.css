@@ -7246,3 +7246,109 @@ select {
 .hand-zone .tcg-card .card-durability-chip {
   bottom: -13px;
 }
+
+/* Deck editor: the generated stat badges need breathing room around card thumbnails. */
+.builder-view {
+  --card-list-width: 82px;
+  --card-list-height: 123px;
+}
+
+.collection-grid,
+.deck-list {
+  padding: 14px 6px 20px;
+  gap: 32px 24px;
+  align-content: start;
+}
+
+.builder-view .collection-grid,
+.builder-view .deck-list {
+  grid-template-columns: repeat(3, var(--card-list-width)) !important;
+  justify-content: center;
+}
+
+.builder-view .library-card {
+  --new-card-name-size: 6.2px;
+  --new-card-chip-size: 9px;
+  justify-self: center;
+}
+
+.builder-view .library-card .card-stat-chip {
+  width: 28%;
+}
+
+.builder-view .library-card .card-cost-chip {
+  left: -10%;
+  top: -10%;
+}
+
+.builder-view .library-card .card-drive-chip {
+  right: -10%;
+  top: -10%;
+}
+
+.builder-view .library-card .card-attack-chip {
+  left: -10%;
+  bottom: -10%;
+}
+
+.builder-view .library-card .card-durability-chip {
+  right: -10%;
+  bottom: -10%;
+}
+
+.preview-panel {
+  gap: 10px;
+}
+
+.preview-card-slot {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 14px;
+  overflow: visible;
+  padding-top: 24px;
+}
+
+.preview-panel .preview-card {
+  --card-width: 176px;
+  --card-height: 264px;
+  --new-card-name-size: 13px;
+  --new-card-chip-size: 22px;
+  margin-top: 8px;
+}
+
+.preview-panel .preview-card .card-stat-chip {
+  width: 27%;
+}
+
+.preview-effect-panel {
+  width: 100%;
+  max-height: 116px;
+  min-height: 84px;
+  overflow: auto;
+  border: 1px solid rgba(112, 223, 230, 0.22);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: #eef8f6;
+  background: rgba(4, 9, 13, 0.3);
+  scrollbar-width: thin;
+}
+
+.preview-effect-meta {
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.preview-effect-text {
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.42;
+  white-space: pre-line;
+}
+
+.preview-deck-controls {
+  min-height: 92px;
+}

@@ -227,8 +227,23 @@
       this.renderLibrary({ preserveScroll: Boolean(options.preserveLibraryScroll) });
       this.renderDeckPanel();
       CardRenderer.preview(this.selectedCardId, this.els.cardPreview, { finish: this.selectedFinish });
+      this.renderPreviewEffectText();
       this.renderPreviewDeckControls();
       if (options.preserveDeckScroll && this.els.deckList) this.els.deckList.scrollTop = deckScrollTop;
+    }
+
+    renderPreviewEffectText() {
+      const target = this.els.cardPreview;
+      const card = cards[this.selectedCardId];
+      if (!target || !card) return;
+      const rarityLabel = window.Chrono.RARITIES?.[card.rarity]?.label;
+      const meta = `${CardRenderer.metaLabelHtml(card, { shortDrive: true })}${rarityLabel ? ` / ${CardRenderer.rubyText(rarityLabel)}` : ""}`;
+      target.insertAdjacentHTML("beforeend", `
+        <div class="preview-effect-panel">
+          <div class="preview-effect-meta">${meta}</div>
+          <div class="preview-effect-text">${CardRenderer.rubyText(card.text || "効果なし")}</div>
+        </div>
+      `);
     }
 
     makeBuilderCardDraggable(element, payload) {
