@@ -298,7 +298,11 @@
     }
 
     guestState() {
-      return this.stateFromDeck(starterDeck, starterDriveDeck);
+      const state = this.stateFromDeck(starterDeck, starterDriveDeck);
+      const account = state.data.accounts[state.activeAccount];
+      account.collection = this.guestCollection();
+      account.collectionRoyal = {};
+      return state;
     }
 
     loadAuth() {
@@ -1186,6 +1190,19 @@
       });
       Object.entries(this.normalizeDrive(driveDeck)).forEach(([id, count]) => {
         result[id] = Math.max(result[id] || 0, Number(count) || 0);
+      });
+      return result;
+    }
+
+    guestCollection() {
+      const result = {};
+      cardPool.forEach((card) => {
+        if (!card?.id || card.driveKind || card.type === "環境") return;
+        result[card.id] = MAX_COPIES;
+      });
+      drivePool.forEach((card) => {
+        if (!isDriveCard(card)) return;
+        result[card.id] = MAX_DRIVE_COPIES;
       });
       return result;
     }

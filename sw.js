@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260602-themes";
+const CACHE_VERSION = "chrono-drive-pwa-20260602-guestcollection";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -38,7 +38,7 @@ const APP_SHELL_URLS = [
   "/assets/SE/haiboku.mp3",
   "/src/data/cards.js?v=20260602themes",
   "/src/data/notices.js?v=20260602themes",
-  "/src/core/deck-store.js?v=20260602themes",
+  "/src/core/deck-store.js?v=20260602guestcollection",
   "/src/core/effect-resolver.js?v=20260602themes",
   "/src/core/cpu-controller.js?v=20260602themes",
   "/src/core/duel-game.js?v=20260602themes",
