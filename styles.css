@@ -1428,7 +1428,7 @@ select {
   --card-face-name-padding-left: 0;
   --card-face-name-shift-x: 8%;
   --card-face-cost-height: 92%;
-  --card-face-cost-size: 16px;
+  --card-face-cost-size: 26px;
   --card-face-cost-transform: translateX(-13%);
   --card-face-art-left: 14%;
   --card-face-art-top: 20.5%;
@@ -1774,6 +1774,7 @@ select {
   height: 92%;
   aspect-ratio: 1;
   font-size: 0.86rem;
+  font-weight: 1000;
   background: transparent;
   box-shadow: none;
   color: #fff0b6;
@@ -1967,6 +1968,7 @@ select {
   --card-face-header-width: 77.2%;
   --card-face-header-height: 8.9%;
   --card-face-name-size: 15.04px;
+  --card-face-cost-size: 24px;
   --card-face-name-padding-left: 5.5%;
   --card-face-name-shift-x: 0;
   --card-face-cost-transform: translate(33%, -8%);
