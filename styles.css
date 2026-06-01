@@ -3810,6 +3810,377 @@ select {
   transform: translateY(-50%) rotate(270deg) translateY(2px);
 }
 
+/* New-rule visual reset: keep the old shell, but stop legacy card/field rules from leaking in. */
+.duel-table {
+  height: 100%;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 10px;
+}
+
+.info-rail {
+  grid-template-rows: 318px minmax(0, 1fr);
+}
+
+.selected-panel,
+.log-panel {
+  border: 1px solid rgba(112, 223, 230, 0.18);
+  border-radius: 8px;
+  background: rgba(7, 12, 18, 0.84);
+  box-shadow: inset 0 0 18px rgba(85, 199, 187, 0.06);
+}
+
+.board-area {
+  grid-template-rows: 236px 22px 236px 120px;
+  gap: 4px;
+  padding: 14px 18px 8px;
+  overflow: hidden;
+}
+
+.side-board,
+.side-board.opponent-side,
+.side-board.player-side {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 122px minmax(390px, 1fr) 158px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0 14px;
+  background: transparent;
+}
+
+.side-board.opponent-side {
+  grid-row: 1;
+}
+
+.side-board.player-side {
+  grid-row: 3;
+}
+
+.unit-row,
+.opponent-side .unit-row,
+.player-side .unit-row {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
+}
+
+.zone-row {
+  grid-template-columns: repeat(5, 72px);
+  gap: 12px;
+  justify-content: center;
+}
+
+.zone-slot,
+.unit-row .zone-slot {
+  width: 72px;
+  height: 108px;
+  min-height: 108px;
+  border-radius: 8px;
+}
+
+.unit-row .tcg-card.small {
+  --card-width: 64px;
+  --card-height: 96px;
+}
+
+.pile-zones,
+.opponent-side .pile-zones,
+.player-piles {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  justify-self: start;
+  display: grid;
+  grid-template-columns: repeat(2, var(--card-field-width));
+  grid-template-rows: auto var(--card-field-height);
+  gap: 8px;
+}
+
+#playerAbyssPile,
+#enemyAbyssPile {
+  display: none;
+}
+
+.opponent-piles #enemyDeckPile,
+.player-piles #playerDeckPile {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.opponent-piles #enemyGravePile,
+.player-piles #playerGravePile {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.player-piles .turn-command-field {
+  position: static;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  justify-self: start;
+  transform: none;
+}
+
+.turn-status {
+  gap: 5px;
+}
+
+.turn-command-field .primary-button {
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.side-board .drive-pile-field,
+.opponent-side .drive-pile-field,
+.player-side .drive-pile-field {
+  position: absolute;
+  right: 0;
+  top: 10px;
+  grid-column: auto;
+  grid-row: auto;
+  justify-self: auto;
+  width: var(--card-field-width);
+  height: var(--card-field-height);
+  transform: none;
+}
+
+.side-board .charge-row,
+.opponent-side .charge-row,
+.player-side .charge-row {
+  position: absolute;
+  right: 0;
+  bottom: 10px;
+  grid-column: auto;
+  grid-row: auto;
+  width: 152px;
+  height: 94px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.charge-count-badge,
+.opponent-side .charge-count-badge {
+  left: auto;
+  right: 5px;
+  top: 5px;
+  transform: none;
+  min-width: 36px;
+  min-height: 20px;
+  z-index: 12;
+}
+
+.charge-card.tcg-card.small,
+.charge-card.tcg-card.facedown,
+.charge-card.tcg-card.small.interactive:hover,
+.charge-card.tcg-card.facedown.interactive:hover,
+.charge-card.tcg-card.small.tapped,
+.charge-card.tcg-card.facedown.tapped,
+.opponent-side .charge-card.tcg-card.small,
+.opponent-side .charge-card.tcg-card.facedown,
+.opponent-side .charge-card.tcg-card.small.interactive:hover,
+.opponent-side .charge-card.tcg-card.facedown.interactive:hover,
+.opponent-side .charge-card.tcg-card.small.tapped,
+.opponent-side .charge-card.tcg-card.facedown.tapped {
+  --card-width: 48px;
+  --card-height: 72px;
+  left: calc(7px + (var(--charge-offset, 0) * 12px));
+  top: 15px;
+  transform: none;
+}
+
+.enemy-hand-zone {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  width: min(520px, 100%);
+  min-height: 58px;
+  grid-auto-columns: 38px;
+  gap: 7px;
+  padding: 0 8px;
+  overflow: hidden;
+}
+
+.enemy-hand-card {
+  width: 38px;
+  height: 57px;
+  border-radius: 7px;
+}
+
+.board-area .hand-wrap {
+  grid-row: 4;
+  width: min(660px, calc(100% - 300px));
+  justify-self: center;
+  align-self: end;
+}
+
+.hand-zone {
+  width: 100%;
+  height: 116px;
+  grid-auto-columns: var(--card-hand-width);
+  gap: 8px;
+  padding: 4px 8px 8px;
+}
+
+.game-card,
+.tcg-card,
+.preview-card,
+.library-card,
+.focus-mini-card {
+  width: var(--card-width);
+  height: var(--card-height);
+  min-width: var(--card-width);
+  min-height: var(--card-height);
+  max-width: var(--card-width);
+  max-height: var(--card-height);
+  border: 2px solid var(--card-frame);
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(12, 15, 20, 0.08), rgba(6, 9, 12, 0.28)),
+    var(--card-frame-image),
+    linear-gradient(180deg, #252c35, #151a20);
+  background-size: 100% 100%, 100% 100%, cover;
+  background-position: center;
+}
+
+.game-card::after {
+  content: none !important;
+}
+
+.game-card .card-face {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform: none !important;
+  overflow: hidden;
+}
+
+.game-card .card-mini-top {
+  left: 18%;
+  right: 18%;
+  top: 5.5%;
+  min-height: 10%;
+}
+
+.game-card .card-name,
+.game-card .card-face .card-name {
+  padding-left: 0;
+  color: #fff5d7;
+  font-size: var(--new-card-name-size, 9px);
+  line-height: 1.05;
+  transform: none;
+  text-align: center;
+  text-shadow: 0 1px 2px #000, 0 0 7px rgba(0, 0, 0, 0.88);
+  overflow-wrap: anywhere;
+}
+
+.game-card .card-art,
+.game-card .card-face .card-art {
+  left: 13%;
+  top: 17%;
+  width: 74%;
+  height: 55%;
+  margin: 0;
+  border-radius: 3px;
+  background-image: var(--card-art-url);
+  background-size: cover;
+  background-position: center;
+}
+
+.game-card .rules-box {
+  left: 15%;
+  right: 15%;
+  bottom: 10.5%;
+  min-height: 8%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.game-card .rules-box .type-line,
+.game-card .card-face .type-line {
+  color: rgba(248, 241, 212, 0.82);
+  font-size: var(--new-card-meta-size, 5px);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+}
+
+.game-card .card-effect,
+.game-card .battle-stats,
+.game-card .cost-chip,
+.game-card .card-face .card-effect,
+.game-card .card-face .battle-stats,
+.game-card .card-face .cost-chip {
+  display: none !important;
+}
+
+.card-stat-chip,
+.game-card .card-stat-chip {
+  width: 19%;
+  display: grid !important;
+  font-size: var(--new-card-chip-size, 14px);
+}
+
+.preview-card {
+  --new-card-name-size: 17px;
+  --new-card-meta-size: 10px;
+  --new-card-chip-size: 28px;
+}
+
+.library-card {
+  --new-card-name-size: 8px;
+  --new-card-meta-size: 5px;
+  --new-card-chip-size: 13px;
+}
+
+.hand-zone .tcg-card {
+  --card-width: var(--card-hand-width);
+  --card-height: var(--card-hand-height);
+  --new-card-name-size: 6px;
+  --new-card-meta-size: 4px;
+  --new-card-chip-size: 11px;
+}
+
+.tcg-card.small,
+.pile-top-card {
+  --new-card-name-size: 5px;
+  --new-card-meta-size: 3.2px;
+  --new-card-chip-size: 10px;
+}
+
+.tcg-card.small .card-mini-top,
+.tcg-card.small .rules-box {
+  display: none;
+}
+
+.focus-mini-card {
+  --card-width: 78px;
+  --card-height: 117px;
+  --new-card-name-size: 5.8px;
+  --new-card-meta-size: 3.6px;
+  --new-card-chip-size: 10px;
+  top: 0;
+  right: 0;
+}
+
+.focus-card-copy h3 {
+  max-width: calc(100% - 92px);
+}
+
+.focus-effect-text {
+  top: 116px;
+}
+
+.card-zoom-shell .preview-card,
+.card-zoom-facedown {
+  overflow: hidden;
+}
+
 /* Keep the new-rule layout last so legacy board/card rules cannot override it. */
 .type-unit,
 .type-spell,
@@ -6537,4 +6908,24 @@ select {
 .opponent-side .charge-card.tcg-card.small.tapped,
 .opponent-side .charge-card.tcg-card.facedown.tapped {
   transform: translateY(-50%) rotate(270deg) translateY(2px);
+}
+
+/* Final new-rule pass: charge cards are upright stacked cards, not the old sideways core/reaction layout. */
+.charge-card.tcg-card.small,
+.charge-card.tcg-card.facedown,
+.charge-card.tcg-card.small.interactive:hover,
+.charge-card.tcg-card.facedown.interactive:hover,
+.charge-card.tcg-card.small.tapped,
+.charge-card.tcg-card.facedown.tapped,
+.opponent-side .charge-card.tcg-card.small,
+.opponent-side .charge-card.tcg-card.facedown,
+.opponent-side .charge-card.tcg-card.small.interactive:hover,
+.opponent-side .charge-card.tcg-card.facedown.interactive:hover,
+.opponent-side .charge-card.tcg-card.small.tapped,
+.opponent-side .charge-card.tcg-card.facedown.tapped {
+  --card-width: 48px;
+  --card-height: 72px;
+  left: calc(7px + (var(--charge-offset, 0) * 12px));
+  top: 15px;
+  transform: none !important;
 }

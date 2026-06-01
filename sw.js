@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260601-newrules";
+const CACHE_VERSION = "chrono-drive-pwa-20260601-newrules-ui1";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260601newrules",
+  "/styles.css?v=20260601newrulesui1",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
