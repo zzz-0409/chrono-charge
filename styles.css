@@ -7126,31 +7126,31 @@ select {
   grid-template-columns: 252px minmax(390px, 1fr) 126px;
 }
 
-/* Rarity frames have no built-in corner sockets; the stat badges sit outside the frame. */
+/* The generated frame owns the colored sockets; CSS only places the numbers. */
 .rarity-bronze {
   --card-frame: #b8783c;
-  --card-frame-image: url("assets/cards/frames/rarity-bronze-frame.png");
+  --card-frame-image: url("assets/cards/frames/socket-stat-frame.png");
   --card-glow: rgba(205, 126, 66, 0.22);
   --card-top: rgba(205, 126, 66, 0.14);
 }
 
 .rarity-silver {
   --card-frame: #b8c6d7;
-  --card-frame-image: url("assets/cards/frames/rarity-silver-frame.png");
+  --card-frame-image: url("assets/cards/frames/socket-stat-frame.png");
   --card-glow: rgba(188, 213, 238, 0.22);
   --card-top: rgba(188, 213, 238, 0.13);
 }
 
 .rarity-gold {
   --card-frame: #e5b442;
-  --card-frame-image: url("assets/cards/frames/rarity-gold-frame.png");
+  --card-frame-image: url("assets/cards/frames/socket-stat-frame.png");
   --card-glow: rgba(255, 213, 92, 0.26);
   --card-top: rgba(255, 213, 92, 0.15);
 }
 
 .rarity-rainbow {
   --card-frame: #f4ddff;
-  --card-frame-image: url("assets/cards/frames/rarity-rainbow-frame.png");
+  --card-frame-image: url("assets/cards/frames/socket-stat-frame.png");
   --card-glow: rgba(110, 231, 255, 0.28);
   --card-top: rgba(255, 119, 220, 0.16);
 }
@@ -7170,84 +7170,104 @@ select {
 
 .game-card .card-art,
 .game-card .card-face .card-art {
-  top: 15.5%;
-  height: 73%;
+  left: 13.6%;
+  top: 18.5%;
+  width: 72.8%;
+  height: 63.8%;
   overflow: hidden;
 }
 
 .game-card .card-stat-chip {
   z-index: 30;
-  width: 31%;
+  width: 18%;
+  border: 0;
+  border-radius: 0;
+  background: none !important;
+  box-shadow: none;
+  filter: none;
   font-size: calc(var(--new-card-chip-size, 18px) + 1px);
+  text-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.98),
+    0 0 6px rgba(0, 0, 0, 0.8),
+    0 0 9px rgba(255, 255, 255, 0.26);
 }
 
 .card-cost-chip {
-  left: -12%;
-  top: -12%;
+  left: 0.8%;
+  top: 0.9%;
 }
 
 .card-drive-chip {
-  right: -12%;
-  top: -12%;
+  right: 0.8%;
+  top: 0.9%;
 }
 
 .card-attack-chip {
-  left: -12%;
-  bottom: -12%;
+  left: 0.8%;
+  bottom: 0.9%;
 }
 
 .card-durability-chip {
-  right: -12%;
-  bottom: -12%;
+  right: 0.8%;
+  bottom: 0.9%;
 }
 
 .tcg-card.small .card-stat-chip,
 .library-card .card-stat-chip {
-  width: 30%;
+  width: 18%;
   font-size: calc(var(--new-card-chip-size, 12px) + 1px);
 }
 
 .preview-card .card-stat-chip,
 .focus-mini-card .card-stat-chip {
-  width: 28%;
+  width: 18%;
 }
 
 .type-spell .card-drive-chip,
 .type-core .card-drive-chip {
-  right: -12%;
-  top: -12%;
+  right: 0.8%;
+  top: 0.9%;
 }
 
 .type-core .card-durability-chip {
-  right: -12%;
-  bottom: -12%;
+  right: 0.8%;
+  bottom: 0.9%;
 }
 
 .hand-zone .tcg-card .card-stat-chip {
-  left: -16px;
-  right: auto;
-  width: 34px;
-  height: 34px;
-  font-size: 15px;
+  width: 18%;
+  font-size: calc(var(--new-card-chip-size, 12px) + 1px);
 }
 
 .hand-zone .tcg-card .card-cost-chip {
-  top: -13px;
+  left: 0.8%;
+  right: auto;
+  top: 0.9%;
+  bottom: auto;
 }
 
 .hand-zone .tcg-card .card-drive-chip {
-  top: 18px;
+  left: auto;
+  right: 0.8%;
+  top: 0.9%;
+  bottom: auto;
 }
 
 .hand-zone .tcg-card .card-attack-chip {
-  top: 49px;
+  left: 0.8%;
+  right: auto;
+  top: auto;
+  bottom: 0.9%;
 }
 
 .hand-zone .tcg-card .card-durability-chip {
-  bottom: -13px;
+  left: auto;
+  right: 0.8%;
+  top: auto;
+  bottom: 0.9%;
 }
 
-/* Deck editor: the generated stat badges need breathing room around card thumbnails. */
+/* Deck editor: keep thumbnails in 3 columns while the frame sockets carry the color. */
 .builder-view {
   --card-list-width: 82px;
   --card-list-height: 123px;
@@ -7273,27 +7293,27 @@ select {
 }
 
 .builder-view .library-card .card-stat-chip {
-  width: 28%;
+  width: 18%;
 }
 
 .builder-view .library-card .card-cost-chip {
-  left: -10%;
-  top: -10%;
+  left: 0.8%;
+  top: 0.9%;
 }
 
 .builder-view .library-card .card-drive-chip {
-  right: -10%;
-  top: -10%;
+  right: 0.8%;
+  top: 0.9%;
 }
 
 .builder-view .library-card .card-attack-chip {
-  left: -10%;
-  bottom: -10%;
+  left: 0.8%;
+  bottom: 0.9%;
 }
 
 .builder-view .library-card .card-durability-chip {
-  right: -10%;
-  bottom: -10%;
+  right: 0.8%;
+  bottom: 0.9%;
 }
 
 .preview-panel {

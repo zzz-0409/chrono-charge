@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260601-counterattack";
+const CACHE_VERSION = "chrono-drive-pwa-20260601-socket-frame";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260601newrulesui5",
+  "/styles.css?v=20260601socketframe",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -17,6 +17,7 @@ const APP_SHELL_URLS = [
   "/assets/cards/frames/rarity-silver-frame.png",
   "/assets/cards/frames/rarity-gold-frame.png",
   "/assets/cards/frames/rarity-rainbow-frame.png",
+  "/assets/cards/frames/socket-stat-frame.png",
   "/assets/cards/badges/badge-cost.svg",
   "/assets/cards/badges/badge-drive.svg",
   "/assets/cards/badges/badge-attack.svg",
