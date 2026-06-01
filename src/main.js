@@ -49,6 +49,7 @@
     cpuThemeSelect: document.querySelector("#cpuThemeSelect"),
     cpuFirstSelect: document.querySelector("#cpuFirstSelect"),
     rankedStatusText: document.querySelector("#rankedStatusText"),
+    rankedNextRankText: document.querySelector("#rankedNextRankText"),
     loginButton: document.querySelector("#loginButton"),
     displayNameInput: document.querySelector("#displayNameInput"),
     accountUsernameLabel: document.querySelector("#accountUsernameLabel"),
@@ -136,6 +137,15 @@
     modalRoot: document.querySelector("#modalRoot"),
     toast: document.querySelector("#toast"),
   };
+
+  const RANK_TIERS = [
+    { tier: "bronze", label: "ブロンズ", min: 0 },
+    { tier: "silver", label: "シルバー", min: 1200 },
+    { tier: "gold", label: "ゴールド", min: 1500 },
+    { tier: "platinum", label: "プラチナ", min: 1800 },
+    { tier: "diamond", label: "ダイヤ", min: 2200 },
+    { tier: "master", label: "マスター", min: 2600 },
+  ];
 
   const playerPiles = document.querySelector(".player-piles");
   if (playerPiles) {
@@ -576,21 +586,29 @@
     if (!store.isAuthenticated) {
       els.rankedStatusText.textContent = "ログインでランク記録";
       if (els.rankedModeCard) els.rankedModeCard.dataset.rankTier = "bronze";
+      if (els.rankedNextRankText) els.rankedNextRankText.textContent = "次: シルバーまであと200 RP（1200 RP）";
       return;
     }
     const ranked = store.ranked;
-    if (els.rankedModeCard) els.rankedModeCard.dataset.rankTier = rankedVisualTier(ranked.points);
+    const progress = rankedProgress(ranked.points);
+    if (els.rankedModeCard) els.rankedModeCard.dataset.rankTier = progress.current.tier;
     els.rankedStatusText.textContent = `${store.rankedLabel} / ${ranked.wins}勝 ${ranked.losses}敗`;
+    if (els.rankedNextRankText) {
+      els.rankedNextRankText.textContent = progress.next
+        ? `次: ${progress.next.label}まであと${progress.remaining} RP（${progress.next.min} RP）`
+        : "最高ランク到達";
+    }
   }
 
-  function rankedVisualTier(points) {
+  function rankedProgress(points) {
     const value = Number(points) || 0;
-    if (value >= 2600) return "master";
-    if (value >= 2200) return "diamond";
-    if (value >= 1800) return "platinum";
-    if (value >= 1400) return "gold";
-    if (value >= 1100) return "silver";
-    return "bronze";
+    const current = RANK_TIERS.reduce((best, tier) => (value >= tier.min ? tier : best), RANK_TIERS[0]);
+    const next = RANK_TIERS.find((tier) => value < tier.min) || null;
+    return {
+      current,
+      next,
+      remaining: next ? Math.max(0, next.min - value) : 0,
+    };
   }
 
   function renderShellResources() {
