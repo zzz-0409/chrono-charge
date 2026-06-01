@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260601-ranktable";
+const CACHE_VERSION = "chrono-drive-pwa-20260601-ranktable2";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260601ranktable",
+  "/styles.css?v=20260601ranktable2",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -50,7 +50,7 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
   "/src/ui/duel-view.js?v=20260601cpurank",
-  "/src/main.js?v=20260601ranktable"
+  "/src/main.js?v=20260601ranktable2"
 ];
 
 self.addEventListener("install", (event) => {

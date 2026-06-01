@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
-    <link rel="stylesheet" href="styles.css?v=20260601ranktable">
+    <link rel="stylesheet" href="styles.css?v=20260601ranktable2">
     <script defer src="src/data/cards.js?v=20260601spelltext"></script>
     <script defer src="src/data/notices.js?v=20260601cyber"></script>
     <script defer src="src/core/deck-store.js?v=20260601cyber"></script>
@@ -27,7 +27,7 @@
     <script defer src="src/ui/pack-view.js?v=20260529notice"></script>
     <script defer src="src/net/online-client.js?v=20260528rankedsystems"></script>
     <script defer src="src/ui/duel-view.js?v=20260601cpurank"></script>
-    <script defer src="src/main.js?v=20260601ranktable"></script>
+    <script defer src="src/main.js?v=20260601ranktable2"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -468,21 +468,8 @@
                 </div>
                 <span class="duel-mode-visual duel-mode-visual-ranked" aria-hidden="true"></span>
                 <p class="duel-mode-description">ランクを競い、上位を目指そう<br><span id="rankedStatusText" class="duel-mode-rank-status">ブロンズ 1000 RP</span></p>
-                <div class="duel-mode-rank-info" aria-label="ランク昇格表">
+                <div class="duel-mode-rank-info" aria-label="次ランク">
                   <p id="rankedNextRankText" class="duel-mode-rank-next">次: シルバーまであと200 RP（1200 RP）</p>
-                  <table class="duel-mode-rank-table">
-                    <thead>
-                      <tr><th>ランク</th><th>必要RP</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr><td>ブロンズ</td><td>0</td></tr>
-                      <tr><td>シルバー</td><td>1200</td></tr>
-                      <tr><td>ゴールド</td><td>1500</td></tr>
-                      <tr><td>プラチナ</td><td>1800</td></tr>
-                      <tr><td>ダイヤ</td><td>2200</td></tr>
-                      <tr><td>マスター</td><td>2600</td></tr>
-                    </tbody>
-                  </table>
                 </div>
                 <div class="duel-mode-actions">
                   <button id="modeRankedDuelButton" class="primary-button" type="button">マッチ開始</button>

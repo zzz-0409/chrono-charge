@@ -2793,35 +2793,6 @@ select {
   text-align: center;
 }
 
-.duel-mode-rank-table {
-  width: 100%;
-  border-collapse: collapse;
-  color: rgba(239, 244, 249, 0.88);
-  font-size: 0.66rem;
-  font-weight: 800;
-  line-height: 1.15;
-  table-layout: fixed;
-}
-
-.duel-mode-rank-table th,
-.duel-mode-rank-table td {
-  padding: 3px 4px;
-  border-top: 1px solid rgba(116, 172, 229, 0.14);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.duel-mode-rank-table th:last-child,
-.duel-mode-rank-table td:last-child {
-  text-align: right;
-}
-
-.duel-mode-rank-table thead th {
-  border-top: 0;
-  color: rgba(207, 225, 245, 0.76);
-  font-size: 0.62rem;
-}
-
 .duel-mode-actions {
   position: relative;
   z-index: 1;
@@ -6030,6 +6001,52 @@ select {
 
 .ranked-leaderboard-dialog {
   width: min(560px, calc(100% - 24px));
+}
+
+.ranked-threshold-panel {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(116, 172, 229, 0.2);
+  border-radius: 6px;
+  padding: 10px;
+  background: rgba(4, 10, 18, 0.5);
+}
+
+.ranked-threshold-panel h3 {
+  margin: 0;
+  color: #f8e3a2;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.ranked-threshold-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: rgba(239, 244, 249, 0.88);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
+  table-layout: fixed;
+}
+
+.ranked-threshold-table th,
+.ranked-threshold-table td {
+  padding: 5px 6px;
+  border-top: 1px solid rgba(116, 172, 229, 0.14);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ranked-threshold-table th:last-child,
+.ranked-threshold-table td:last-child {
+  text-align: right;
+}
+
+.ranked-threshold-table thead th {
+  border-top: 0;
+  color: rgba(207, 225, 245, 0.76);
+  font-size: 0.7rem;
 }
 
 .ranked-leaderboard-list {

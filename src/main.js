@@ -1300,6 +1300,10 @@
       modal.className = "modal-dialog ranked-leaderboard-dialog";
       modal.innerHTML = `
         <h2>ランク順位表</h2>
+        <section class="ranked-threshold-panel" aria-label="ランク昇格ライン">
+          <h3>ランク昇格ライン</h3>
+          ${rankThresholdTable()}
+        </section>
         <div class="ranked-leaderboard-list">
           ${entries.length ? entries.map((entry) => rankedLeaderboardRow(entry)).join("") : '<p class="small-note">まだランク記録がありません。</p>'}
         </div>
@@ -1313,6 +1317,19 @@
       toast(error.message || "順位表を取得できませんでした。");
     }
   };
+
+  function rankThresholdTable() {
+    return `
+      <table class="ranked-threshold-table">
+        <thead>
+          <tr><th>ランク</th><th>必要RP</th></tr>
+        </thead>
+        <tbody>
+          ${RANK_TIERS.map((rank) => `<tr><td>${escapeHtml(rank.label)}</td><td>${rank.min}</td></tr>`).join("")}
+        </tbody>
+      </table>
+    `;
+  }
 
   function rankedLeaderboardRow(entry) {
     const current = store.isAuthenticated && entry.username === store.username;
