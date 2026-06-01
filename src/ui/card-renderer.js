@@ -138,6 +138,7 @@
         "game-card",
         typeClass[card?.type] || "",
         attrClass[card?.attr] || "",
+        this.rarityClass(card),
         this.finishClass(options.finish),
         options.small ? "small" : "",
         options.interactive ? "interactive" : "",
@@ -268,6 +269,11 @@
 
     static cardFinish(value) {
       return typeof value === "object" && value?.finish === "royal" ? "royal" : "normal";
+    }
+
+    static rarityClass(card) {
+      const rarity = String(card?.rarity || "bronze").toLowerCase();
+      return ["bronze", "silver", "gold", "rainbow"].includes(rarity) ? `rarity-${rarity}` : "rarity-bronze";
     }
 
     static finishClass(finish) {

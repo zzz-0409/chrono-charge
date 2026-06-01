@@ -20,6 +20,13 @@
     DRIVE_UNIT: "ドライブユニット",
   };
 
+  const RARITIES = {
+    bronze: { id: "bronze", label: "\u9285" },
+    silver: { id: "silver", label: "\u9280" },
+    gold: { id: "gold", label: "\u91d1" },
+    rainbow: { id: "rainbow", label: "\u8679" },
+  };
+
   const CLASSES = {
     blader: {
       id: "blader",
@@ -105,6 +112,17 @@
     return list[index % list.length];
   }
 
+  function defaultRarity(spec) {
+    const cost = Number(spec.driveCost ?? spec.cost ?? 0);
+    if (spec.driveKind || spec.type === TYPES.DRIVE_UNIT) {
+      if (cost >= 15) return RARITIES.rainbow.id;
+      return RARITIES.gold.id;
+    }
+    if (cost >= 5) return RARITIES.gold.id;
+    if (cost >= 3) return RARITIES.silver.id;
+    return RARITIES.bronze.id;
+  }
+
   function baseCard(spec) {
     return {
       attr: classLabel(spec.cardClass),
@@ -112,6 +130,7 @@
       text: spec.text || "",
       art: spec.art || art(spec.cardClass || "generic", spec.artIndex || 0),
       ...spec,
+      rarity: spec.rarity || defaultRarity(spec),
     };
   }
 
@@ -386,6 +405,7 @@
     MAX_DRIVE,
     STORAGE_KEY,
     TYPES,
+    RARITIES,
     CLASSES,
     typeIcons,
     attrClass,

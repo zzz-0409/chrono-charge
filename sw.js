@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260601-newrules-ui3";
+const CACHE_VERSION = "chrono-drive-pwa-20260601-newrules-ui4";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260601newrulesui3",
+  "/styles.css?v=20260601newrulesui4",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -13,6 +13,10 @@ const APP_SHELL_URLS = [
   "/assets/cards/frames/chrono-v2-card-frame.png",
   "/assets/cards/frames/chrono-v2-spell-frame.png",
   "/assets/cards/frames/chrono-v2-core-frame.png",
+  "/assets/cards/frames/rarity-bronze-frame.png",
+  "/assets/cards/frames/rarity-silver-frame.png",
+  "/assets/cards/frames/rarity-gold-frame.png",
+  "/assets/cards/frames/rarity-rainbow-frame.png",
   "/assets/cards/badges/badge-cost.svg",
   "/assets/cards/badges/badge-drive.svg",
   "/assets/cards/badges/badge-attack.svg",
@@ -43,14 +47,14 @@ const APP_SHELL_URLS = [
   "/assets/SE/koukahatudou.mp3",
   "/assets/SE/shouri.mp3",
   "/assets/SE/haiboku.mp3",
-  "/src/data/cards.js?v=20260601newrules",
+  "/src/data/cards.js?v=20260601newrulesui4",
   "/src/data/notices.js?v=20260601newrules",
   "/src/core/deck-store.js?v=20260601newrules",
   "/src/core/effect-resolver.js?v=20260601newrules",
   "/src/core/cpu-controller.js?v=20260601newrules",
   "/src/core/duel-game.js?v=20260601newrules",
   "/src/ui/scale-manager.js?v=20260524a",
-  "/src/ui/card-renderer.js?v=20260601newrulesui2",
+  "/src/ui/card-renderer.js?v=20260601newrulesui4",
   "/src/ui/sound-effects.js?v=20260529soundvolume",
   "/src/ui/card-zoom.js?v=20260522k",
   "/src/ui/deck-builder-view.js?v=20260601newrules",
