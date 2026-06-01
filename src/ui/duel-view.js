@@ -609,6 +609,11 @@
           selected: this.isSelected("hand", index),
           finish: this.finishFor(id),
         });
+        const costBadge = document.createElement("span");
+        costBadge.className = "hand-cost-badge";
+        costBadge.textContent = String(handCard?.cost ?? 0);
+        costBadge.setAttribute("aria-hidden", "true");
+        card.append(costBadge);
         this.tagSelectableCard(card, "hand", index, "player");
         card.classList.toggle("cost-unavailable-card", Boolean(unavailable));
         if (unavailable) card.setAttribute("aria-disabled", "true");

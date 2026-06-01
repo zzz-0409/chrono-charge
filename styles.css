@@ -4159,7 +4159,7 @@ select {
 .hand-zone {
   min-height: 0;
   width: min(760px, 100%);
-  height: 120px;
+  height: 152px;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: var(--card-hand-width);
@@ -4169,7 +4169,7 @@ select {
   justify-content: center;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 8px 8px 10px;
+  padding: 36px 8px 10px;
   scrollbar-width: thin;
 }
 
@@ -4769,6 +4769,43 @@ select {
   min-height: 0;
   overflow: visible;
   grid-template-rows: 22px auto 14px auto minmax(0, 1fr) auto;
+}
+
+.hand-zone .tcg-card.cost-unavailable-card {
+  opacity: 1;
+  filter: none;
+}
+
+.hand-zone .tcg-card .cost-chip {
+  visibility: hidden;
+}
+
+.hand-cost-badge {
+  position: absolute;
+  left: 50%;
+  top: -28px;
+  z-index: 14;
+  min-width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255, 232, 155, 0.88);
+  border-radius: 999px;
+  color: #fff7c8;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, 0.28), transparent 34%),
+    linear-gradient(145deg, rgba(95, 62, 13, 0.96), rgba(24, 18, 10, 0.94));
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.62),
+    0 0 12px rgba(240, 185, 92, 0.36);
+  font-size: 1.35rem;
+  font-weight: 1000;
+  line-height: 1;
+  text-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.95),
+    0 0 8px rgba(255, 232, 155, 0.42);
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .hand-zone .tcg-card .card-art {
