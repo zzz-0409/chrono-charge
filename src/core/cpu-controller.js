@@ -291,6 +291,17 @@
         const types = new Set(player.charge.filter((entry) => cards[entry.id]?.theme === theme).map((entry) => cards[entry.id]?.type));
         if (card.type && !types.has(card.type)) score += 8;
       }
+      if (theme === "深景") {
+        const abyssCount = (player.abyss || []).filter((id) => cards[id]?.theme === theme).length;
+        if (card.type === "スペル") score += 6;
+        if (abyssCount >= 2) score += 8;
+        if (player.grave.some((id) => cards[id]?.theme === theme) && ["shinkei_beacon_mio", "shinkei_sinking_map"].includes(card.id)) score += 10;
+      }
+      if (theme === "陽菓") {
+        if (card.type === "コア" && !player.cores.some((id) => cards[id]?.theme === theme)) score += 10;
+        if (card.type === "ユニット" && player.units.some((unit) => unit && cards[unit.id]?.theme === theme)) score += 7;
+        if (card.type === "スペル") score += 5;
+      }
       return score;
     }
   }

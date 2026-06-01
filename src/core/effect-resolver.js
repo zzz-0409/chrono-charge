@@ -6,6 +6,7 @@
     ["sosai_nene", "sosai_ruri"],
     ["sosai_coco", "sosai_luna"],
   ];
+  const { cards } = window.Chrono;
 
   function fieldUnitIds(player) {
     return new Set(player.units.filter(Boolean).map((unit) => unit.id));
@@ -522,6 +523,173 @@
           }
           break;
         case "keikanWitnessRing":
+          this.game.drawCards(player, 1);
+          break;
+        case "shinkeiDiverNagi":
+          await this.game.addFromDeck(player, (card) => card.type === "スペル" && card.theme === "深景", {
+            title: "深景スペルをサーチ",
+            message: "デッキから手札に加える「深景」スペルを選んでください。",
+          });
+          if (
+            this.game.countThemeInAbyss(player, "深景") >= 1 &&
+            await this.optionalAdditional(player, sourceCard, "アビスゾーンに「深景」カードがあります。追加で1枚ドローしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
+        case "shinkeiBeaconMio":
+          if (await this.game.moveGraveCardToAbyss(player, (card) => card.theme === "深景", {
+            title: "深景カードをアビスへ送る",
+            message: "アビスゾーンに送るロストゾーンの「深景」カードを選んでください。",
+          })) this.game.untapOneCharge(player);
+          break;
+        case "shinkeiCartographerSui":
+          await this.game.addFromDeck(player, (card) => card.type === "ユニット" && card.theme === "深景", {
+            title: "深景ユニットをサーチ",
+            message: "デッキから手札に加える「深景」ユニットを選んでください。",
+          });
+          if (
+            this.game.countThemeInAbyss(player, "深景") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "アビスゾーンに「深景」カードが2枚以上あります。追加で手札から召喚しますか？")
+          ) {
+            await this.game.afterEffectStep();
+            await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "深景" && card.cost <= 1, {
+              title: "深景ユニットを追加召喚",
+              message: "手札からコスト1以下の「深景」ユニットを選んでください。",
+            }, opponent);
+          }
+          break;
+        case "shinkeiGatekeeperToma":
+          if (this.game.countThemeInAbyss(player, "深景") >= 2) await this.game.exhaustBestUnit(opponent);
+          break;
+        case "shinkeiLeviathanAru":
+          if (this.game.countThemeInAbyss(player, "深景") >= 3 && await this.game.destroyBestUnit(opponent)) {
+            this.game.log("深景の巨影が相手ユニットを沈めた。");
+          } else {
+            this.game.damage(opponent, 800);
+          }
+          break;
+        case "shinkeiSinkingMap":
+          await this.game.moveDeckCardToGrave(player, (card) => card.theme === "深景", {
+            title: "深景カードをロストへ送る",
+            message: "ロストゾーンに送る「深景」カードを選んでください。",
+          });
+          await this.game.afterEffectStep();
+          await this.game.moveGraveCardToAbyss(player, (card) => card.theme === "深景", {
+            title: "深景カードをアビスへ送る",
+            message: "アビスゾーンに送るロストゾーンの「深景」カードを選んでください。",
+          });
+          break;
+        case "shinkeiEchoRecovery":
+          if (this.game.countThemeInAbyss(player, "深景") >= 2) {
+            await this.game.addFromGrave(player, (card) => card.theme === "深景", {
+              title: "深景カードを回収",
+              message: "ロストゾーンから手札に戻す「深景」カードを選んでください。",
+            });
+          } else {
+            this.game.drawCards(player, 1);
+          }
+          break;
+        case "shinkeiPressureGate": {
+          const index = await this.game.chooseUnitTargetIndex(opponent, (unit) => !unit.exhausted, {
+            title: "水圧門の対象を選択",
+            message: "行動済みにする相手ユニットを選んでください。",
+          });
+          if (index < 0) break;
+          this.game.exhaustUnitUntilOwnerTurnEnd(opponent, index);
+          this.game.log(`${cards[opponent.units[index].id].name}を次のターン終了まで行動済みにした。`);
+          if (
+            this.game.countThemeInAbyss(player, "深景") >= 3 &&
+            opponent.units[index] &&
+            await this.optionalAdditional(player, sourceCard, "アビスゾーンに「深景」カードが3枚以上あります。追加でそのユニットを破壊しますか？")
+          ) {
+            const targetName = cards[opponent.units[index].id].name;
+            await this.game.afterEffectStep();
+            this.game.destroyUnit(opponent, index);
+            this.game.log(`${targetName}を破壊した。`);
+          }
+          break;
+        }
+        case "shinkeiSunkenBell":
+          this.game.drawCards(player, 1);
+          break;
+        case "youkaPunimaro":
+          await this.game.addFromDeck(player, (card) => card.type === "ユニット" && card.theme === "陽菓", {
+            title: "陽菓ユニットをサーチ",
+            message: "デッキから手札に加える「陽菓」ユニットを選んでください。",
+          });
+          if (
+            this.game.countThemeUnits(player, "陽菓") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「陽菓」ユニットが2体以上います。追加で1枚ドローしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
+        case "youkaRoll":
+          if (player.chargedThisTurn) {
+            await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "陽菓" && card.cost <= 1, {
+              title: "陽菓ユニットを追加召喚",
+              message: "手札からコスト1以下の「陽菓」ユニットを選んでください。",
+            }, opponent);
+          }
+          break;
+        case "youkaMochiGuard":
+          if (this.game.hasThemeCore(player, "陽菓")) this.game.drawCards(player, 1);
+          else this.game.buffThemeUnits(player, "陽菓", 100);
+          break;
+        case "youkaJelly":
+          this.game.damage(opponent, 500);
+          if (
+            this.game.countThemeUnits(player, "陽菓") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「陽菓」ユニットが2体以上います。追加でチャージをアクティブにしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.untapOneCharge(player);
+          }
+          break;
+        case "youkaCakeDragon":
+          if (this.game.countThemeUnits(player, "陽菓") >= 2 && await this.game.destroyBestUnit(opponent)) {
+            this.game.log("ケーキ竜が相手ユニットを吹き飛ばした。");
+          } else {
+            this.game.damage(opponent, 1000);
+          }
+          break;
+        case "youkaRecipeBook":
+          await this.game.addFromDeck(player, (card) => card.theme === "陽菓", {
+            title: "陽菓カードをサーチ",
+            message: "デッキから手札に加える「陽菓」カードを選んでください。",
+          });
+          if (
+            this.game.countThemeInCharge(player, "陽菓") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "チャージに「陽菓」カードが2枚以上あります。追加で1枚ドローしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
+        case "youkaPicnic":
+          if (await this.game.specialSummonFromHand(player, (card) => card.type === "ユニット" && card.theme === "陽菓" && card.cost <= 1, {
+            title: "陽菓ユニットを追加召喚",
+            message: "手札からコスト1以下の「陽菓」ユニットを選んでください。",
+          }, opponent) && this.game.countThemeUnits(player, "陽菓") >= 2 &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「陽菓」ユニットが2体以上います。追加で1枚ドローしますか？")) {
+            await this.game.afterEffectStep();
+            this.game.drawCards(player, 1);
+          }
+          break;
+        case "youkaSyrup":
+          this.game.buffThemeUnits(player, "陽菓", 300);
+          if (
+            this.game.hasThemeCore(player, "陽菓") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「陽菓」コアがあります。追加でチャージをアクティブにしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.untapOneCharge(player);
+          }
+          break;
+        case "youkaStall":
           this.game.drawCards(player, 1);
           break;
         case "sosaiHikari":

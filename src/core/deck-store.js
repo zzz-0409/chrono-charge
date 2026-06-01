@@ -41,6 +41,8 @@
     cyber: "電脳",
     sosai: "双彩",
     keikan: "契環",
+    shinkei: "深景",
+    youka: "陽菓",
     balance: "",
   };
   const PACK_COVERS = {
@@ -50,6 +52,8 @@
     "電脳": { image: "assets/packs/cyber-pack.png", ace: "cyber_akari" },
     "双彩": { image: "assets/packs/sosai-pack.png", ace: "sosai_hikari" },
     "契環": { image: "assets/packs/keikan-pack.png", ace: "drive_keikan_unit" },
+    "深景": { image: "assets/packs/shinkei-pack.png", ace: "drive_shinkei_unit" },
+    "陽菓": { image: "assets/packs/youka-pack.png", ace: "drive_youka_unit" },
   };
 
   const driveDecks = {
@@ -59,6 +63,8 @@
     cyber: themedDriveDeck("電脳"),
     sosai: themedDriveDeck("双彩"),
     keikan: themedDriveDeck("契環"),
+    shinkei: themedDriveDeck("深景"),
+    youka: themedDriveDeck("陽菓"),
     balance: starterDriveDeck,
   };
 
@@ -179,6 +185,50 @@
         generic_code: 1,
       },
       drive: driveDecks.keikan,
+    },
+    shinkei: {
+      label: "深景おまかせ",
+      main: {
+        shinkei_diver_nagi: 3,
+        shinkei_beacon_mio: 3,
+        shinkei_cartographer_sui: 3,
+        shinkei_gatekeeper_toma: 3,
+        shinkei_leviathan_aru: 2,
+        shinkei_sinking_map: 3,
+        shinkei_echo_recovery: 3,
+        shinkei_pressure_gate: 3,
+        shinkei_sunken_bell: 3,
+        shinkei_tide_wall: 3,
+        generic_transfer: 3,
+        generic_wall: 2,
+        generic_code: 2,
+        generic_zero: 2,
+        generic_field_notes: 1,
+        generic_recall: 1,
+      },
+      drive: driveDecks.shinkei,
+    },
+    youka: {
+      label: "陽菓おまかせ",
+      main: {
+        youka_punimaro: 3,
+        youka_roll: 3,
+        youka_mochi_guard: 3,
+        youka_jelly: 3,
+        youka_cake_dragon: 2,
+        youka_recipe_book: 3,
+        youka_picnic: 3,
+        youka_syrup: 2,
+        youka_stall: 3,
+        youka_sugar_guard: 3,
+        generic_transfer: 3,
+        generic_code: 2,
+        generic_wall: 2,
+        generic_supply_box: 2,
+        generic_zero: 2,
+        generic_field_medic: 1,
+      },
+      drive: driveDecks.youka,
     },
     balance: {
       label: "バランスおまかせ",

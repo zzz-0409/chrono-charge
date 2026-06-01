@@ -1179,6 +1179,19 @@ function cpuThemePlanScore(card, cpu, opponent, game, aiLevel) {
     const types = new Set(cpu.charge.filter((entry) => cardHasTheme(cards[entry.id], theme)).map((entry) => cards[entry.id]?.type));
     if (card.type && !types.has(card.type)) score += 8;
   }
+  if (theme === "深景") {
+    const abyssCount = countThemeInAbyss(cpu, theme);
+    if (card.type === "スペル") score += 6;
+    if (abyssCount >= 2) score += 7;
+    if (cpu.grave.some((id) => cardHasTheme(cards[id], theme)) && ["shinkei_beacon_mio", "shinkei_sinking_map"].includes(card.id)) score += 10;
+    if (opponent?.units?.some((unit) => unit) && ["shinkei_gatekeeper_toma", "shinkei_leviathan_aru", "shinkei_pressure_gate"].includes(card.id)) score += 7;
+  }
+  if (theme === "陽菓") {
+    if (card.type === "コア" && !cpu.cores.some((id) => cardHasTheme(cards[id], theme))) score += 10;
+    if (card.type === "ユニット" && countThemeUnits(cpu, theme) > 0) score += 5;
+    if (card.type === "スペル" && countThemeUnits(cpu, theme) > 0) score += 6;
+    if (card.id === "youka_recipe_book" && countThemeInCharge(cpu, theme) >= 2) score += 5;
+  }
   if (aiLevel >= 5 && card.effect) score += 3;
   return score;
 }
@@ -1678,6 +1691,40 @@ function applyReactionEffect(game, card, player, opponent, event = {}, after = n
     log(game, `${card.name}で効果を止めた。`);
     return { negates: true };
   }
+  if (card.effect === "shinkeiTideWall") {
+    if (countThemeInAbyss(player, "深景") >= 2) {
+      queueOptionalAdditionalEffect(game, player, card, "アビスゾーンに「深景」カードが2枚以上あります。追加でロストゾーンから「深景」カードをアビスゾーンに送りますか？", () => {
+        chooseFromGraveToAbyss(game, player, (candidate) => candidate.theme === "深景", {
+          title: "深景カードをアビスへ送る",
+          message: "アビスゾーンに送るロストゾーンの「深景」カードを選んでください。",
+        }, () => {
+          log(game, `${card.name}で攻撃を止めた。`);
+          finishReaction({ negates: true });
+        });
+      }, () => {
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
+    log(game, `${card.name}で攻撃を止めた。`);
+    return { negates: true };
+  }
+  if (card.effect === "youkaSugarGuard") {
+    if (controlsThemeUnit(player, "陽菓")) {
+      queueOptionalAdditionalEffect(game, player, card, "自分フィールドに「陽菓」ユニットがいます。追加で1枚ドローしますか？", () => {
+        drawCards(player, 1, game);
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      }, () => {
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
+    log(game, `${card.name}で攻撃を止めた。`);
+    return { negates: true };
+  }
   if (card.effect === "watchSignal") {
     drawCards(player, 1, game);
     log(game, `${card.name}で1枚ドロー。攻撃は継続する。`);
@@ -1895,11 +1942,31 @@ function chooseFromDeck(game, player, predicate, choice, after = () => {}) {
   }, () => after(false));
 }
 
+function chooseFromDeckToGrave(game, player, predicate, choice, after = () => {}) {
+  return queueChoice(game, player, "deck", player.deck, predicate, choice, (candidate) => {
+    const [id] = player.deck.splice(candidate.index, 1);
+    player.grave.push(id);
+    player.deck = shuffle(player.deck);
+    log(game, `${cards[id].name}をデッキからロストゾーンに送った。`);
+    after(true);
+  }, () => after(false));
+}
+
 function chooseFromGrave(game, player, predicate, choice, after = () => {}) {
   return queueChoice(game, player, "grave", player.grave, predicate, choice, (candidate) => {
     const [id] = player.grave.splice(candidate.index, 1);
     player.hand.push(id);
     log(game, `${cards[id].name}をロストゾーンから戻した。`);
+    after(true);
+  }, () => after(false));
+}
+
+function chooseFromGraveToAbyss(game, player, predicate, choice, after = () => {}) {
+  return queueChoice(game, player, "grave", player.grave, predicate, choice, (candidate) => {
+    const [id] = player.grave.splice(candidate.index, 1);
+    if (!Array.isArray(player.abyss)) player.abyss = [];
+    player.abyss.push(id);
+    log(game, `${cards[id].name}をロストゾーンからアビスゾーンに送った。`);
     after(true);
   }, () => after(false));
 }
@@ -2483,6 +2550,167 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "keikanWitnessRing":
       drawCards(player, 1, game);
       break;
+    case "shinkeiDiverNagi":
+      return chooseFromDeck(game, player, (card) => card.type === "スペル" && card.theme === "深景", {
+        title: "深景スペルをサーチ",
+        message: "デッキから手札に加える「深景」スペルを選んでください。",
+      }, () => {
+        if (countThemeInAbyss(player, "深景") >= 1) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "アビスゾーンに「深景」カードがあります。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
+      });
+    case "shinkeiBeaconMio":
+      return chooseFromGraveToAbyss(game, player, (card) => card.theme === "深景", {
+        title: "深景カードをアビスへ送る",
+        message: "アビスゾーンに送るロストゾーンの「深景」カードを選んでください。",
+      }, (moved) => {
+        if (moved) untapOneCharge(player);
+      });
+    case "shinkeiCartographerSui":
+      return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.theme === "深景", {
+        title: "深景ユニットをサーチ",
+        message: "デッキから手札に加える「深景」ユニットを選んでください。",
+      }, () => {
+        if (countThemeInAbyss(player, "深景") >= 2) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "アビスゾーンに「深景」カードが2枚以上あります。追加で手札から召喚しますか？", () => {
+            chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "深景" && card.cost <= 1, {
+              title: "深景ユニットを追加召喚",
+              message: "手札からコスト1以下の「深景」ユニットを選んでください。",
+            }, opponent);
+          });
+        }
+      });
+    case "shinkeiGatekeeperToma":
+      if (countThemeInAbyss(player, "深景") >= 2) return chooseExhaustUnit(game, player, opponent);
+      break;
+    case "shinkeiLeviathanAru":
+      if (countThemeInAbyss(player, "深景") >= 3) {
+        return chooseDestroyUnit(game, player, opponent, (destroyed) => {
+          if (destroyed) log(game, "深景の巨影が相手ユニットを沈めた。");
+          else damage(game, opponent, 800);
+        });
+      }
+      damage(game, opponent, 800);
+      break;
+    case "shinkeiSinkingMap":
+      return chooseFromDeckToGrave(game, player, (card) => card.theme === "深景", {
+        title: "深景カードをロストへ送る",
+        message: "ロストゾーンに送る「深景」カードを選んでください。",
+      }, () => {
+        chooseFromGraveToAbyss(game, player, (card) => card.theme === "深景", {
+          title: "深景カードをアビスへ送る",
+          message: "アビスゾーンに送るロストゾーンの「深景」カードを選んでください。",
+        });
+      });
+    case "shinkeiEchoRecovery":
+      if (countThemeInAbyss(player, "深景") >= 2) {
+        return chooseFromGrave(game, player, (card) => card.theme === "深景", {
+          title: "深景カードを回収",
+          message: "ロストゾーンから手札に戻す「深景」カードを選んでください。",
+        });
+      }
+      drawCards(player, 1, game);
+      break;
+    case "shinkeiPressureGate":
+      return queueUnitTargetChoice(game, player, opponent, (unit) => !unit.exhausted, {
+        title: "水圧門の対象を選択",
+        message: "行動済みにする相手ユニットを選んでください。",
+        confirmLabel: "決定",
+      }, (candidate) => {
+        const unit = opponent.units[candidate.index];
+        if (!unit) return;
+        unit.exhausted = true;
+        unit.exhaustedUntilOwnerTurnEnd = true;
+        unit.exhaustedUntilOwnerTurnEndReady = false;
+        log(game, `${cards[unit.id].name}を次のターン終了まで行動済みにした。`);
+        if (countThemeInAbyss(player, "深景") >= 3) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "アビスゾーンに「深景」カードが3枚以上あります。追加でそのユニットを破壊しますか？", () => {
+            const target = opponent.units[candidate.index];
+            if (!target) return;
+            const targetName = cards[target.id].name;
+            destroyUnit(opponent, candidate.index, game);
+            log(game, `${targetName}を破壊した。`);
+          });
+        }
+      });
+    case "shinkeiSunkenBell":
+      drawCards(player, 1, game);
+      break;
+    case "youkaPunimaro":
+      return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.theme === "陽菓", {
+        title: "陽菓ユニットをサーチ",
+        message: "デッキから手札に加える「陽菓」ユニットを選んでください。",
+      }, () => {
+        if (countThemeUnits(player, "陽菓") >= 2) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「陽菓」ユニットが2体以上います。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
+      });
+    case "youkaRoll":
+      if (player.chargedThisTurn) {
+        return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "陽菓" && card.cost <= 1, {
+          title: "陽菓ユニットを追加召喚",
+          message: "手札からコスト1以下の「陽菓」ユニットを選んでください。",
+        }, opponent);
+      }
+      break;
+    case "youkaMochiGuard":
+      if (hasThemeCore(player, "陽菓")) drawCards(player, 1, game);
+      else buffThemeUnits(game, player, "陽菓", 100);
+      break;
+    case "youkaJelly":
+      damage(game, opponent, 500);
+      if (countThemeUnits(player, "陽菓") >= 2) {
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「陽菓」ユニットが2体以上います。追加でチャージをアクティブにしますか？", () => {
+          untapOneCharge(player);
+        });
+      }
+      break;
+    case "youkaCakeDragon":
+      if (countThemeUnits(player, "陽菓") >= 2) {
+        return chooseDestroyUnit(game, player, opponent, (destroyed) => {
+          if (destroyed) log(game, "ケーキ竜が相手ユニットを吹き飛ばした。");
+          else damage(game, opponent, 1000);
+        });
+      }
+      damage(game, opponent, 1000);
+      break;
+    case "youkaRecipeBook":
+      return chooseFromDeck(game, player, (card) => card.theme === "陽菓", {
+        title: "陽菓カードをサーチ",
+        message: "デッキから手札に加える「陽菓」カードを選んでください。",
+      }, () => {
+        if (countThemeInCharge(player, "陽菓") >= 2) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "チャージに「陽菓」カードが2枚以上あります。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
+      });
+    case "youkaPicnic":
+      return chooseSpecialSummonFromHand(game, player, (card) => card.type === "ユニット" && card.theme === "陽菓" && card.cost <= 1, {
+        title: "陽菓ユニットを追加召喚",
+        message: "手札からコスト1以下の「陽菓」ユニットを選んでください。",
+      }, opponent, (moved) => {
+        if (moved && countThemeUnits(player, "陽菓") >= 2) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「陽菓」ユニットが2体以上います。追加で1枚ドローしますか？", () => {
+            drawCards(player, 1, game);
+          });
+        }
+      });
+    case "youkaSyrup":
+      buffThemeUnits(game, player, "陽菓", 300);
+      if (hasThemeCore(player, "陽菓")) {
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「陽菓」コアがあります。追加でチャージをアクティブにしますか？", () => {
+          untapOneCharge(player);
+        });
+      }
+      break;
+    case "youkaStall":
+      drawCards(player, 1, game);
+      break;
     case "sosaiHikari":
       return chooseFromDeck(game, player, (card) => card.id === "sosai_mint", {
         title: "ミントをサーチ",
@@ -2925,6 +3153,10 @@ function countThemeUnits(player, theme) {
   return player.units.filter((unit) => unit && cardHasTheme(cards[unit.id], theme)).length;
 }
 
+function countThemeInAbyss(player, theme) {
+  return (player.abyss || []).filter((id) => cardHasTheme(cards[id], theme)).length;
+}
+
 function controlsCard(player, id) {
   return player.units.some((unit) => unit?.id === id);
 }
@@ -2976,6 +3208,17 @@ function hasThemeCore(player, theme) {
   return player.cores.some((id) => cardHasTheme(cards[id], theme));
 }
 
+function buffThemeUnits(game, player, theme, amount) {
+  let buffed = 0;
+  player.units.forEach((unit) => {
+    if (!unit || !cardHasTheme(cards[unit.id], theme)) return;
+    unit.atkMod = (unit.atkMod || 0) + amount;
+    buffed += 1;
+  });
+  if (buffed > 0) log(game, `「${theme}」ユニット${buffed}体のATKを${amount}アップした。`);
+  return buffed;
+}
+
 function getUnitAtk(player, unit, game = null) {
   if (!unit) return 0;
   let atk = cards[unit.id].atk + (unit.atkMod || 0);
@@ -2985,12 +3228,16 @@ function getUnitAtk(player, unit, game = null) {
   if (player.cores.includes("cyber_network") && cardHasTheme(cards[unit.id], "電脳")) atk += 100;
   if (player.cores.includes("sosai_pop_stage") && cardHasTheme(cards[unit.id], "双彩") && hasSosaiPairMate(player, unit.id)) atk += 300;
   if (player.cores.includes("keikan_witness_ring") && cardHasTheme(cards[unit.id], "契環") && countThemeChargeTypes(player, "契環") >= 3) atk += 300;
+  if (player.cores.includes("shinkei_sunken_bell") && cardHasTheme(cards[unit.id], "深景") && countThemeInAbyss(player, "深景") >= 2) atk += 300;
+  if (player.cores.includes("youka_stall") && cardHasTheme(cards[unit.id], "陽菓")) atk += 200;
   if (player.cores.includes("drive_star_core") && cardHasTheme(cards[unit.id], "星導")) atk += 300;
   if (player.cores.includes("drive_black_core") && cardHasTheme(cards[unit.id], "黒機")) atk += 300;
   if (player.cores.includes("drive_blade_core") && cardHasTheme(cards[unit.id], "断刃")) atk += 300;
   if (player.cores.includes("drive_cyber_core") && cardHasTheme(cards[unit.id], "電脳")) atk += 200;
   if (player.cores.includes("drive_sosai_core") && cardHasTheme(cards[unit.id], "双彩") && hasSosaiPairMate(player, unit.id)) atk += 500;
   if (player.cores.includes("drive_keikan_core") && cardHasTheme(cards[unit.id], "契環")) atk += 300;
+  if (player.cores.includes("drive_shinkei_core") && cardHasTheme(cards[unit.id], "深景")) atk += 300;
+  if (player.cores.includes("drive_youka_core") && cardHasTheme(cards[unit.id], "陽菓")) atk += 300;
   return atk;
 }
 

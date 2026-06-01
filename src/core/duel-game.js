@@ -398,9 +398,12 @@
         case "driveBlackCore":
         case "driveSosaiCore":
         case "driveGenericCore":
+        case "driveShinkeiCore":
           return true;
         case "driveKeikanCore":
           return player.grave.some((id) => cardHasTheme(cards[id], "契環"));
+        case "driveYoukaCore":
+          return player.units.some((unit) => !unit) && player.hand.some((id) => cardHasTheme(cards[id], "陽菓") && cards[id].type === "ユニット" && cards[id].cost <= 1);
         case "driveBladeCore":
           return opponent.units.some((unit) => unit);
         case "driveCyberCore":
@@ -1006,6 +1009,33 @@
         this.log(`${card.name}で効果を止めた。`);
         return { negates: true };
       }
+      if (card.effect === "shinkeiTideWall") {
+        if (
+          this.countThemeInAbyss(player, "深景") >= 2 &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "アビスゾーンに「深景」カードが2枚以上あります。追加でロストゾーンから「深景」カードをアビスゾーンに送りますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) await this.moveGraveCardToAbyss(player, (candidate) => candidate.theme === "深景", {
+          title: "深景カードをアビスへ送る",
+          message: "アビスゾーンに送るロストゾーンの「深景」カードを選んでください。",
+        });
+        this.log(`${card.name}で攻撃を止めた。`);
+        return { negates: true };
+      }
+      if (card.effect === "youkaSugarGuard") {
+        if (
+          this.controlsThemeUnit(player, "陽菓") &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "自分フィールドに「陽菓」ユニットがいます。追加で1枚ドローしますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) this.drawCards(player, 1);
+        this.log(`${card.name}で攻撃を止めた。`);
+        return { negates: true };
+      }
       if (card.effect === "watchSignal") {
         this.drawCards(player, 1);
         this.log(`${card.name}で1枚ドロー。攻撃は継続する。`);
@@ -1179,6 +1209,44 @@
         case "driveKeikanReactEffect":
           if (!this.returnSourceFieldCardToHand(opponent, event)) this.drawCards(player, 1);
           return;
+        case "driveShinkeiUnit":
+          await this.returnBestUnitToHand(opponent);
+          if (this.countThemeInAbyss(player, "深景") >= 3) this.drawCards(player, 1);
+          this.buffThemeUnits(player, "深景", 300);
+          return;
+        case "driveShinkeiCore":
+          this.drawCards(player, 1);
+          return;
+        case "driveShinkeiReactEffect":
+          if (this.returnSourceFieldCardToHand(opponent, event)) {
+            await this.moveGraveCardToAbyss(player, (candidate) => candidate.theme === "深景", {
+              title: "深景カードをアビスへ送る",
+              message: "アビスゾーンに送るロストゾーンの「深景」カードを選んでください。",
+            });
+          }
+          return;
+        case "driveYoukaUnit":
+          await this.returnBestUnitToHand(opponent);
+          await this.addFromDeck(player, (candidate) => candidate.theme === "陽菓", {
+            title: "陽菓カードを手札に加える",
+            message: "デッキから陽菓カードを1枚選んでください。",
+          });
+          this.buffThemeUnits(player, "陽菓", 300);
+          return;
+        case "driveYoukaCore":
+          this.drawCards(player, 1);
+          return;
+        case "driveYoukaSpell":
+          await this.addFromDeck(player, (candidate) => candidate.theme === "陽菓", {
+            title: "陽菓カードを手札に加える",
+            message: "デッキから陽菓カードを1枚選んでください。",
+          });
+          await this.addFromGrave(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "陽菓", {
+            title: "陽菓ユニットを回収",
+            message: "ロストゾーンから陽菓ユニットを1枚選んでください。",
+          });
+          if (this.controlsThemeUnit(player, "陽菓")) this.untapOneCharge(player);
+          return;
         case "driveGenericUnit":
           await this.exhaustBestUnit(opponent);
           return;
@@ -1237,6 +1305,12 @@
             message: "ロストゾーンから双彩ユニットを1枚選んでください。",
           })) this.drawCards(player, 1);
           return;
+        case "driveYoukaSpell":
+          if (!await this.addFromGrave(player, (candidate) => candidate.theme === "陽菓", {
+            title: "陽菓カードを回収",
+            message: "ロストゾーンから陽菓カードを1枚選んでください。",
+          })) this.drawCards(player, 1);
+          return;
         case "driveGenericSpell":
           this.drawCards(player, 1);
           await this.discardFromHand(player, {
@@ -1276,6 +1350,20 @@
             title: "契環カードをチャージ",
             message: "ロストゾーンからチャージに置く「契環」カードを選んでください。",
           });
+          this.log(`${card.name}が起動。`);
+          return;
+        case "driveShinkeiCore":
+          if (!await this.moveGraveCardToAbyss(player, (candidate) => candidate.theme === "深景", {
+            title: "深景カードをアビスへ送る",
+            message: "アビスゾーンに送るロストゾーンの「深景」カードを選んでください。",
+          })) this.drawCards(player, 1);
+          this.log(`${card.name}が起動。`);
+          return;
+        case "driveYoukaCore":
+          await this.specialSummonFromHand(player, (candidate) => candidate.type === "ユニット" && candidate.theme === "陽菓" && candidate.cost <= 1, {
+            title: "陽菓ユニットを追加召喚",
+            message: "手札からコスト1以下の陽菓ユニットを選んでください。",
+          }, opponent);
           this.log(`${card.name}が起動。`);
           return;
         case "driveGenericCore":
@@ -1952,6 +2040,33 @@
       return true;
     }
 
+    async moveDeckCardToGrave(player, predicate, choice = {}) {
+      const index = await this.chooseDeckIndex(player, predicate, {
+        title: choice.title || "デッキからロスト",
+        message: choice.message || "ロストゾーンに送るカードを選んでください。",
+      });
+      if (index === -1) return false;
+      const [id] = player.deck.splice(index, 1);
+      player.grave.push(id);
+      player.deck = shuffle(player.deck);
+      this.log(`${cards[id].name}をデッキからロストゾーンに送った。`);
+      return true;
+    }
+
+    async moveGraveCardToAbyss(player, predicate, choice = {}) {
+      const index = await this.chooseGraveIndex(player, predicate, {
+        title: choice.title || "アビスゾーンへ送る",
+        message: choice.message || "アビスゾーンに送るカードを選んでください。",
+      });
+      if (index === -1) return false;
+      const [id] = player.grave.splice(index, 1);
+      if (!Array.isArray(player.abyss)) player.abyss = [];
+      player.abyss.push(id);
+      this.log(`${cards[id].name}をアビスゾーンに送った。`);
+      this.notify();
+      return true;
+    }
+
     async moveHandCardToCharge(player, predicate, choice = {}) {
       const index = await this.chooseHandIndex(player, predicate, {
         title: choice.title || "手札をチャージ",
@@ -2079,6 +2194,10 @@
 
     countThemeInCharge(player, theme) {
       return player.charge.filter((entry) => cardHasTheme(cards[entry.id], theme)).length;
+    }
+
+    countThemeInAbyss(player, theme) {
+      return (player.abyss || []).filter((id) => cardHasTheme(cards[id], theme)).length;
     }
 
     countThemeChargeTypes(player, theme) {
@@ -2364,12 +2483,16 @@
       if (cardHasTheme(card, "電脳") && this.hasCore(player, "cyber_network")) atk += 100;
       if (cardHasTheme(card, "双彩") && this.hasCore(player, "sosai_pop_stage") && this.hasSosaiPairMate(player, unit.id)) atk += 300;
       if (cardHasTheme(card, "契環") && this.hasCore(player, "keikan_witness_ring") && this.countThemeChargeTypes(player, "契環") >= 3) atk += 300;
+      if (cardHasTheme(card, "深景") && this.hasCore(player, "shinkei_sunken_bell") && this.countThemeInAbyss(player, "深景") >= 2) atk += 300;
+      if (cardHasTheme(card, "陽菓") && this.hasCore(player, "youka_stall")) atk += 200;
       if (cardHasTheme(card, "星導") && this.hasCore(player, "drive_star_core")) atk += 300;
       if (cardHasTheme(card, "黒機") && this.hasCore(player, "drive_black_core")) atk += 300;
       if (cardHasTheme(card, "断刃") && this.hasCore(player, "drive_blade_core")) atk += 300;
       if (cardHasTheme(card, "電脳") && this.hasCore(player, "drive_cyber_core")) atk += 200;
       if (cardHasTheme(card, "双彩") && this.hasCore(player, "drive_sosai_core") && this.hasSosaiPairMate(player, unit.id)) atk += 500;
       if (cardHasTheme(card, "契環") && this.hasCore(player, "drive_keikan_core")) atk += 300;
+      if (cardHasTheme(card, "深景") && this.hasCore(player, "drive_shinkei_core")) atk += 300;
+      if (cardHasTheme(card, "陽菓") && this.hasCore(player, "drive_youka_core")) atk += 300;
       return atk;
     }
 
