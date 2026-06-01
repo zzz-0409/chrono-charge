@@ -7201,21 +7201,30 @@ select {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 18;
+  z-index: 22 !important;
   pointer-events: none;
   background: var(--card-frame-image) center / 100% 100% no-repeat;
 }
 
 .game-card .card-art,
 .game-card .card-face .card-art {
-  z-index: 4;
-  left: 13%;
-  top: 18%;
-  width: 74%;
-  height: 64%;
+  z-index: 6 !important;
+  left: 6%;
+  top: 14%;
+  width: 88%;
+  height: 72%;
   border-radius: 0;
   box-shadow: none;
   overflow: hidden;
+  background-color: transparent;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.game-card .card-art.has-image,
+.game-card .card-face .card-art.has-image {
+  background: var(--card-art-url) center / cover no-repeat !important;
 }
 
 .game-card .card-mini-top,
