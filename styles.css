@@ -7354,8 +7354,6 @@ select {
 
 .builder-view .library-card {
   --card-render-scale: 0.590164;
-  --new-card-name-size: 6.2px;
-  --new-card-chip-size: 9px;
   justify-self: center;
 }
 
@@ -7399,8 +7397,7 @@ select {
 .preview-panel .preview-card {
   --card-width: 176px;
   --card-height: 264px;
-  --new-card-name-size: 13px;
-  --new-card-chip-size: 22px;
+  --card-render-scale: 0.721311;
   margin-top: 8px;
 }
 
@@ -7438,4 +7435,78 @@ select {
 
 .preview-deck-controls {
   min-height: 92px;
+}
+
+/* Card face geometry stays in one fixed design space; card variants only scale it. */
+.game-card .card-face,
+.game-card.finish-royal .card-face {
+  left: 0 !important;
+  top: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: var(--card-design-width) !important;
+  height: var(--card-design-height) !important;
+  transform: scale(var(--card-render-scale)) !important;
+  transform-origin: top left !important;
+}
+
+.game-card .card-mini-top,
+.game-card .card-face .card-mini-top {
+  left: 19%;
+  right: 19%;
+  top: 7.3%;
+  height: 7.4%;
+  min-height: 0;
+}
+
+.game-card .card-name,
+.game-card .card-face .card-name {
+  font-size: var(--card-name-design-size, 13px) !important;
+  line-height: 1.05 !important;
+}
+
+.game-card .card-stat-chip,
+.tcg-card.small .card-stat-chip,
+.library-card .card-stat-chip,
+.preview-card .card-stat-chip,
+.focus-mini-card .card-stat-chip,
+.hand-zone .tcg-card .card-stat-chip {
+  width: 18.5% !important;
+  font-size: var(--card-stat-design-size, 17px) !important;
+}
+
+.game-card .card-cost-chip,
+.hand-zone .tcg-card .card-cost-chip,
+.builder-view .library-card .card-cost-chip {
+  left: 0.7% !important;
+  right: auto !important;
+  top: 1.5% !important;
+  bottom: auto !important;
+}
+
+.game-card .card-drive-chip,
+.hand-zone .tcg-card .card-drive-chip,
+.builder-view .library-card .card-drive-chip {
+  left: auto !important;
+  right: 0.7% !important;
+  top: 1.5% !important;
+  bottom: auto !important;
+}
+
+.game-card .card-attack-chip,
+.hand-zone .tcg-card .card-attack-chip,
+.builder-view .library-card .card-attack-chip {
+  left: 0.7% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: 1.5% !important;
+}
+
+.game-card .card-durability-chip,
+.hand-zone .tcg-card .card-durability-chip,
+.builder-view .library-card .card-durability-chip {
+  left: auto !important;
+  right: 0.7% !important;
+  top: auto !important;
+  bottom: 1.5% !important;
 }
