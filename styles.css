@@ -7204,6 +7204,14 @@ select {
   z-index: 18;
   pointer-events: none;
   background: var(--card-frame-image) center / 100% 100% no-repeat;
+  -webkit-mask:
+    linear-gradient(#000 0 0) center / 100% 100% no-repeat,
+    linear-gradient(#000 0 0) 13% 15.5% / 74% 73% no-repeat;
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) center / 100% 100% no-repeat,
+    linear-gradient(#000 0 0) 13% 15.5% / 74% 73% no-repeat;
+  mask-composite: exclude;
 }
 
 .game-card .card-art,
@@ -7327,14 +7335,14 @@ select {
 
 /* Deck editor: keep thumbnails in 3 columns while the frame sockets carry the color. */
 .builder-view {
-  --card-list-width: 82px;
-  --card-list-height: 123px;
+  --card-list-width: 144px;
+  --card-list-height: 216px;
 }
 
 .collection-grid,
 .deck-list {
   padding: 14px 6px 20px;
-  gap: 32px 24px;
+  gap: 38px 26px;
   align-content: start;
 }
 
@@ -7345,6 +7353,7 @@ select {
 }
 
 .builder-view .library-card {
+  --card-render-scale: 0.590164;
   --new-card-name-size: 6.2px;
   --new-card-chip-size: 9px;
   justify-self: center;
