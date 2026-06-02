@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260602-tsukikagami";
+const CACHE_VERSION = "chrono-drive-pwa-20260602-packfix";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -38,7 +38,7 @@ const APP_SHELL_URLS = [
   "/assets/SE/haiboku.mp3",
   "/src/data/cards.js?v=20260602tsukikagami",
   "/src/data/notices.js?v=20260602tsukikagami",
-  "/src/core/deck-store.js?v=20260602tsukikagami",
+  "/src/core/deck-store.js?v=20260602packfix",
   "/src/core/effect-resolver.js?v=20260602tsukikagami",
   "/src/core/cpu-controller.js?v=20260602themes",
   "/src/core/duel-game.js?v=20260602tsukikagami",

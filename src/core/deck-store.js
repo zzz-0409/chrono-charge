@@ -53,9 +53,9 @@
     "電脳": { image: "assets/packs/cyber-pack.png", ace: "cyber_akari" },
     "双彩": { image: "assets/packs/sosai-pack.png", ace: "sosai_hikari" },
     "契環": { image: "assets/packs/keikan-pack.png", ace: "drive_keikan_unit" },
-    "深景": { image: "assets/packs/shinkei-pack.png", ace: "drive_shinkei_unit" },
+    "深景": { image: "assets/packs/shinkei-pack.png?v=20260602packfix", ace: "drive_shinkei_unit" },
     "陽菓": { image: "assets/packs/youka-pack.png?v=20260602pack2", ace: "drive_youka_unit" },
-    "月鏡": { image: "assets/packs/tsukikagami-pack.png", ace: "drive_tsukikagami_unit" },
+    "月鏡": { image: "assets/packs/tsukikagami-pack.png?v=20260602packfix", ace: "drive_tsukikagami_unit" },
   };
 
   const driveDecks = {
