@@ -887,6 +887,29 @@
           }
           break;
         }
+        case "sosaiCueMixerKaho":
+          if (!this.game.hasSosaiPair(player)) {
+            if (await this.game.discardFromHand(player, {
+              title: "手札をロストゾーンへ",
+              message: "キュー係カホでロストゾーンに送る手札を選んでください。",
+            })) {
+              await this.game.afterEffectStep();
+              await this.game.addFromDeck(player, (card) => card.type === "スペル" && card.theme === "双彩", {
+                title: "双彩スペルをサーチ",
+                message: "デッキから手札に加える「双彩」スペルを選んでください。",
+              });
+            }
+          } else if (
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「双彩」のペアがそろっています。追加で1枚ドローし、手札1枚をロストゾーンに送りますか？")
+          ) {
+            this.game.drawCards(player, 1);
+            await this.game.afterEffectStep(560);
+            await this.game.discardFromHand(player, {
+              title: "手札をロストゾーンへ",
+              message: "キュー係カホの追加効果でロストゾーンに送る手札を選んでください。",
+            });
+          }
+          break;
         case "drawDiscard":
           this.game.drawCards(player, 2);
           await this.game.afterEffectStep(560);
@@ -978,6 +1001,22 @@
               title: "手札をチャージ",
               message: "手札からチャージに置くカードを選んでください。",
             });
+          }
+          break;
+        case "genericAimCorrection":
+          this.game.drawCards(player, 1);
+          await this.game.afterEffectStep(560);
+          await this.game.discardFromHand(player, {
+            title: "手札をロストゾーンへ",
+            message: "照準補正でロストゾーンに送る手札を選んでください。",
+          });
+          if (
+            player.lp < opponent.lp &&
+            opponent.units.some(Boolean) &&
+            await this.optionalAdditional(player, sourceCard, "自分のLPが相手より少ないです。追加で相手ユニットを行動済みにしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            await this.game.exhaustBestUnit(opponent);
           }
           break;
         case "bindUnit":

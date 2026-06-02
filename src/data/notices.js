@@ -6,6 +6,23 @@
   // Card-addition automation can append a new entry here after it updates cards.js.
   window.Chrono.notices = [
     {
+      id: "2026-06-03-sosai-support",
+      date: "2026.06.03",
+      badge: "カード追加",
+      title: "双彩サポートカード登場",
+      summary: "強めの双彩には、ペア不成立時の導線を整える控えめな支援カード2枚を追加しました。汎用照準補正は手札を整える防御寄りの汎用スペルです。",
+      cardIds: [
+        "sosai_cue_mixer_kaho",
+        "sosai_light_cue",
+        "generic_aim_correction",
+      ],
+      pack: {
+        theme: "双彩",
+        title: "双彩パック更新",
+        text: "双彩パックにキュー係カホとライトキューを収録しました。汎用照準補正は共通プールから入手できます。",
+      },
+    },
+    {
       id: "2026-06-02-tsukikagami-theme-and-cyber-support",
       date: "2026.06.02",
       badge: "新テーマ+カード追加",

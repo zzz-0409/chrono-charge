@@ -742,6 +742,30 @@
       text: "ロストゾーンから、自分フィールドにいる「双彩のヒカリ」/「双彩のミント」、「双彩のネネ」/「双彩のルリ」、「双彩のココ」/「双彩のルナ」の相方1枚を手札に戻す。戻したなら、追加で自分のタップ済みチャージ1枚をアクティブにできる。",
     },
     {
+      id: "sosai_cue_mixer_kaho",
+      name: "双彩のキュー係カホ",
+      type: "ユニット",
+      attr: "光",
+      cost: 1,
+      atk: 700,
+      theme: "双彩",
+      art: "assets/cards/art/sosai-cue-mixer-kaho.png",
+      effect: "sosaiCueMixerKaho",
+      text: "通常召喚時：この効果を発動できる。自分フィールドに「双彩」のペアがそろっていないなら、手札1枚をロストゾーンに送る。送ったなら、デッキから「双彩」スペル1枚を手札に加える。自分フィールドに「双彩」のペアがそろっているなら、追加で1枚ドローし、その後手札1枚をロストゾーンに送れる。",
+    },
+    {
+      id: "sosai_light_cue",
+      name: "双彩ライトキュー",
+      type: "リアクション",
+      attr: "光",
+      cost: 2,
+      theme: "双彩",
+      trigger: "attack",
+      art: "assets/cards/art/sosai-light-cue.png",
+      effect: "sosaiLightCue",
+      text: "相手ユニットの攻撃宣言時に発動できる。その攻撃を無効にする。自分フィールドに「双彩」のペアがそろっていないなら、追加でそのユニットを次の相手ターン終了まで行動済みにできる。",
+    },
+    {
       id: "keikan_scribe_yura",
       name: "契環の書記ユラ",
       type: "ユニット",
@@ -1378,6 +1402,17 @@
       art: "assets/cards/art/generic-tactical-relay.png",
       effect: "genericTacticalRelay",
       text: "1枚ドロー。その後、自分の手札が相手より少ないなら、追加で手札1枚を自分のチャージに置ける。",
+    },
+    {
+      id: "generic_aim_correction",
+      name: "汎用照準補正",
+      type: "スペル",
+      attr: "無",
+      cost: 1,
+      theme: "",
+      art: "assets/cards/art/generic-aim-correction.png",
+      effect: "genericAimCorrection",
+      text: "1枚ドローし、その後手札1枚をロストゾーンに送る。自分のLPが相手より少なく、相手フィールドにユニットがいるなら、追加で相手ユニット1体を次の相手ターン終了まで行動済みにできる。",
     },
     {
       id: "generic_duelist",
@@ -2331,14 +2366,16 @@
         sosai_ruri: 3,
         sosai_coco: 3,
         sosai_luna: 2,
+        sosai_cue_mixer_kaho: 1,
         sosai_live_start: 3,
         sosai_heart_sync: 3,
         sosai_backstage_call: 1,
         sosai_pop_stage: 3,
-        sosai_stream_cancel: 3,
+        sosai_stream_cancel: 2,
+        sosai_light_cue: 1,
         generic_transfer: 3,
         generic_code: 2,
-        generic_wall: 2,
+        generic_wall: 1,
         generic_zero: 2,
       },
       driveDeck: {
@@ -2489,6 +2526,7 @@
     "generic_rearguard_aide",
     "generic_repair_cart",
     "generic_tactical_relay",
+    "generic_aim_correction",
     "generic_duelist",
     "generic_carrier",
     "generic_lancer",
@@ -2658,7 +2696,7 @@
     if (cardHasThemeValue(card, theme)) score += 20;
     if (kind === "splash" && card.type === "ユニット") score += 7;
     if (kind === "splash" && card.type === "コア") score += 4;
-    if (kind === "generic" && ["generic_code", "generic_wall", "generic_transfer", "generic_zero", "generic_supply_box", "generic_emergency_wire", "generic_tactical_relay"].includes(card.id)) score += 8;
+    if (kind === "generic" && ["generic_code", "generic_wall", "generic_transfer", "generic_zero", "generic_supply_box", "generic_emergency_wire", "generic_tactical_relay", "generic_aim_correction"].includes(card.id)) score += 8;
     if ((deck[card.id] || 0) === 2) score += 8;
     if ((deck[card.id] || 0) === 1) score += 4;
     if (card.effect || card.driveEffect) score += 5;

@@ -1661,6 +1661,21 @@ function applyReactionEffect(game, card, player, opponent, event = {}, after = n
     log(game, `${card.name}で効果を止めた。`);
     return { negates: true };
   }
+  if (card.effect === "sosaiLightCue") {
+    if (!hasSosaiPair(player)) {
+      queueOptionalAdditionalEffect(game, player, card, "自分フィールドに「双彩」のペアがそろっていません。追加でそのユニットを行動済みにしますか？", () => {
+        exhaustSourceUnitUntilOwnerTurnEnd(game, opponent, event);
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      }, () => {
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
+    log(game, `${card.name}で攻撃を止めた。`);
+    return { negates: true };
+  }
   if (card.effect === "keikanBindingClause") {
     if (countThemeChargeTypes(player, "契環") >= 3) {
       queueOptionalAdditionalEffect(game, player, card, "チャージに「契環」のカード種類が3種類以上あります。追加でそのユニットを行動済みにしますか？", () => {
@@ -2920,6 +2935,27 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         }
       });
     }
+    case "sosaiCueMixerKaho":
+      if (!hasSosaiPair(player)) {
+        return chooseDiscardFromHand(game, player, {
+          title: "手札をロストゾーンへ",
+          message: "キュー係カホでロストゾーンに送る手札を選んでください。",
+        }, (discarded) => {
+          if (!discarded) return;
+          chooseFromDeck(game, player, (card) => card.type === "スペル" && card.theme === "双彩", {
+            title: "双彩スペルをサーチ",
+            message: "デッキから手札に加える「双彩」スペルを選んでください。",
+          });
+        });
+      }
+      return queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「双彩」のペアがそろっています。追加で1枚ドローし、手札1枚をロストゾーンに送りますか？", () => {
+        drawCards(player, 1, game);
+        chooseDiscardFromHand(game, player, {
+          title: "手札をロストゾーンへ",
+          message: "キュー係カホの追加効果でロストゾーンに送る手札を選んでください。",
+          delayBeforeOpenMs: 560,
+        });
+      });
     case "drawDiscard":
       drawCards(player, 2, game);
       return chooseDiscardFromHand(game, player, {
@@ -3002,6 +3038,19 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
         });
       }
       break;
+    case "genericAimCorrection":
+      drawCards(player, 1, game);
+      return chooseDiscardFromHand(game, player, {
+        title: "手札をロストゾーンへ",
+        message: "照準補正でロストゾーンに送る手札を選んでください。",
+        delayBeforeOpenMs: 560,
+      }, () => {
+        if (player.lp < opponent.lp && opponent.units.some(Boolean)) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分のLPが相手より少ないです。追加で相手ユニットを行動済みにしますか？", () => {
+            chooseExhaustUnit(game, player, opponent);
+          });
+        }
+      });
     case "bindUnit":
       return chooseExhaustUnit(game, player, opponent, () => {
         damage(game, opponent, 500);

@@ -986,6 +986,18 @@
         this.log(`${card.name}で効果を止めた。`);
         return { negates: true };
       }
+      if (card.effect === "sosaiLightCue") {
+        if (
+          !this.hasSosaiPair(player) &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "自分フィールドに「双彩」のペアがそろっていません。追加でそのユニットを行動済みにしますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) this.exhaustSourceUnit(opponent, event);
+        this.log(`${card.name}で攻撃を止めた。`);
+        return { negates: true };
+      }
       if (card.effect === "keikanBindingClause") {
         if (
           this.countThemeChargeTypes(player, "契環") >= 3 &&
