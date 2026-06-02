@@ -1725,6 +1725,36 @@ function applyReactionEffect(game, card, player, opponent, event = {}, after = n
     log(game, `${card.name}で攻撃を止めた。`);
     return { negates: true };
   }
+  if (card.effect === "tsukikagamiPhaseVeil") {
+    if (countThemeInCharge(player, "月鏡") >= 2) {
+      queueOptionalAdditionalEffect(game, player, card, "チャージに「月鏡」カードが2枚以上あります。追加でそのユニットを行動済みにしますか？", () => {
+        exhaustSourceUnitUntilOwnerTurnEnd(game, opponent, event);
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      }, () => {
+        log(game, `${card.name}で攻撃を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
+    log(game, `${card.name}で攻撃を止めた。`);
+    return { negates: true };
+  }
+  if (card.effect === "tsukikagamiBreakGlare") {
+    if (hasThemeCore(player, "月鏡")) {
+      queueOptionalAdditionalEffect(game, player, card, "自分フィールドに「月鏡」コアがあります。追加で1枚ドローしますか？", () => {
+        drawCards(player, 1, game);
+        log(game, `${card.name}で効果を止めた。`);
+        finishReaction({ negates: true });
+      }, () => {
+        log(game, `${card.name}で効果を止めた。`);
+        finishReaction({ negates: true });
+      });
+      return { pending: true };
+    }
+    log(game, `${card.name}で効果を止めた。`);
+    return { negates: true };
+  }
   if (card.effect === "watchSignal") {
     drawCards(player, 1, game);
     log(game, `${card.name}で1枚ドロー。攻撃は継続する。`);
@@ -2441,6 +2471,29 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
           });
         }
       });
+    case "cyberPortNaru":
+      return chooseFromDeck(game, player, (card) => card.type === "コア" && card.theme === "電脳", {
+        title: "電脳コアをサーチ",
+        message: "デッキから手札に加える「電脳」コアを選んでください。",
+      }, () => {
+        if (hasSetReaction(opponent)) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "相手にセットされたリアクションがあります。追加で1枚公開しますか？", () => {
+            chooseRevealReaction(game, player, opponent);
+          });
+        }
+      });
+    case "cyberPatchLoop":
+      return chooseFromGrave(game, player, (card) => card.type === "ユニット" && card.theme === "電脳", {
+        title: "電脳ユニットを回収",
+        message: "ロストゾーンから手札に戻す「電脳」ユニットを選んでください。",
+      }, (moved) => {
+        if (!moved) drawCards(player, 1, game);
+        if (hasThemeCore(player, "電脳")) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「電脳」コアがあります。追加でチャージをアクティブにしますか？", () => {
+            untapOneCharge(player);
+          });
+        }
+      });
     case "probeDrone":
       return chooseRevealReaction(game, player, opponent, (revealed) => {
         if (revealed) {
@@ -2711,6 +2764,55 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
     case "youkaStall":
       drawCards(player, 1, game);
       break;
+    case "tsukikagamiMirrorScout":
+      return chooseFromDeck(game, player, (card) => card.type === "スペル" && card.theme === "月鏡", {
+        title: "月鏡スペルをサーチ",
+        message: "デッキから手札に加える「月鏡」スペルを選んでください。",
+      }, () => {
+        if (hasThemeCore(player, "月鏡")) {
+          queueOptionalAdditionalEffect(game, player, sourceCard, "自分フィールドに「月鏡」コアがあります。追加でチャージをアクティブにしますか？", () => {
+            untapOneCharge(player);
+          });
+        }
+      });
+    case "tsukikagamiPoolMiko":
+      if (player.chargedThisTurn && countThemeInCharge(player, "月鏡") <= 1) {
+        return chooseFromHandToCharge(game, player, (card) => card.theme === "月鏡", {
+          title: "月鏡カードをチャージ",
+          message: "手札からチャージに置く「月鏡」カードを選んでください。",
+        });
+      }
+      break;
+    case "tsukikagamiLanternGuard":
+      if (countThemeInCharge(player, "月鏡") >= 4) return chooseExhaustUnit(game, player, opponent);
+      break;
+    case "tsukikagamiReflectorKana":
+      return chooseFromGrave(game, player, (card) => card.theme === "月鏡", {
+        title: "月鏡カードを回収",
+        message: "ロストゾーンから手札に戻す「月鏡」カードを選んでください。",
+      }, (moved) => {
+        if (!moved) drawCards(player, 1, game);
+      });
+    case "tsukikagamiMoonlitSage":
+      if (countThemeInCharge(player, "月鏡") >= 4) {
+        return chooseReturnUnitToHand(game, player, opponent, (moved) => {
+          if (!moved) damage(game, opponent, 800);
+        });
+      }
+      break;
+    case "tsukikagamiMoonScript":
+      return chooseFromDeck(game, player, (card) => card.type === "ユニット" && card.theme === "月鏡", {
+        title: "月鏡ユニットをサーチ",
+        message: "デッキから手札に加える「月鏡」ユニットを選んでください。",
+      });
+    case "tsukikagamiRefractionPath":
+      return chooseFromGraveToCharge(game, player, (card) => card.theme === "月鏡", {
+        title: "月鏡カードをチャージ",
+        message: "ロストゾーンからチャージに置く「月鏡」カードを選んでください。",
+      });
+    case "tsukikagamiMirrorLake":
+      drawCards(player, 1, game);
+      break;
     case "sosaiHikari":
       return chooseFromDeck(game, player, (card) => card.id === "sosai_mint", {
         title: "ミントをサーチ",
@@ -2882,6 +2984,17 @@ function resolveEffect(game, effect, player, opponent, sourceCard) {
       if (player.hand.length < opponent.hand.length) drawCards(player, 1, game);
       if (player.charge.length < opponent.charge.length) {
         return queueOptionalAdditionalEffect(game, player, sourceCard, "自分のチャージ枚数が相手より少ないです。追加で手札1枚をチャージに置きますか？", () => {
+          chooseFromHandToCharge(game, player, () => true, {
+            title: "手札をチャージ",
+            message: "手札からチャージに置くカードを選んでください。",
+          });
+        });
+      }
+      break;
+    case "genericTacticalRelay":
+      drawCards(player, 1, game);
+      if (player.hand.length < opponent.hand.length) {
+        return queueOptionalAdditionalEffect(game, player, sourceCard, "自分の手札が相手より少ないです。追加で手札1枚をチャージに置きますか？", () => {
           chooseFromHandToCharge(game, player, () => true, {
             title: "手札をチャージ",
             message: "手札からチャージに置くカードを選んでください。",
@@ -3230,6 +3343,7 @@ function getUnitAtk(player, unit, game = null) {
   if (player.cores.includes("keikan_witness_ring") && cardHasTheme(cards[unit.id], "契環") && countThemeChargeTypes(player, "契環") >= 3) atk += 300;
   if (player.cores.includes("shinkei_sunken_bell") && cardHasTheme(cards[unit.id], "深景") && countThemeInAbyss(player, "深景") >= 2) atk += 300;
   if (player.cores.includes("youka_stall") && cardHasTheme(cards[unit.id], "陽菓")) atk += 200;
+  if (player.cores.includes("tsukikagami_mirror_lake") && cardHasTheme(cards[unit.id], "月鏡") && countThemeInCharge(player, "月鏡") >= 4) atk += 100;
   if (player.cores.includes("drive_star_core") && cardHasTheme(cards[unit.id], "星導")) atk += 300;
   if (player.cores.includes("drive_black_core") && cardHasTheme(cards[unit.id], "黒機")) atk += 300;
   if (player.cores.includes("drive_blade_core") && cardHasTheme(cards[unit.id], "断刃")) atk += 300;
@@ -3238,6 +3352,7 @@ function getUnitAtk(player, unit, game = null) {
   if (player.cores.includes("drive_keikan_core") && cardHasTheme(cards[unit.id], "契環")) atk += 300;
   if (player.cores.includes("drive_shinkei_core") && cardHasTheme(cards[unit.id], "深景")) atk += 300;
   if (player.cores.includes("drive_youka_core") && cardHasTheme(cards[unit.id], "陽菓")) atk += 300;
+  if (player.cores.includes("drive_tsukikagami_core") && cardHasTheme(cards[unit.id], "月鏡")) atk += 300;
   return atk;
 }
 

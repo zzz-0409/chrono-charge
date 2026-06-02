@@ -410,6 +410,32 @@
             this.game.drawCards(player, 1);
           }
           break;
+        case "cyberPortNaru":
+          await this.game.addFromDeck(player, (card) => card.type === "コア" && card.theme === "電脳", {
+            title: "電脳コアをサーチ",
+            message: "デッキから手札に加える「電脳」コアを選んでください。",
+          });
+          if (
+            this.game.hasSetReaction(opponent) &&
+            await this.optionalAdditional(player, sourceCard, "相手にセットされたリアクションがあります。追加で1枚公開しますか？")
+          ) {
+            await this.game.afterEffectStep();
+            await this.game.revealReactions(opponent, 1);
+          }
+          break;
+        case "cyberPatchLoop":
+          if (!await this.game.addFromGrave(player, (card) => card.type === "ユニット" && card.theme === "電脳", {
+            title: "電脳ユニットを回収",
+            message: "ロストゾーンから手札に戻す「電脳」ユニットを選んでください。",
+          })) this.game.drawCards(player, 1);
+          if (
+            this.game.hasThemeCore(player, "電脳") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「電脳」コアがあります。追加でチャージをアクティブにしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.untapOneCharge(player);
+          }
+          break;
         case "probeDrone":
           if (
             await this.game.revealReactions(opponent, 1) > 0 &&
@@ -692,6 +718,56 @@
         case "youkaStall":
           this.game.drawCards(player, 1);
           break;
+        case "tsukikagamiMirrorScout":
+          await this.game.addFromDeck(player, (card) => card.type === "スペル" && card.theme === "月鏡", {
+            title: "月鏡スペルをサーチ",
+            message: "デッキから手札に加える「月鏡」スペルを選んでください。",
+          });
+          if (
+            this.game.hasThemeCore(player, "月鏡") &&
+            await this.optionalAdditional(player, sourceCard, "自分フィールドに「月鏡」コアがあります。追加でチャージをアクティブにしますか？")
+          ) {
+            await this.game.afterEffectStep();
+            this.game.untapOneCharge(player);
+          }
+          break;
+        case "tsukikagamiPoolMiko":
+          if (player.chargedThisTurn && this.game.countThemeInCharge(player, "月鏡") <= 1) {
+            await this.game.moveHandCardToCharge(player, (card) => card.theme === "月鏡", {
+              title: "月鏡カードをチャージ",
+              message: "手札からチャージに置く「月鏡」カードを選んでください。",
+            });
+          }
+          break;
+        case "tsukikagamiLanternGuard":
+          if (this.game.countThemeInCharge(player, "月鏡") >= 4) await this.game.exhaustBestUnit(opponent);
+          break;
+        case "tsukikagamiReflectorKana":
+          if (!await this.game.addFromGrave(player, (card) => card.theme === "月鏡", {
+            title: "月鏡カードを回収",
+            message: "ロストゾーンから手札に戻す「月鏡」カードを選んでください。",
+          })) this.game.drawCards(player, 1);
+          break;
+        case "tsukikagamiMoonlitSage":
+          if (this.game.countThemeInCharge(player, "月鏡") >= 4) {
+            if (!await this.game.returnBestUnitToHand(opponent)) this.game.damage(opponent, 800);
+          }
+          break;
+        case "tsukikagamiMoonScript":
+          await this.game.addFromDeck(player, (card) => card.type === "ユニット" && card.theme === "月鏡", {
+            title: "月鏡ユニットをサーチ",
+            message: "デッキから手札に加える「月鏡」ユニットを選んでください。",
+          });
+          break;
+        case "tsukikagamiRefractionPath":
+          await this.game.moveGraveCardToCharge(player, (card) => card.theme === "月鏡", {
+            title: "月鏡カードをチャージ",
+            message: "ロストゾーンからチャージに置く「月鏡」カードを選んでください。",
+          });
+          break;
+        case "tsukikagamiMirrorLake":
+          this.game.drawCards(player, 1);
+          break;
         case "sosaiHikari":
           await this.game.addFromDeck(player, (card) => card.id === "sosai_mint", {
             title: "ミントをサーチ",
@@ -884,6 +960,19 @@
           if (
             player.charge.length < opponent.charge.length &&
             await this.optionalAdditional(player, sourceCard, "自分のチャージ枚数が相手より少ないです。追加で手札1枚をチャージに置きますか？")
+          ) {
+            await this.game.moveHandCardToCharge(player, () => true, {
+              title: "手札をチャージ",
+              message: "手札からチャージに置くカードを選んでください。",
+            });
+          }
+          break;
+        case "genericTacticalRelay":
+          this.game.drawCards(player, 1);
+          await this.game.afterEffectStep(560);
+          if (
+            player.hand.length < opponent.hand.length &&
+            await this.optionalAdditional(player, sourceCard, "自分の手札が相手より少ないです。追加で手札1枚をチャージに置きますか？")
           ) {
             await this.game.moveHandCardToCharge(player, () => true, {
               title: "手札をチャージ",

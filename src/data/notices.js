@@ -6,6 +6,43 @@
   // Card-addition automation can append a new entry here after it updates cards.js.
   window.Chrono.notices = [
     {
+      id: "2026-06-02-tsukikagami-theme-and-cyber-support",
+      date: "2026.06.02",
+      badge: "新テーマ+カード追加",
+      title: "新テーマ「月鏡」と電脳支援カード登場",
+      summary: "チャージとコアで光を映す新テーマ「月鏡」を追加しました。あわせて電脳2枚と汎用1枚も追加し、月鏡パックと電脳パックで入手できます。",
+      cardIds: [
+        "tsukikagami_mirror_scout",
+        "tsukikagami_pool_miko",
+        "tsukikagami_lantern_guard",
+        "tsukikagami_reflector_kana",
+        "tsukikagami_moonlit_sage",
+        "tsukikagami_moon_script",
+        "tsukikagami_refraction_path",
+        "tsukikagami_mirror_lake",
+        "tsukikagami_phase_veil",
+        "tsukikagami_break_glare",
+        "drive_tsukikagami_unit",
+        "drive_tsukikagami_core",
+        "drive_tsukikagami_react_effect",
+        "cyber_port_naru",
+        "cyber_patch_loop",
+        "generic_tactical_relay",
+      ],
+      story: {
+        title: "月鏡ストーリー",
+        paragraphs: [
+          "月鏡は、夜の水盤都市で月光を記録し、チャージに映した光を戦場へ返す観測者たちのテーマです。小さな反射を積み重ね、コアが立つと守りと展開の手が少しずつ強まります。",
+          "電脳にはポート管理とパッチ循環の支援カードが加わり、コアへ到達しやすくなりました。汎用戦術リレーは手札が細い時だけ追加チャージへつなぐ控えめな補助札です。",
+        ],
+      },
+      pack: {
+        theme: "月鏡",
+        title: "月鏡パック追加",
+        text: "新テーマ用の月鏡パックを追加しました。月鏡テーマカード13種を収録し、電脳支援カードは従来どおり電脳パック、汎用戦術リレーは共通プールから入手できます。",
+      },
+    },
+    {
       id: "2026-06-02-youka-theme",
       date: "2026.06.02",
       badge: "新テーマ",

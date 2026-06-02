@@ -43,6 +43,7 @@
     keikan: "契環",
     shinkei: "深景",
     youka: "陽菓",
+    tsukikagami: "月鏡",
     balance: "",
   };
   const PACK_COVERS = {
@@ -54,6 +55,7 @@
     "契環": { image: "assets/packs/keikan-pack.png", ace: "drive_keikan_unit" },
     "深景": { image: "assets/packs/shinkei-pack.png", ace: "drive_shinkei_unit" },
     "陽菓": { image: "assets/packs/youka-pack.png?v=20260602pack2", ace: "drive_youka_unit" },
+    "月鏡": { image: "assets/packs/tsukikagami-pack.png", ace: "drive_tsukikagami_unit" },
   };
 
   const driveDecks = {
@@ -65,6 +67,7 @@
     keikan: themedDriveDeck("契環"),
     shinkei: themedDriveDeck("深景"),
     youka: themedDriveDeck("陽菓"),
+    tsukikagami: themedDriveDeck("月鏡"),
     balance: starterDriveDeck,
   };
 
@@ -128,17 +131,18 @@
         cyber_akari: 2,
         cyber_packet_mana: 2,
         cyber_log_rin: 2,
+        cyber_port_naru: 2,
         cyber_preview: 3,
         cyber_intrusion: 1,
         cyber_network: 3,
-        cyber_backchannel: 2,
+        cyber_backchannel: 1,
         cyber_trace_route: 2,
         cyber_cache_sync: 2,
+        cyber_patch_loop: 2,
         cyber_shield: 3,
-        cyber_counterhack: 2,
-        generic_code: 2,
+        cyber_counterhack: 1,
+        generic_code: 1,
         generic_wall: 1,
-        generic_zero: 1,
       },
       drive: driveDecks.cyber,
     },
@@ -229,6 +233,28 @@
         generic_field_medic: 1,
       },
       drive: driveDecks.youka,
+    },
+    tsukikagami: {
+      label: "月鏡おまかせ",
+      main: {
+        tsukikagami_mirror_scout: 3,
+        tsukikagami_pool_miko: 3,
+        tsukikagami_lantern_guard: 3,
+        tsukikagami_reflector_kana: 3,
+        tsukikagami_moonlit_sage: 2,
+        tsukikagami_moon_script: 3,
+        tsukikagami_refraction_path: 3,
+        tsukikagami_mirror_lake: 3,
+        tsukikagami_phase_veil: 3,
+        tsukikagami_break_glare: 2,
+        generic_transfer: 3,
+        generic_code: 2,
+        generic_wall: 2,
+        generic_tactical_relay: 2,
+        generic_zero: 2,
+        generic_field_notes: 1,
+      },
+      drive: driveDecks.tsukikagami,
     },
     balance: {
       label: "バランスおまかせ",

@@ -399,6 +399,7 @@
         case "driveSosaiCore":
         case "driveGenericCore":
         case "driveShinkeiCore":
+        case "driveTsukikagamiCore":
           return true;
         case "driveKeikanCore":
           return player.grave.some((id) => cardHasTheme(cards[id], "契環"));
@@ -1036,6 +1037,30 @@
         this.log(`${card.name}で攻撃を止めた。`);
         return { negates: true };
       }
+      if (card.effect === "tsukikagamiPhaseVeil") {
+        if (
+          this.countThemeInCharge(player, "月鏡") >= 2 &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "チャージに「月鏡」カードが2枚以上あります。追加でそのユニットを行動済みにしますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) this.exhaustSourceUnit(opponent, event);
+        this.log(`${card.name}で攻撃を止めた。`);
+        return { negates: true };
+      }
+      if (card.effect === "tsukikagamiBreakGlare") {
+        if (
+          this.hasThemeCore(player, "月鏡") &&
+          await this.confirmEffectActivation(player, card, {
+            title: `${card.name}の追加効果`,
+            message: "自分フィールドに「月鏡」コアがあります。追加で1枚ドローしますか？",
+            confirmLabel: "追加で発動する",
+          })
+        ) this.drawCards(player, 1);
+        this.log(`${card.name}で効果を止めた。`);
+        return { negates: true };
+      }
       if (card.effect === "watchSignal") {
         this.drawCards(player, 1);
         this.log(`${card.name}で1枚ドロー。攻撃は継続する。`);
@@ -1247,6 +1272,20 @@
           });
           if (this.controlsThemeUnit(player, "陽菓")) this.untapOneCharge(player);
           return;
+        case "driveTsukikagamiUnit":
+          await this.returnBestUnitToHand(opponent);
+          await this.addFromDeck(player, (candidate) => candidate.theme === "月鏡", {
+            title: "月鏡カードを手札に加える",
+            message: "デッキから月鏡カードを1枚選んでください。",
+          });
+          this.buffThemeUnits(player, "月鏡", 300);
+          return;
+        case "driveTsukikagamiCore":
+          this.drawCards(player, 1);
+          return;
+        case "driveTsukikagamiReactEffect":
+          if (!this.returnSourceFieldCardToHand(opponent, event)) this.drawCards(player, 1);
+          return;
         case "driveGenericUnit":
           await this.exhaustBestUnit(opponent);
           return;
@@ -1364,6 +1403,13 @@
             title: "陽菓ユニットを追加召喚",
             message: "手札からコスト1以下の陽菓ユニットを選んでください。",
           }, opponent);
+          this.log(`${card.name}が起動。`);
+          return;
+        case "driveTsukikagamiCore":
+          await this.moveGraveCardToCharge(player, (candidate) => candidate.theme === "月鏡", {
+            title: "月鏡カードをチャージ",
+            message: "ロストゾーンからチャージに置く月鏡カードを選んでください。",
+          });
           this.log(`${card.name}が起動。`);
           return;
         case "driveGenericCore":
@@ -2485,6 +2531,7 @@
       if (cardHasTheme(card, "契環") && this.hasCore(player, "keikan_witness_ring") && this.countThemeChargeTypes(player, "契環") >= 3) atk += 300;
       if (cardHasTheme(card, "深景") && this.hasCore(player, "shinkei_sunken_bell") && this.countThemeInAbyss(player, "深景") >= 2) atk += 300;
       if (cardHasTheme(card, "陽菓") && this.hasCore(player, "youka_stall")) atk += 200;
+      if (cardHasTheme(card, "月鏡") && this.hasCore(player, "tsukikagami_mirror_lake") && this.countThemeInCharge(player, "月鏡") >= 4) atk += 100;
       if (cardHasTheme(card, "星導") && this.hasCore(player, "drive_star_core")) atk += 300;
       if (cardHasTheme(card, "黒機") && this.hasCore(player, "drive_black_core")) atk += 300;
       if (cardHasTheme(card, "断刃") && this.hasCore(player, "drive_blade_core")) atk += 300;
@@ -2493,6 +2540,7 @@
       if (cardHasTheme(card, "契環") && this.hasCore(player, "drive_keikan_core")) atk += 300;
       if (cardHasTheme(card, "深景") && this.hasCore(player, "drive_shinkei_core")) atk += 300;
       if (cardHasTheme(card, "陽菓") && this.hasCore(player, "drive_youka_core")) atk += 300;
+      if (cardHasTheme(card, "月鏡") && this.hasCore(player, "drive_tsukikagami_core")) atk += 300;
       return atk;
     }
 
