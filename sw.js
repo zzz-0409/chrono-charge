@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260603-sosai";
+const CACHE_VERSION = "chrono-drive-pwa-20260607-gridmain";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260602handcost",
+  "/styles.css?v=20260607gridmain",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -50,7 +50,30 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
   "/src/ui/duel-view.js?v=20260601cpurank",
-  "/src/main.js?v=20260601ranktable2"
+  "/src/main.js?v=20260607gridmain",
+  "/chrono-grid/index.html",
+  "/chrono-grid/style.css?v=20260607gridmain",
+  "/chrono-grid/data.js?v=20260607gridmain",
+  "/chrono-grid/game.js?v=20260607gridmain",
+  "/chrono-grid/assets/art/battle-bg.png",
+  "/chrono-grid/assets/art/flame-knight.png",
+  "/chrono-grid/assets/art/clockwork-witch.png",
+  "/chrono-grid/assets/art/forest-guardian.png",
+  "/chrono-grid/assets/art/shadow-assassin.png",
+  "/chrono-grid/assets/ui/card-frame-base-3slot-name-overlay.png",
+  "/chrono-grid/assets/ui/card-frame-base-3slot-name-ornate-overlay.png",
+  "/chrono-grid/assets/ui/card-frame-rarity-silver-overlay.png",
+  "/chrono-grid/assets/ui/card-frame-rarity-rainbow-overlay.png",
+  "/chrono-grid/assets/ui/button-bg.png",
+  "/chrono-grid/assets/ui/board-cell.png",
+  "/chrono-grid/assets/ui/badge-atk-red.png",
+  "/chrono-grid/assets/ui/badge-hp-green.png",
+  "/chrono-grid/assets/ui/icon-swords.png",
+  "/chrono-grid/assets/ui/icon-trap.png",
+  "/chrono-grid/assets/ui/icon-boost.png",
+  "/chrono-grid/assets/ui/stat-bg-yellow.png",
+  "/chrono-grid/assets/ui/stat-bg-red.png",
+  "/chrono-grid/assets/ui/stat-bg-green.png"
 ];
 
 self.addEventListener("install", (event) => {

@@ -35,6 +35,14 @@ body {
   letter-spacing: 0;
 }
 
+.embedded-mode body {
+  background-color: #050814;
+}
+
+.embedded-mode .deck-edit-button {
+  display: none;
+}
+
 button {
   color: inherit;
   font: inherit;

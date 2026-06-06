@@ -34,6 +34,10 @@
     packResultView: document.querySelector("#packResultView"),
     duelMenuView: document.querySelector("#duelMenuView"),
     duelView: document.querySelector("#duelView"),
+    chronoGridView: document.querySelector("#chronoGridView"),
+    chronoGridFrame: document.querySelector("#chronoGridFrame"),
+    chronoGridBattleButton: document.querySelector("#chronoGridBattleButton"),
+    chronoGridDeckButton: document.querySelector("#chronoGridDeckButton"),
     saveDeckButton: document.querySelector("#saveDeckButton"),
     createRoomButton: document.querySelector("#createRoomButton"),
     joinRoomButton: document.querySelector("#joinRoomButton"),
@@ -166,6 +170,10 @@
 
   let toastTimer = 0;
   let hiddenViewsReleasedForDuel = false;
+  const GRID_REPLACEMENT_MODE = true;
+  const CHRONO_GRID_FRAME_VERSION = "20260607gridmain";
+  const CHRONO_GRID_MAINTENANCE_TITLE = "メンテナンス中";
+  const CHRONO_GRID_MAINTENANCE_TEXT = "現在はクロノグリッドへの移行作業中です。ゲストモードのCPU戦とデッキ編集だけ利用できます。";
   const DUEL_RECOVERY_KEY = "chrono.cpuDuelRecovery.v1";
   const DUEL_RECOVERY_MAX_AGE_MS = 12 * 60 * 60 * 1000;
   const toast = (message) => {
@@ -175,7 +183,31 @@
     toastTimer = window.setTimeout(() => els.toast.classList.remove("show"), 1300);
   };
 
+  const normalizeView = (view) => {
+    if (!GRID_REPLACEMENT_MODE) return view;
+    if (view === "deckSelect" || view === "builder") return "chronoGridDeck";
+    if (view === "duel") return "chronoGridBattle";
+    return view;
+  };
+
+  const setChronoGridFrame = (mode) => {
+    if (!els.chronoGridFrame) return;
+    const safeMode = mode === "deck" ? "deck" : "battle";
+    const src = `chrono-grid/index.html?embedded=1&entry=${safeMode}&v=${CHRONO_GRID_FRAME_VERSION}`;
+    if (els.chronoGridFrame.dataset.mode !== safeMode) {
+      els.chronoGridFrame.dataset.mode = safeMode;
+      els.chronoGridFrame.src = src;
+    }
+    els.chronoGridBattleButton?.classList.toggle("active", safeMode === "battle");
+    els.chronoGridDeckButton?.classList.toggle("active", safeMode === "deck");
+  };
+
   const setView = (view) => {
+    view = normalizeView(view);
+    if (GRID_REPLACEMENT_MODE && (view === "pack" || view === "packResult")) {
+      openMaintenanceModal("pack");
+      return;
+    }
     const showHome = view === "home";
     const showDeckSelect = view === "deckSelect";
     const showBuilder = view === "builder";
@@ -183,6 +215,9 @@
     const showPackResult = view === "packResult";
     const showDuelMenu = view === "duelMenu";
     const showDuel = view === "duel";
+    const showChronoGridBattle = view === "chronoGridBattle";
+    const showChronoGridDeck = view === "chronoGridDeck";
+    const showChronoGrid = showChronoGridBattle || showChronoGridDeck;
     els.homeView.hidden = !showHome;
     els.deckSelectView.hidden = !showDeckSelect;
     els.builderView.hidden = !showBuilder;
@@ -190,24 +225,28 @@
     els.packResultView.hidden = !showPackResult;
     els.duelMenuView.hidden = !showDuelMenu;
     els.duelView.hidden = !showDuel;
+    if (els.chronoGridView) els.chronoGridView.hidden = !showChronoGrid;
     els.homeTab?.classList.toggle("active", showHome);
-    els.builderTab?.classList.toggle("active", showDeckSelect || showBuilder);
+    els.builderTab?.classList.toggle("active", showDeckSelect || showBuilder || showChronoGridDeck);
     els.packTab?.classList.toggle("active", showPack || showPackResult);
-    els.duelTab?.classList.toggle("active", showDuelMenu || showDuel);
+    els.duelTab?.classList.toggle("active", showDuelMenu || showDuel || showChronoGridBattle);
     els.appShell?.classList.toggle("compact-header", !showHome);
     els.appShell?.classList.toggle("duel-menu-active", showDuelMenu);
     els.appShell?.classList.toggle("duel-active", showDuel);
+    els.appShell?.classList.toggle("chrono-grid-active", showChronoGrid);
     const activeNavView = showDeckSelect || showBuilder
       ? "deckSelect"
-      : showPack || showPackResult
+      : showChronoGridDeck
+        ? "deckSelect"
+        : showPack || showPackResult
         ? "pack"
-        : showDuelMenu || showDuel
+        : showDuelMenu || showDuel || showChronoGridBattle
           ? "duelMenu"
           : "home";
     document.querySelectorAll("[data-nav-view]").forEach((button) => {
       button.classList.toggle("active", button.dataset.navView === activeNavView);
     });
-    const accountEnabled = showHome;
+    const accountEnabled = showHome && !GRID_REPLACEMENT_MODE;
     els.loginButton.disabled = !accountEnabled;
     els.displayNameInput.disabled = !accountEnabled;
     els.saveDisplayNameButton.disabled = !accountEnabled;
@@ -224,6 +263,8 @@
       renderDuelMenuDeckCard();
       renderRankedStatus();
     }
+    if (showChronoGridBattle) setChronoGridFrame("battle");
+    if (showChronoGridDeck) setChronoGridFrame("deck");
     renderShellResources();
   };
 
@@ -347,6 +388,35 @@
     els.modalRoot.replaceChildren();
   };
 
+  function openMaintenanceModal(surface = "system") {
+    const labels = {
+      pack: "カードとパック",
+      account: "ログインとアカウント",
+      online: "オンライン対戦",
+      ranked: "ランク戦",
+      room: "ルーム戦",
+      gift: "プレゼント",
+      notice: "お知らせ",
+      shop: "ショップ",
+      profile: "プロフィール",
+      system: "この機能",
+    };
+    const label = labels[surface] || labels.system;
+    const modal = document.createElement("div");
+    modal.className = "modal-dialog app-confirm-dialog maintenance-dialog";
+    modal.innerHTML = `
+      <p class="eyebrow">Chrono Grid Migration</p>
+      <h2>${CHRONO_GRID_MAINTENANCE_TITLE}</h2>
+      <p>${escapeHtml(label)}は現在メンテナンス中です。</p>
+      <p>${CHRONO_GRID_MAINTENANCE_TEXT}</p>
+      <div class="modal-actions modal-actions-row">
+        <button class="primary-button" type="button" data-action="close">OK</button>
+      </div>
+    `;
+    modal.querySelector('[data-action="close"]').addEventListener("click", closeAppModal);
+    openAppModal(modal);
+  }
+
   const setTitleActive = (active) => {
     els.appShell?.classList.toggle("title-active", active);
   };
@@ -354,9 +424,13 @@
   const enterAppFromTitle = () => {
     setTitleActive(false);
     setView("home");
-    builderView.render();
-    packView.render();
-    showLoginBonusIfReady();
+    if (!GRID_REPLACEMENT_MODE) {
+      builderView.render();
+      packView.render();
+      showLoginBonusIfReady();
+    }
+    renderRankedStatus();
+    renderShellResources();
   };
 
   const openTitleLogin = () => {
@@ -372,6 +446,12 @@
 
   const handleTitleStart = () => {
     if (!els.appShell?.classList.contains("title-active")) return;
+    if (GRID_REPLACEMENT_MODE) {
+      forceGuestMode();
+      enterAppFromTitle();
+      toast("ゲストモードで開始しました。");
+      return;
+    }
     if (store.isAuthenticated) {
       enterAppFromTitle();
       return;
@@ -481,6 +561,18 @@
   });
 
   const store = new DeckStore();
+
+  function forceGuestMode() {
+    if (!GRID_REPLACEMENT_MODE) return;
+    if (!store.isAuthenticated) return;
+    store.saveAuth(null);
+    store.pendingLoginBonus = null;
+    store.applyLoadedState(store.guestState());
+  }
+
+  forceGuestMode();
+  els.appShell?.classList.toggle("guest-only-mode", GRID_REPLACEMENT_MODE);
+
   const duelView = new DuelView({
     els,
     toast,
@@ -547,6 +639,28 @@
   function renderDuelMenuDeckCard() {
     const button = els.duelSelectedDeckButton;
     if (!button) return;
+    if (GRID_REPLACEMENT_MODE) {
+      button.disabled = false;
+      button.classList.add("ready");
+      button.classList.remove("unusable");
+      button.innerHTML = `
+        <span class="duel-selected-deck-head">
+          <span class="duel-mode-emblem duel-mode-emblem-deck" aria-hidden="true"></span>
+          <span>
+            <span class="eyebrow">Guest Deck</span>
+            <strong>Chrono Grid Prototype</strong>
+          </span>
+        </span>
+        <span class="duel-selected-deck-art"><img src="chrono-grid/assets/art/battle-bg.png" alt=""></span>
+        <span class="deck-preset-meta duel-selected-deck-meta">
+          <span>17 cards</span>
+          <span>3x3 Grid</span>
+          <span>CPU Ready</span>
+        </span>
+        <span class="duel-deck-status">デッキ編集は下部メニューのDECKから行えます</span>
+      `;
+      return;
+    }
     const deck = store.activeDeck || store.deckPresets[0];
     if (!deck) {
       button.disabled = true;
@@ -583,6 +697,12 @@
 
   function renderRankedStatus() {
     if (!els.rankedStatusText) return;
+    if (GRID_REPLACEMENT_MODE) {
+      els.rankedStatusText.textContent = "クロノグリッド移行中: ランク戦はメンテナンス中";
+      if (els.rankedModeCard) els.rankedModeCard.dataset.rankTier = "bronze";
+      if (els.rankedNextRankText) els.rankedNextRankText.textContent = "現在はゲストCPU戦のみ利用できます";
+      return;
+    }
     if (!store.isAuthenticated) {
       els.rankedStatusText.textContent = "ログインでランク記録";
       if (els.rankedModeCard) els.rankedModeCard.dataset.rankTier = "bronze";
@@ -675,6 +795,7 @@
   }
 
   function showLoginBonusIfReady() {
+    if (GRID_REPLACEMENT_MODE) return;
     if (els.appShell?.classList.contains("title-active")) return;
     const reward = store.takeLoginBonusReward();
     if (!reward) return;
@@ -1005,6 +1126,10 @@
   }
 
   function openDuelDeckSelector() {
+    if (GRID_REPLACEMENT_MODE) {
+      setView("chronoGridDeck");
+      return;
+    }
     const modal = document.createElement("div");
     modal.className = "modal-dialog duel-deck-dialog";
     modal.innerHTML = `
@@ -1056,6 +1181,10 @@
   };
 
   const startCpuDuel = () => {
+    if (GRID_REPLACEMENT_MODE) {
+      setView("chronoGridBattle");
+      return;
+    }
     const deckSet = requireDeck();
     if (!deckSet) return;
     clearCpuDuelRecovery();
@@ -1102,6 +1231,7 @@
 
   let rankedResumePromptActive = false;
   const checkRankedResume = async () => {
+    if (GRID_REPLACEMENT_MODE) return;
     if (!store.isAuthenticated || rankedResumePromptActive || duelView.game?.isRanked) return;
     rankedResumePromptActive = true;
     try {
@@ -1120,6 +1250,10 @@
   };
 
   const createRoomDuel = async () => {
+    if (GRID_REPLACEMENT_MODE) {
+      openMaintenanceModal("room");
+      return;
+    }
     if (!canUseOnline()) return;
     const deckSet = requireDeck();
     if (!deckSet) return;
@@ -1133,6 +1267,10 @@
   };
 
   const joinRoomDuel = async () => {
+    if (GRID_REPLACEMENT_MODE) {
+      openMaintenanceModal("room");
+      return;
+    }
     if (!canUseOnline()) return;
     const deckSet = requireDeck();
     if (!deckSet) return;
@@ -1292,6 +1430,10 @@
   }
 
   const openRankedLeaderboard = async () => {
+    if (GRID_REPLACEMENT_MODE) {
+      openMaintenanceModal("ranked");
+      return;
+    }
     if (!canUseOnline()) return;
     try {
       const result = await OnlineClient.rankedLeaderboard();
@@ -1344,6 +1486,10 @@
   }
 
   const startRankedDuel = async () => {
+    if (GRID_REPLACEMENT_MODE) {
+      openMaintenanceModal("ranked");
+      return;
+    }
     if (!canUseOnline()) return;
     if (!store.isAuthenticated) {
       toast("ランク戦はログインが必要です。");
@@ -1407,6 +1553,24 @@
   };
   document.querySelectorAll("[data-shell-action]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (GRID_REPLACEMENT_MODE) {
+        const action = button.dataset.shellAction;
+        if (action === "settings") {
+          openSettingsModal();
+          return;
+        }
+        const maintenanceMap = {
+          gachaStone: "pack",
+          dismantleStone: "pack",
+          mail: "system",
+          notice: "notice",
+          gift: "gift",
+          shop: "shop",
+          profile: "profile",
+        };
+        openMaintenanceModal(maintenanceMap[action] || "system");
+        return;
+      }
       if (button.dataset.shellAction === "gift") {
         openPresentBox();
         return;
@@ -1426,6 +1590,11 @@
 
   setView("home");
   store.syncActiveAccount().finally(async () => {
+    if (GRID_REPLACEMENT_MODE) {
+      renderRankedStatus();
+      renderShellResources();
+      return;
+    }
     builderView.render();
     packView.render();
     renderRankedStatus();
@@ -1438,6 +1607,7 @@
 
   let accountSyncTimer = 0;
   const syncAccountFromServer = () => {
+    if (GRID_REPLACEMENT_MODE) return;
     window.clearTimeout(accountSyncTimer);
     accountSyncTimer = window.setTimeout(() => {
       store.syncActiveAccount().finally(() => {

@@ -7,7 +7,9 @@ This project now contains the migrated Chrono Grid prototype from the other work
 - `chrono-grid/style.css`
 - `chrono-grid/assets/`
 
-The main `card-game/index.html` home menu has a `Chrono Grid` launch button that opens `chrono-grid/index.html`.
+The main `card-game/index.html` shell now embeds Chrono Grid inside the app for guest CPU battle and deck editing.
+
+During the migration window, the old Chrono Drive card pool, packs, account login, ranked battle, and room battle surfaces are gated behind an in-app maintenance modal. The existing Chrono Drive duel mode selection screen remains in use, but its CPU entry starts the embedded Chrono Grid battle.
 
 ## What was migrated
 
@@ -22,6 +24,8 @@ The main `card-game/index.html` home menu has a `Chrono Grid` launch button that
 - card drag-and-drop play
 - generated card frames, stat panels, and icons
 - current Chrono Grid card pool from the other workspace
+- `chrono-grid/data.js` for Chrono Grid card and rule constants
+- embedded entry modes through `chrono-grid/index.html?embedded=1&entry=battle` and `entry=deck`
 
 ## Next development target
 
@@ -29,9 +33,9 @@ Continue future Chrono Grid development from `C:\Users\user\Desktop\card-game`.
 
 Suggested next step:
 
-1. Integrate `chrono-grid` more deeply into the main `card-game` shell instead of launching it as a sub-page.
-2. Replace the standalone deck editor with a shell-native view if needed.
-3. Reuse `card-game` account/deck storage only after the Chrono Grid rules stabilize.
+1. Replace the iframe bridge with shell-native Chrono Grid components once the rules stabilize.
+2. Rebuild account, ranked, room, pack, and collection storage around Chrono Grid data.
+3. Expand the Chrono Grid card pool and retire the old Chrono Drive data files when no compatibility path is needed.
 
 ## Safety notes
 
