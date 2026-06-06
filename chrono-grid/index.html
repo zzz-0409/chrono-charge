@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>クロノグリッド Prototype</title>
+  <link rel="stylesheet" href="style.css?v=hand-cost-glow-1">
+</head>
+<body>
+  <main class="stage" id="stage">
+    <div class="shade"></div>
+    <section class="mode-select" id="modeSelect" aria-label="対戦モード選択">
+      <div class="mode-panel plate">
+        <p class="mode-kicker">Battle Mode</p>
+        <h1>対戦モード選択</h1>
+        <div class="mode-actions">
+          <button class="mode-button primary" id="cpuModeButton" type="button">
+            <strong>CPU対戦</strong>
+            <span>CPUが召喚・移動・強化を行います</span>
+          </button>
+          <button class="mode-button" id="onlineModeButton" type="button">
+            <strong>オンライン対戦</strong>
+            <span>ルーム対戦は準備中です</span>
+          </button>
+          <button class="mode-button" id="deckModeButton" type="button">
+            <strong>デッキ編集</strong>
+            <span>カードと大将特性を編集します</span>
+          </button>
+        </div>
+        <p class="mode-notice" id="modeNotice"></p>
+      </div>
+    </section>
+    <button class="deck-edit-button plate" id="deckEditButton" type="button">デッキ編集</button>
+
+    <section class="battlefield">
+      <div class="field-label enemy-label">◇ 相手フィールド ◇</div>
+      <div class="grid-zone enemy-zone" id="enemyGrid"></div>
+      <div class="field-split"></div>
+      <div class="grid-zone player-zone" id="playerGrid"></div>
+      <div class="field-label player-label">◇ あなたのフィールド ◇</div>
+      <svg class="drag-arrow-layer" id="dragArrowLayer" aria-hidden="true">
+        <defs>
+          <marker id="dragArrowHead" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto">
+            <path d="M1,1 L7,4 L1,7 Z"></path>
+          </marker>
+        </defs>
+        <polyline id="dragArrowLine" points=""></polyline>
+      </svg>
+
+      <aside class="side-controls">
+        <button class="end-turn" id="endTurnButton" type="button">
+          <span class="turn-word">TURN</span>
+          <strong id="turnNumber">1</strong>
+          <span class="end-word">END</span>
+        </button>
+
+        <section class="ap-hud plate" aria-label="行動値">
+          <span>AP</span>
+          <div class="ap-pips" id="apPips"></div>
+          <strong id="apText">1/1</strong>
+        </section>
+      </aside>
+
+      <section class="hand-rail plate" id="handRail" aria-label="手札">
+        <div class="hand-heading">
+          <span>手札</span>
+          <small id="hint">カードを選択してください。</small>
+        </div>
+        <div class="hand" id="hand"></div>
+      </section>
+    </section>
+
+    <aside class="detail-panel plate" id="detailPanel">
+      <h2>フォーカス</h2>
+      <div class="detail-card" id="detailCard"></div>
+      <div class="detail-copy" id="detailCopy"></div>
+    </aside>
+
+    <button class="log-button plate" id="logButton" type="button" aria-label="ログ">ログ</button>
+    <aside class="log-panel plate" id="logPanel">
+      <h2>ログ</h2>
+      <div id="log"></div>
+    </aside>
+
+    <section class="deck-editor" id="deckEditor" aria-hidden="true">
+      <div class="deck-shell">
+        <header class="deck-editor-head">
+          <div>
+            <h2>デッキ編集</h2>
+            <p id="deckEditorStatus">17枚 / 17枚</p>
+          </div>
+          <div class="deck-actions">
+            <button class="deck-action" id="deckResetButton" type="button">初期化</button>
+            <button class="deck-action primary" id="deckCloseButton" type="button">対戦へ</button>
+          </div>
+        </header>
+
+        <div class="deck-editor-body">
+          <section class="deck-library">
+            <h3>カード一覧</h3>
+            <div class="leader-trait-picker" id="leaderTraitPicker"></div>
+            <div class="deck-card-grid" id="deckCardGrid"></div>
+          </section>
+          <section class="deck-focus-panel">
+            <h3>フォーカス</h3>
+            <div class="deck-focus-card" id="deckFocusCard"></div>
+            <div class="deck-focus-copy" id="deckFocusCopy"></div>
+          </section>
+          <section class="deck-list-panel">
+            <h3>現在のデッキ</h3>
+            <div class="deck-list" id="deckList"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <template id="cellTemplate">
+    <button class="cell" type="button">
+      <span class="cell-rune"></span>
+      <span class="trap-chip">罠</span>
+      <span class="piece"></span>
+    </button>
+  </template>
+
+  <template id="cardTemplate">
+    <button class="card" type="button">
+      <span class="card-art"></span>
+      <span class="card-name"></span>
+      <span class="badge badge-cost"></span>
+      <span class="badge badge-atk"></span>
+      <span class="badge badge-action"></span>
+      <span class="badge badge-hp"></span>
+    </button>
+  </template>
+
+  <script src="game.js?v=hand-cost-glow-1"></script>
+</body>
+</html>
