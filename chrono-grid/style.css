@@ -1522,6 +1522,10 @@ h1 {
   animation: zoomFade 160ms ease both;
 }
 
+.card-zoom-layer.manual-zoom {
+  z-index: 98;
+}
+
 .card-zoom-wrap {
   position: relative;
   filter:
