@@ -516,7 +516,9 @@ function resolveSummonEffect(card, sideName) {
   state.choice = {
     type: "returnDraw",
     sideName,
-    sourceName: card.name
+    sourceName: card.name,
+    selectedIndex: 0,
+    peeking: false
   };
 }
 
@@ -1148,10 +1150,25 @@ function renderBanner() {
 
 function renderChoiceModal() {
   document.querySelector(".choice-layer")?.remove();
+  document.querySelector(".choice-peek-return")?.remove();
   if (!state.choice) return;
   const choice = state.choice;
   if (choice.type !== "returnDraw") return;
+  if (choice.peeking) {
+    const returnButton = document.createElement("button");
+    returnButton.className = "choice-peek-return";
+    returnButton.type = "button";
+    returnButton.textContent = "選択に戻る";
+    returnButton.addEventListener("click", () => {
+      choice.peeking = false;
+      renderChoiceModal();
+    });
+    el.stage.append(returnButton);
+    return;
+  }
   const owner = side(choice.sideName);
+  const selectedIndex = normalizeChoiceSelectedIndex(choice, owner.hand);
+  const selectedCard = owner.hand[selectedIndex] || null;
   const layer = document.createElement("section");
   layer.className = "choice-layer";
   layer.innerHTML = `
@@ -1160,32 +1177,82 @@ function renderChoiceModal() {
         <strong id="choiceTitle">${escapeHtml(choice.sourceName)}</strong>
         <p>デッキに戻す手札を1枚選んでください。</p>
       </div>
-      <div class="choice-card-grid"></div>
+      <div class="choice-body">
+        <div class="choice-card-grid" aria-label="候補カード"></div>
+        <section class="choice-focus-panel" aria-label="フォーカス">
+          <div class="choice-focus-card"></div>
+          <div class="choice-focus-copy"></div>
+        </section>
+      </div>
+      <div class="choice-actions">
+        <button class="choice-action-button" type="button" data-choice-action="peek">盤面を見る</button>
+        <button class="choice-action-button primary" type="button" data-choice-action="confirm">選択する</button>
+      </div>
     </div>
   `;
   const grid = layer.querySelector(".choice-card-grid");
+  const focusCard = layer.querySelector(".choice-focus-card");
+  const focusCopy = layer.querySelector(".choice-focus-copy");
+  const confirmButton = layer.querySelector("[data-choice-action='confirm']");
   owner.hand.forEach((card, index) => {
     const button = document.createElement("div");
     button.className = "choice-card";
+    button.classList.toggle("selected", index === selectedIndex);
     button.tabIndex = 0;
     button.setAttribute("role", "button");
-    button.setAttribute("aria-label", `${card.name}をデッキに戻す`);
+    button.setAttribute("aria-label", `${card.name}を確認`);
+    button.setAttribute("aria-pressed", String(index === selectedIndex));
     const cardNode = makeCardNode(card);
     cardNode.tabIndex = -1;
     cardNode.setAttribute("aria-hidden", "true");
-    button.append(cardNode);
+    const preview = document.createElement("span");
+    preview.className = "choice-card-preview";
+    preview.append(cardNode);
+    button.append(preview);
     const name = document.createElement("span");
     name.textContent = card.name;
     button.append(name);
-    button.addEventListener("click", () => completeReturnDrawChoice(choice.sideName, index, choice.sourceName));
+    button.addEventListener("click", () => {
+      choice.selectedIndex = index;
+      renderChoiceModal();
+    });
     button.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      completeReturnDrawChoice(choice.sideName, index, choice.sourceName);
+      choice.selectedIndex = index;
+      renderChoiceModal();
     });
     grid.append(button);
   });
+  if (selectedCard) {
+    const focusNode = makeCardNode(selectedCard);
+    focusNode.addEventListener("click", () => showCardZoom(selectedCard, { className: "manual-zoom", closeOnClick: true }));
+    focusCard.append(focusNode);
+    focusCopy.innerHTML = `
+      <strong>${escapeHtml(selectedCard.name)}</strong>
+      <span>${escapeHtml(kindLabel(selectedCard.kind))} / コスト ${selectedCard.cost}</span>
+      <small>${renderEffectText(selectedCard.text)}</small>
+    `;
+  }
+  confirmButton.disabled = selectedIndex < 0;
+  confirmButton.addEventListener("click", () => {
+    if (selectedIndex < 0) return;
+    completeReturnDrawChoice(choice.sideName, selectedIndex, choice.sourceName);
+  });
+  layer.querySelector("[data-choice-action='peek']").addEventListener("click", () => {
+    choice.peeking = true;
+    renderChoiceModal();
+  });
+  layer.addEventListener("click", handleEffectTagClick);
   el.stage.append(layer);
+}
+
+function normalizeChoiceSelectedIndex(choice, cards) {
+  if (!cards.length) return -1;
+  if (!Number.isInteger(choice.selectedIndex) || choice.selectedIndex < 0 || choice.selectedIndex >= cards.length) {
+    choice.selectedIndex = 0;
+  }
+  return choice.selectedIndex;
 }
 
 function openFocusCardZoom() {
@@ -1724,6 +1791,10 @@ el.logButton.addEventListener("click", () => {
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") setGridSettingsOpen(false);
+  if (event.key === "Escape" && state.choice?.peeking) {
+    state.choice.peeking = false;
+    renderChoiceModal();
+  }
   if (event.key === "Escape") closeKeywordHelp();
   if (event.key === "Escape") document.querySelector(".card-zoom-layer")?.remove();
 });

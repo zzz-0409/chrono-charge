@@ -169,7 +169,7 @@
   let toastTimer = 0;
   let hiddenViewsReleasedForDuel = false;
   const GRID_REPLACEMENT_MODE = true;
-  const CHRONO_GRID_FRAME_VERSION = "20260607starguide";
+  const CHRONO_GRID_FRAME_VERSION = "20260607choiceui";
   const CHRONO_GRID_MAINTENANCE_TITLE = "メンテナンス中";
   const CHRONO_GRID_MAINTENANCE_TEXT = "現在はクロノグリッドへの移行作業中です。ゲストモードのCPU戦とデッキ編集だけ利用できます。";
   const DUEL_RECOVERY_KEY = "chrono.cpuDuelRecovery.v1";

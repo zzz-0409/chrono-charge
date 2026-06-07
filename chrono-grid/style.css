@@ -1308,7 +1308,7 @@ h1 {
 }
 
 .choice-dialog {
-  width: min(760px, 100%);
+  width: min(980px, 100%);
   display: grid;
   gap: 18px;
   padding: 22px;
@@ -1338,16 +1338,26 @@ h1 {
   font-size: 15px;
 }
 
+.choice-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 18px;
+}
+
 .choice-card-grid {
-  display: flex;
-  gap: 14px;
-  overflow-x: auto;
-  padding-bottom: 6px;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 104px);
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+  padding: 4px 4px 8px;
 }
 
 .choice-card {
   width: 104px;
-  flex: 0 0 104px;
+  min-height: 154px;
   display: grid;
   justify-items: center;
   gap: 8px;
@@ -1359,6 +1369,14 @@ h1 {
   cursor: pointer;
 }
 
+.choice-card.selected {
+  border-color: rgba(255, 226, 151, 0.82);
+  background: linear-gradient(180deg, rgba(45, 93, 124, 0.86), rgba(8, 16, 31, 0.92));
+  box-shadow:
+    0 0 0 1px rgba(255, 226, 151, 0.14),
+    0 0 18px rgba(57, 201, 255, 0.24);
+}
+
 .choice-card:hover,
 .choice-card:focus-visible {
   border-color: rgba(126, 234, 255, 0.72);
@@ -1366,14 +1384,27 @@ h1 {
   filter: drop-shadow(0 0 14px rgba(57, 201, 255, 0.34));
 }
 
-.choice-card .card {
+.choice-card-preview {
+  position: relative;
   width: 82px;
   height: 123px;
-  cursor: pointer;
-  transform: none;
+  display: block;
+  overflow: hidden;
 }
 
-.choice-card span {
+.choice-card-preview .card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 128px;
+  height: 192px;
+  cursor: default;
+  transform: scale(0.640625);
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.choice-card > span:last-child {
   width: 100%;
   overflow: hidden;
   color: #dce8f6;
@@ -1382,6 +1413,102 @@ h1 {
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.choice-focus-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(126, 234, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(3, 9, 20, 0.58);
+}
+
+.choice-focus-card {
+  display: grid;
+  place-items: center;
+  min-height: 224px;
+}
+
+.choice-focus-card .card {
+  width: 142px;
+  height: 213px;
+  cursor: zoom-in;
+}
+
+.choice-focus-card .card-name {
+  font-size: 13px;
+}
+
+.choice-focus-card .badge {
+  font-size: 18px;
+}
+
+.choice-focus-copy {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.choice-focus-copy strong {
+  color: white;
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.choice-focus-copy span {
+  color: #baf6ff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.choice-focus-copy small {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.choice-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.choice-action-button,
+.choice-peek-return {
+  min-width: 128px;
+  min-height: 40px;
+  border: 1px solid rgba(228, 184, 99, 0.45);
+  border-radius: 7px;
+  background: rgba(9, 15, 29, 0.88);
+  color: #f8f2e6;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.choice-action-button.primary {
+  border-color: rgba(91, 179, 255, 0.85);
+  background: linear-gradient(180deg, rgba(41, 122, 255, 0.64), rgba(8, 26, 68, 0.88));
+}
+
+.choice-action-button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.choice-peek-return {
+  position: absolute;
+  right: 28px;
+  bottom: 26px;
+  z-index: 89;
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.44),
+    0 0 24px rgba(245, 191, 91, 0.22);
 }
 
 .card-zoom-layer {

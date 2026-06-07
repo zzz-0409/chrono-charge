@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260607-effecthelp";
+const CACHE_VERSION = "chrono-drive-pwa-20260607-choiceui";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -49,11 +49,11 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
   "/src/ui/duel-view.js?v=20260601cpurank",
-  "/src/main.js?v=20260607starguide",
+  "/src/main.js?v=20260607choiceui",
   "/chrono-grid/index.html",
-  "/chrono-grid/style.css?v=20260607starguide",
+  "/chrono-grid/style.css?v=20260607choiceui",
   "/chrono-grid/data.js?v=20260607starguide",
-  "/chrono-grid/game.js?v=20260607effecthelp",
+  "/chrono-grid/game.js?v=20260607choiceui",
   "/chrono-grid/assets/art/battle-bg.png",
   "/chrono-grid/assets/art/flame-knight.png",
   "/chrono-grid/assets/art/clockwork-witch.png",
