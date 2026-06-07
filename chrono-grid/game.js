@@ -67,6 +67,13 @@ let currentMode = "cpu";
 const bootParams = new URLSearchParams(location.search);
 const EMBEDDED_MODE = bootParams.get("embedded") === "1";
 const ENTRY_MODE = bootParams.get("entry") || (location.hash === "#deck" ? "deck" : "menu");
+const EFFECT_KEYWORD_HELP = {
+  固定: "攻撃範囲がカードごとに決まった位置を参照します。ユニットを移動しても攻撃範囲は変わりません。",
+  変動: "攻撃範囲がユニットの現在位置を基準に動きます。ユニットを移動すると攻撃範囲も移動します。",
+  召喚: "このカードを手札から場に出したときに発動する効果です。",
+  罠: "相手フィールドに伏せておき、条件を満たした相手ユニットが入ったときに発動します。",
+  強化: "自分の場の対象に使い、そのユニットや大将を強くするカードです。"
+};
 
 if (EMBEDDED_MODE) {
   document.documentElement.classList.add("embedded-mode");
@@ -972,7 +979,7 @@ function renderDeckEditorFocus() {
   el.deckFocusCopy.innerHTML = `
     <strong>${escapeHtml(card.name)}</strong>
     <span>${escapeHtml(kindLabel(card.kind))} / cost ${card.cost}</span>
-    <small>${escapeHtml(card.text)}</small>
+    <small>${renderEffectText(card.text)}</small>
   `;
 }
 
@@ -1012,7 +1019,7 @@ function renderDetail() {
     el.detailCopy.innerHTML = `
       <strong>${escapeHtml(focus.card.name)}</strong>
       <span class="kind">${escapeHtml(kindLabel(focus.card.kind))} / コスト ${focus.card.cost}</span>
-      <small>${escapeHtml(focus.card.text)}</small>
+      <small>${renderEffectText(focus.card.text)}</small>
     `;
     return;
   }
@@ -1025,7 +1032,7 @@ function renderDetail() {
   el.detailCopy.innerHTML = `
     <strong>${escapeHtml(piece.type === "leader" ? piece.label : piece.name)}</strong>
     <span class="kind">${piece.type === "leader" ? `大将 / ${escapeHtml(trait.name)}` : `ユニット / ${patternLabel(piece.pattern)}`}</span>
-    <small>${escapeHtml(piece.type === "leader" ? `大将は1ターンに${trait.leaderMoves}回だけ無料で移動できます。${trait.text} 前方に守護者がいる時、受けるダメージを軽減します。` : piece.text)}</small>
+    <small>${piece.type === "leader" ? escapeHtml(`大将は1ターンに${trait.leaderMoves}回だけ無料で移動できます。${trait.text} 前方に守護者がいる時、受けるダメージを軽減します。`) : renderEffectText(piece.text)}</small>
   `;
   if (canShowAttackButton(piece)) {
     const button = document.createElement("button");
@@ -1470,6 +1477,55 @@ function kindLabel(kind) {
   return { unit: "ユニット", trap: "罠", boost: "強化" }[kind] || kind;
 }
 
+function renderEffectText(value) {
+  const text = String(value || "");
+  const pattern = /\[([^\]\n]{1,16})\]/g;
+  let html = "";
+  let lastIndex = 0;
+  for (const match of text.matchAll(pattern)) {
+    const keyword = match[1];
+    const start = match.index || 0;
+    html += escapeHtml(text.slice(lastIndex, start));
+    html += `[<button class="effect-keyword" type="button" data-keyword="${escapeHtml(keyword)}">${escapeHtml(keyword)}</button>]`;
+    lastIndex = start + match[0].length;
+  }
+  html += escapeHtml(text.slice(lastIndex));
+  return html;
+}
+
+function showKeywordHelp(keyword) {
+  const title = keyword || "";
+  const text = EFFECT_KEYWORD_HELP[title] || "このキーワードの説明は準備中です。";
+  closeKeywordHelp();
+  const layer = document.createElement("section");
+  layer.className = "keyword-help-layer";
+  layer.innerHTML = `
+    <div class="keyword-help-dialog" role="dialog" aria-modal="true" aria-labelledby="keywordHelpTitle">
+      <strong id="keywordHelpTitle">${escapeHtml(title)}</strong>
+      <p>${escapeHtml(text)}</p>
+      <button class="keyword-help-close" type="button">閉じる</button>
+    </div>
+  `;
+  layer.addEventListener("click", (event) => {
+    if (event.target === layer) closeKeywordHelp();
+  });
+  layer.querySelector(".keyword-help-close").addEventListener("click", closeKeywordHelp);
+  el.stage.append(layer);
+  layer.querySelector(".keyword-help-close").focus({ preventScroll: true });
+}
+
+function closeKeywordHelp() {
+  document.querySelector(".keyword-help-layer")?.remove();
+}
+
+function handleEffectTagClick(event) {
+  const tag = event.target.closest(".effect-keyword");
+  if (!tag) return;
+  event.preventDefault();
+  event.stopPropagation();
+  showKeywordHelp(tag.dataset.keyword || tag.textContent.replace(/[[\]]/g, ""));
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -1559,12 +1615,15 @@ el.gridSettingsButton?.addEventListener("click", () => {
 el.settingsCloseButton?.addEventListener("click", () => setGridSettingsOpen(false));
 el.retireButton?.addEventListener("click", retireBattle);
 el.detailCard.addEventListener("click", openFocusCardZoom);
+el.detailCopy.addEventListener("click", handleEffectTagClick);
+el.deckFocusCopy.addEventListener("click", handleEffectTagClick);
 el.logButton.addEventListener("click", () => {
   state.logOpen = !state.logOpen;
   renderLog();
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") setGridSettingsOpen(false);
+  if (event.key === "Escape") closeKeywordHelp();
   if (event.key === "Escape") document.querySelector(".card-zoom-layer")?.remove();
 });
 document.addEventListener("pointermove", updatePieceDrag);
