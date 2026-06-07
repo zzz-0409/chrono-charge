@@ -4,11 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>クロノグリッド Prototype</title>
-  <link rel="stylesheet" href="style.css?v=20260607gridmain">
+  <link rel="stylesheet" href="style.css?v=20260607gridui2">
 </head>
 <body>
   <main class="stage" id="stage">
     <div class="shade"></div>
+    <button class="grid-settings-button plate" id="gridSettingsButton" type="button" aria-label="設定" aria-expanded="false" aria-controls="gridSettingsMenu">設定</button>
+    <aside class="grid-settings-menu plate" id="gridSettingsMenu" hidden>
+      <button class="grid-menu-button danger" id="retireButton" type="button">リタイア</button>
+      <button class="grid-menu-button" id="settingsCloseButton" type="button">閉じる</button>
+    </aside>
     <section class="mode-select" id="modeSelect" aria-label="対戦モード選択">
       <div class="mode-panel plate">
         <p class="mode-kicker">Battle Mode</p>
@@ -83,6 +88,9 @@
     </aside>
 
     <section class="deck-editor" id="deckEditor" aria-hidden="true">
+      <button class="grid-back-button deck-editor-back" id="deckBackButton" type="button" aria-label="戻る">
+        <span class="grid-back-icon"></span>
+      </button>
       <div class="deck-shell">
         <header class="deck-editor-head">
           <div>
@@ -134,7 +142,7 @@
     </button>
   </template>
 
-  <script src="data.js?v=20260607gridmain"></script>
-  <script src="game.js?v=20260607gridmain"></script>
+  <script src="data.js?v=20260607gridui2"></script>
+  <script src="game.js?v=20260607gridui2"></script>
 </body>
 </html>

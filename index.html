@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
-    <link rel="stylesheet" href="styles.css?v=20260607gridmain">
+    <link rel="stylesheet" href="styles.css?v=20260607gridui2">
     <script defer src="src/data/cards.js?v=20260603sosai"></script>
     <script defer src="src/data/notices.js?v=20260603sosai"></script>
     <script defer src="src/core/deck-store.js?v=20260603sosai"></script>
@@ -27,7 +27,7 @@
     <script defer src="src/ui/pack-view.js?v=20260529notice"></script>
     <script defer src="src/net/online-client.js?v=20260528rankedsystems"></script>
     <script defer src="src/ui/duel-view.js?v=20260601cpurank"></script>
-    <script defer src="src/main.js?v=20260607gridmain"></script>
+    <script defer src="src/main.js?v=20260607gridui2"></script>
     <script>
       (() => {
         const closestScrollable = (target) => {
@@ -240,21 +240,7 @@
         </section>
 
         <section id="chronoGridView" class="view chrono-grid-view" hidden>
-          <iframe id="chronoGridFrame" class="chrono-grid-frame" title="Chrono Grid" src="chrono-grid/index.html?embedded=1&amp;entry=battle&amp;v=20260607gridmain"></iframe>
-          <nav class="chrono-grid-host-nav" aria-label="Chrono Grid navigation">
-            <button id="chronoGridHomeButton" class="chrono-grid-host-button" type="button" data-nav-view="home">
-              <span class="shell-icon shell-icon-home"></span>
-              <span>Home</span>
-            </button>
-            <button id="chronoGridBattleButton" class="chrono-grid-host-button active" type="button" data-nav-view="chronoGridBattle">
-              <span class="shell-icon shell-icon-duel"></span>
-              <span>Battle</span>
-            </button>
-            <button id="chronoGridDeckButton" class="chrono-grid-host-button" type="button" data-nav-view="chronoGridDeck">
-              <span class="shell-icon shell-icon-deck"></span>
-              <span>Deck</span>
-            </button>
-          </nav>
+          <iframe id="chronoGridFrame" class="chrono-grid-frame" title="Chrono Grid" src="chrono-grid/index.html?embedded=1&amp;entry=battle&amp;v=20260607gridui2"></iframe>
         </section>
 
         <section id="deckSelectView" class="view deck-select-view" hidden>

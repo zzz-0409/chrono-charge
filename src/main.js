@@ -36,8 +36,6 @@
     duelView: document.querySelector("#duelView"),
     chronoGridView: document.querySelector("#chronoGridView"),
     chronoGridFrame: document.querySelector("#chronoGridFrame"),
-    chronoGridBattleButton: document.querySelector("#chronoGridBattleButton"),
-    chronoGridDeckButton: document.querySelector("#chronoGridDeckButton"),
     saveDeckButton: document.querySelector("#saveDeckButton"),
     createRoomButton: document.querySelector("#createRoomButton"),
     joinRoomButton: document.querySelector("#joinRoomButton"),
@@ -171,7 +169,7 @@
   let toastTimer = 0;
   let hiddenViewsReleasedForDuel = false;
   const GRID_REPLACEMENT_MODE = true;
-  const CHRONO_GRID_FRAME_VERSION = "20260607gridmain";
+  const CHRONO_GRID_FRAME_VERSION = "20260607gridui2";
   const CHRONO_GRID_MAINTENANCE_TITLE = "メンテナンス中";
   const CHRONO_GRID_MAINTENANCE_TEXT = "現在はクロノグリッドへの移行作業中です。ゲストモードのCPU戦とデッキ編集だけ利用できます。";
   const DUEL_RECOVERY_KEY = "chrono.cpuDuelRecovery.v1";
@@ -198,8 +196,6 @@
       els.chronoGridFrame.dataset.mode = safeMode;
       els.chronoGridFrame.src = src;
     }
-    els.chronoGridBattleButton?.classList.toggle("active", safeMode === "battle");
-    els.chronoGridDeckButton?.classList.toggle("active", safeMode === "deck");
   };
 
   const setView = (view) => {
@@ -1628,6 +1624,15 @@
   window.addEventListener("focus", syncAccountFromServer);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) syncAccountFromServer();
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data || {};
+    if (data.type !== "chrono-grid:navigate") return;
+    const allowedViews = new Set(["home", "duelMenu", "chronoGridBattle", "chronoGridDeck"]);
+    if (!allowedViews.has(data.view)) return;
+    setView(data.view);
   });
 
   function escapeHtml(value) {

@@ -35,6 +35,7 @@ const el = {
   modeNotice: document.querySelector("#modeNotice"),
   deckEditButton: document.querySelector("#deckEditButton"),
   deckEditor: document.querySelector("#deckEditor"),
+  deckBackButton: document.querySelector("#deckBackButton"),
   deckCloseButton: document.querySelector("#deckCloseButton"),
   deckResetButton: document.querySelector("#deckResetButton"),
   deckEditorStatus: document.querySelector("#deckEditorStatus"),
@@ -48,7 +49,11 @@ const el = {
   detailCard: document.querySelector("#detailCard"),
   detailCopy: document.querySelector("#detailCopy"),
   cellTemplate: document.querySelector("#cellTemplate"),
-  cardTemplate: document.querySelector("#cardTemplate")
+  cardTemplate: document.querySelector("#cardTemplate"),
+  gridSettingsButton: document.querySelector("#gridSettingsButton"),
+  gridSettingsMenu: document.querySelector("#gridSettingsMenu"),
+  retireButton: document.querySelector("#retireButton"),
+  settingsCloseButton: document.querySelector("#settingsCloseButton")
 };
 
 let state;
@@ -69,6 +74,7 @@ if (EMBEDDED_MODE) {
 
 function createGame(mode = currentMode) {
   currentMode = mode;
+  setGridSettingsOpen(false);
   nextId = 1;
   state = {
     mode,
@@ -1481,19 +1487,62 @@ function showOnlineNotice() {
   el.modeNotice.textContent = "オンライン対戦は準備中です。今はCPU対戦を遊べます。";
 }
 
+function setGridSettingsOpen(open) {
+  if (!el.gridSettingsButton || !el.gridSettingsMenu) return;
+  el.gridSettingsButton.setAttribute("aria-expanded", String(Boolean(open)));
+  el.gridSettingsMenu.hidden = !open;
+}
+
+function retireBattle() {
+  setGridSettingsOpen(false);
+  if (!state || state.winner) return;
+  state.selected = null;
+  state.drag = null;
+  cleanupHandCardDrag();
+  state.animating = false;
+  state.winner = "敗北";
+  addLog("リタイアしました。");
+  render();
+}
+
+function navigateHost(view) {
+  if (EMBEDDED_MODE && window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: "chrono-grid:navigate", view }, location.origin);
+    return;
+  }
+  if (view === "home") location.href = "../";
+}
+
+function returnFromDeckEditor() {
+  deckEditorIds = saveDeckIds(deckEditorIds);
+  deckEditorLeaderTraitId = saveLeaderTraitId(deckEditorLeaderTraitId);
+  if (EMBEDDED_MODE) {
+    navigateHost("home");
+    return;
+  }
+  closeDeckEditor();
+}
+
 el.endTurn.addEventListener("click", endTurn);
 el.cpuModeButton.addEventListener("click", startCpuMode);
 el.onlineModeButton.addEventListener("click", showOnlineNotice);
 el.deckModeButton.addEventListener("click", () => openDeckEditor({ returnToMode: true }));
 el.deckEditButton.addEventListener("click", openDeckEditor);
+el.deckBackButton?.addEventListener("click", returnFromDeckEditor);
 el.deckCloseButton.addEventListener("click", () => closeDeckEditor());
 el.deckResetButton.addEventListener("click", resetDeckEditor);
+el.gridSettingsButton?.addEventListener("click", () => {
+  setGridSettingsOpen(el.gridSettingsMenu?.hidden);
+});
+el.settingsCloseButton?.addEventListener("click", () => setGridSettingsOpen(false));
+el.retireButton?.addEventListener("click", retireBattle);
 el.detailCard.addEventListener("click", openFocusCardZoom);
 el.logButton.addEventListener("click", () => {
   state.logOpen = !state.logOpen;
   renderLog();
 });
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setGridSettingsOpen(false);
   if (event.key === "Escape") document.querySelector(".card-zoom-layer")?.remove();
 });
 document.addEventListener("pointermove", updatePieceDrag);
