@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260607-icons";
+const CACHE_VERSION = "chrono-drive-pwa-20260607-noflicker";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260607icons",
+  "/styles.css?v=20260607noflicker",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -49,7 +49,7 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
   "/src/ui/duel-view.js?v=20260601cpurank",
-  "/src/main.js?v=20260607gridui2",
+  "/src/main.js?v=20260607noflicker",
   "/chrono-grid/index.html",
   "/chrono-grid/style.css?v=20260607gridui2",
   "/chrono-grid/data.js?v=20260607gridui2",

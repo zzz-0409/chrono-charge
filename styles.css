@@ -845,6 +845,33 @@ button:disabled {
   height: 100%;
   border: 0;
   background: #050814;
+  opacity: 1;
+  transition: opacity 90ms ease;
+}
+
+.chrono-grid-frame.loading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chrono-grid-view.loading::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 3px solid rgba(198, 231, 255, 0.18);
+  border-top-color: rgba(255, 231, 151, 0.88);
+  border-radius: 50%;
+  animation: chrono-grid-loading-spin 720ms linear infinite;
+}
+
+@keyframes chrono-grid-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .home-shortcut-button.active {

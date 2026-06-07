@@ -169,7 +169,7 @@
   let toastTimer = 0;
   let hiddenViewsReleasedForDuel = false;
   const GRID_REPLACEMENT_MODE = true;
-  const CHRONO_GRID_FRAME_VERSION = "20260607gridui2";
+  const CHRONO_GRID_FRAME_VERSION = "20260607noflicker";
   const CHRONO_GRID_MAINTENANCE_TITLE = "メンテナンス中";
   const CHRONO_GRID_MAINTENANCE_TEXT = "現在はクロノグリッドへの移行作業中です。ゲストモードのCPU戦とデッキ編集だけ利用できます。";
   const DUEL_RECOVERY_KEY = "chrono.cpuDuelRecovery.v1";
@@ -188,15 +188,32 @@
     return view;
   };
 
+  const setChronoGridLoading = (loading) => {
+    els.chronoGridView?.classList.toggle("loading", Boolean(loading));
+    els.chronoGridFrame?.classList.toggle("loading", Boolean(loading));
+  };
+
   const setChronoGridFrame = (mode) => {
     if (!els.chronoGridFrame) return;
     const safeMode = mode === "deck" ? "deck" : "battle";
     const src = `chrono-grid/index.html?embedded=1&entry=${safeMode}&v=${CHRONO_GRID_FRAME_VERSION}`;
     if (els.chronoGridFrame.dataset.mode !== safeMode) {
+      setChronoGridLoading(true);
       els.chronoGridFrame.dataset.mode = safeMode;
       els.chronoGridFrame.src = src;
     }
   };
+
+  els.chronoGridFrame?.addEventListener("load", () => {
+    try {
+      const frameUrl = new URL(els.chronoGridFrame.contentWindow.location.href);
+      const loadedMode = frameUrl.searchParams.get("entry") === "deck" ? "deck" : "battle";
+      if (loadedMode !== els.chronoGridFrame.dataset.mode) return;
+    } catch (error) {
+      console.warn("Chrono Grid frame load check failed:", error);
+    }
+    setChronoGridLoading(false);
+  });
 
   const setView = (view) => {
     view = normalizeView(view);
@@ -214,6 +231,8 @@
     const showChronoGridBattle = view === "chronoGridBattle";
     const showChronoGridDeck = view === "chronoGridDeck";
     const showChronoGrid = showChronoGridBattle || showChronoGridDeck;
+    if (showChronoGridBattle) setChronoGridFrame("battle");
+    if (showChronoGridDeck) setChronoGridFrame("deck");
     els.homeView.hidden = !showHome;
     els.deckSelectView.hidden = !showDeckSelect;
     els.builderView.hidden = !showBuilder;
@@ -259,8 +278,6 @@
       renderDuelMenuDeckCard();
       renderRankedStatus();
     }
-    if (showChronoGridBattle) setChronoGridFrame("battle");
-    if (showChronoGridDeck) setChronoGridFrame("deck");
     renderShellResources();
   };
 
