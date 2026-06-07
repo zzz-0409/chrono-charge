@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260607-keywords";
+const CACHE_VERSION = "chrono-drive-pwa-20260607-badges";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -49,9 +49,9 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
   "/src/ui/duel-view.js?v=20260601cpurank",
-  "/src/main.js?v=20260607keywords",
+  "/src/main.js?v=20260607badges",
   "/chrono-grid/index.html",
-  "/chrono-grid/style.css?v=20260607keywords",
+  "/chrono-grid/style.css?v=20260607badges",
   "/chrono-grid/data.js?v=20260607draw1",
   "/chrono-grid/game.js?v=20260607keywords",
   "/chrono-grid/assets/art/battle-bg.png",
