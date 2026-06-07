@@ -304,11 +304,7 @@ main {
   display: none;
 }
 
-.app-shell.guest-only-mode .header-account,
-.app-shell.guest-only-mode .resource-pill,
-.app-shell.guest-only-mode [data-shell-action="mail"],
-.app-shell.guest-only-mode [data-shell-action="notice"],
-.app-shell.guest-only-mode [data-shell-action="gift"] {
+.app-shell.guest-only-mode .header-account {
   display: none;
 }
 
@@ -1272,24 +1268,245 @@ button:disabled {
   height: 32px;
   display: inline-block;
   flex: 0 0 auto;
-  background-image: url("assets/ui/duel-menu/shell-icons.png");
-  background-repeat: no-repeat;
-  background-size: 400% 300%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  background: transparent;
   filter: drop-shadow(0 0 7px rgba(80, 170, 255, 0.28));
 }
 
-.shell-icon-home { background-position: 0% 0%; }
-.shell-icon-deck { background-position: 33.333% 0%; }
-.shell-icon-pack { background-position: 66.666% 0%; }
-.shell-icon-duel { background-position: 100% 0%; }
-.shell-icon-shop { background-position: 0% 50%; }
-.shell-icon-profile { background-position: 33.333% 50%; }
-.shell-icon-mail { background-position: 66.666% 50%; }
-.shell-icon-bell { background-position: 100% 50%; }
-.shell-icon-gift { background-position: 0% 100%; }
-.shell-icon-settings { background-position: 33.333% 100%; }
-.shell-icon-back { background-position: 66.666% 100%; }
-.shell-icon-plus { background-position: 100% 100%; }
+.shell-icon::before,
+.shell-icon::after {
+  content: "";
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.shell-icon-home::before {
+  left: 6px;
+  top: 13px;
+  width: 20px;
+  height: 14px;
+  border: 3px solid #dffbff;
+  border-top: 0;
+  border-radius: 2px;
+}
+
+.shell-icon-home::after {
+  left: 7px;
+  top: 5px;
+  width: 18px;
+  height: 18px;
+  border-left: 4px solid #dffbff;
+  border-top: 4px solid #dffbff;
+  transform: rotate(45deg);
+}
+
+.shell-icon-deck::before {
+  left: 8px;
+  top: 7px;
+  width: 17px;
+  height: 22px;
+  border: 3px solid #dffbff;
+  border-radius: 3px;
+  box-shadow: -4px 3px 0 rgba(223, 251, 255, 0.45);
+}
+
+.shell-icon-deck::after {
+  left: 12px;
+  top: 13px;
+  width: 9px;
+  height: 3px;
+  border-radius: 999px;
+  background: #dffbff;
+  box-shadow: 0 6px 0 #dffbff;
+}
+
+.shell-icon-pack::before {
+  left: 7px;
+  top: 10px;
+  width: 18px;
+  height: 18px;
+  border: 3px solid #dffbff;
+  border-radius: 4px;
+  transform: rotate(45deg);
+}
+
+.shell-icon-pack::after {
+  left: 14px;
+  top: 5px;
+  width: 4px;
+  height: 22px;
+  border-radius: 999px;
+  background: #dffbff;
+  transform: rotate(45deg);
+}
+
+.shell-icon-duel::before,
+.shell-icon-duel::after {
+  left: 14px;
+  top: 3px;
+  width: 4px;
+  height: 25px;
+  border-radius: 999px;
+  background: #dffbff;
+  transform: rotate(45deg);
+  box-shadow: 0 0 0 1px rgba(223, 251, 255, 0.24);
+}
+
+.shell-icon-duel::after {
+  transform: rotate(-45deg);
+}
+
+.shell-icon-shop::before {
+  left: 6px;
+  top: 13px;
+  width: 20px;
+  height: 14px;
+  border: 3px solid #dffbff;
+  border-radius: 2px;
+}
+
+.shell-icon-shop::after {
+  left: 5px;
+  top: 6px;
+  width: 22px;
+  height: 9px;
+  border-radius: 5px 5px 2px 2px;
+  background: repeating-linear-gradient(90deg, #dffbff 0 5px, transparent 5px 8px);
+  border: 2px solid #dffbff;
+}
+
+.shell-icon-profile::before {
+  left: 11px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border: 3px solid #dffbff;
+  border-radius: 50%;
+}
+
+.shell-icon-profile::after {
+  left: 7px;
+  top: 19px;
+  width: 18px;
+  height: 10px;
+  border: 3px solid #dffbff;
+  border-radius: 12px 12px 4px 4px;
+}
+
+.shell-icon-mail::before {
+  left: 5px;
+  top: 9px;
+  width: 22px;
+  height: 16px;
+  border: 3px solid #dffbff;
+  border-radius: 3px;
+}
+
+.shell-icon-mail::after {
+  left: 8px;
+  top: 10px;
+  width: 16px;
+  height: 16px;
+  border-left: 3px solid #dffbff;
+  border-bottom: 3px solid #dffbff;
+  transform: rotate(-45deg);
+}
+
+.shell-icon-bell::before {
+  left: 8px;
+  top: 6px;
+  width: 16px;
+  height: 18px;
+  border: 3px solid #dffbff;
+  border-radius: 11px 11px 5px 5px;
+}
+
+.shell-icon-bell::after {
+  left: 11px;
+  top: 24px;
+  width: 10px;
+  height: 4px;
+  border-radius: 999px;
+  background: #dffbff;
+}
+
+.shell-icon-gift::before {
+  left: 6px;
+  top: 12px;
+  width: 20px;
+  height: 16px;
+  border: 3px solid #dffbff;
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, transparent 42%, #dffbff 42% 58%, transparent 58%),
+    linear-gradient(180deg, transparent 38%, #dffbff 38% 55%, transparent 55%);
+}
+
+.shell-icon-gift::after {
+  left: 9px;
+  top: 5px;
+  width: 14px;
+  height: 9px;
+  border: 3px solid #dffbff;
+  border-radius: 50% 50% 2px 2px;
+}
+
+.shell-icon-settings::before {
+  left: 6px;
+  top: 6px;
+  width: 20px;
+  height: 20px;
+  border: 4px dotted #dffbff;
+  border-radius: 50%;
+}
+
+.shell-icon-settings::after {
+  left: 13px;
+  top: 13px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dffbff;
+}
+
+.shell-icon-back::before {
+  left: 11px;
+  top: 9px;
+  width: 14px;
+  height: 14px;
+  border-left: 4px solid #dffbff;
+  border-bottom: 4px solid #dffbff;
+  transform: rotate(45deg);
+}
+
+.shell-icon-back::after {
+  left: 12px;
+  top: 15px;
+  width: 17px;
+  height: 4px;
+  border-radius: 999px;
+  background: #dffbff;
+}
+
+.shell-icon-plus::before {
+  left: 7px;
+  top: 14px;
+  width: 18px;
+  height: 4px;
+  border-radius: 999px;
+  background: #dffbff;
+}
+
+.shell-icon-plus::after {
+  left: 14px;
+  top: 7px;
+  width: 4px;
+  height: 18px;
+  border-radius: 999px;
+  background: #dffbff;
+}
 
 .top-icon-button {
   position: relative;

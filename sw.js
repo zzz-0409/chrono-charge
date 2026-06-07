@@ -1,11 +1,11 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260607-gridui2";
+const CACHE_VERSION = "chrono-drive-pwa-20260607-icons";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260607gridui2",
+  "/styles.css?v=20260607icons",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -16,7 +16,6 @@ const APP_SHELL_URLS = [
   "/assets/ui/duel-menu/duel-lobby-bg.png",
   "/assets/ui/duel-menu/duel-mode-panels.png",
   "/assets/ui/duel-menu/mode-emblems.png",
-  "/assets/ui/duel-menu/shell-icons.png",
   "/assets/ui/ranked/rank-bronze.png",
   "/assets/ui/ranked/rank-silver.png",
   "/assets/ui/ranked/rank-gold.png",
