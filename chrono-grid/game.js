@@ -68,12 +68,13 @@ const bootParams = new URLSearchParams(location.search);
 const EMBEDDED_MODE = bootParams.get("embedded") === "1";
 const ENTRY_MODE = bootParams.get("entry") || (location.hash === "#deck" ? "deck" : "menu");
 const EFFECT_KEYWORD_HELP = {
-  固定: "攻撃範囲がカードごとに決まった位置を参照します。ユニットを移動しても攻撃範囲は変わりません。",
-  変動: "攻撃範囲がユニットの現在位置を基準に動きます。ユニットを移動すると攻撃範囲も移動します。",
-  召喚: "このカードを手札から場に出したときに発動する効果です。",
-  発動: "このカードを使ったときに解決する効果です。",
-  罠: "相手フィールドに伏せておき、条件を満たした相手ユニットが入ったときに発動します。",
-  強化: "自分の場の対象に使い、そのユニットや大将を強くするカードです。"
+  発動: "プレイしたときに発動する。",
+  召喚: "場に出したときに発動する。",
+  変動: "攻撃範囲がユニットの現在位置を基準に動く。ユニットを移動すると攻撃範囲も移動する。",
+  固定: "攻撃範囲がユニットの現在位置に依存しない。ユニットを移動しても攻撃範囲は移動しない。",
+  起動: "自分のターン中、任意のタイミングで発動できる。",
+  高速: "召喚、移動したターンに攻撃できる。",
+  消滅: "消滅したときに発動する。"
 };
 
 if (EMBEDDED_MODE) {
@@ -1580,9 +1581,22 @@ function renderEffectText(value) {
   return html;
 }
 
+function normalizeKeywordDigits(keyword) {
+  return String(keyword || "")
+    .replace(/[０-９]/g, (char) => String(char.charCodeAt(0) - 0xff10))
+    .replace(/＿/g, "_");
+}
+
+function keywordHelpText(keyword) {
+  const normalized = normalizeKeywordDigits(keyword);
+  const guard = normalized.match(/^守護_(\d+)$/);
+  if (guard) return `1つ後ろにいるユニットが受けるダメージを${guard[1]}軽減する。`;
+  return EFFECT_KEYWORD_HELP[keyword] || EFFECT_KEYWORD_HELP[normalized] || "このキーワードの説明は準備中です。";
+}
+
 function showKeywordHelp(keyword) {
   const title = keyword || "";
-  const text = EFFECT_KEYWORD_HELP[title] || "このキーワードの説明は準備中です。";
+  const text = keywordHelpText(title);
   closeKeywordHelp();
   const layer = document.createElement("section");
   layer.className = "keyword-help-layer";
