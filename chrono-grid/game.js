@@ -71,6 +71,7 @@ const EFFECT_KEYWORD_HELP = {
   固定: "攻撃範囲がカードごとに決まった位置を参照します。ユニットを移動しても攻撃範囲は変わりません。",
   変動: "攻撃範囲がユニットの現在位置を基準に動きます。ユニットを移動すると攻撃範囲も移動します。",
   召喚: "このカードを手札から場に出したときに発動する効果です。",
+  発動: "このカードを使ったときに解決する効果です。",
   罠: "相手フィールドに伏せておき、条件を満たした相手ユニットが入ったときに発動します。",
   強化: "自分の場の対象に使い、そのユニットや大将を強くするカードです。"
 };
@@ -94,6 +95,7 @@ function createGame(mode = currentMode) {
     animating: false,
     logOpen: false,
     winner: null,
+    choice: null,
     log: [],
     player: createSide("あなた", "自分の大将", 18, 2, 1, "player", loadLeaderTraitId()),
     enemy: createSide("相手", "相手の大将", 18, 0, 1, "enemy", "bulwark")
@@ -453,6 +455,7 @@ function playCard(index, sideName, boardSide, r, c) {
     cell.piece = createUnit(card, sideName, r, c);
     addLog(`${owner.label}が${card.name}を召喚。`);
     triggerTrap(boardSide, cell.piece, r, c);
+    resolveSummonEffect(card, sideName);
   }
 
   if (card.kind === "trap") {
@@ -495,6 +498,46 @@ function applyBoost(card, target, sideName) {
     target.shield = Math.max(target.shield || 0, 1);
     addLog(`${target.name}に星盾結界。次のダメージを軽減。`);
   }
+}
+
+function resolveSummonEffect(card, sideName) {
+  if (card.effect !== "summonReturnDraw") return;
+  const owner = side(sideName);
+  if (!owner.hand.length) {
+    addLog(`${card.name}の召喚効果。戻す手札がないため不発。`);
+    return;
+  }
+  if (sideName !== "player") {
+    const index = chooseReturnDrawIndex(owner.hand);
+    completeReturnDrawChoice(sideName, index, card.name, { renderAfter: false });
+    return;
+  }
+  state.choice = {
+    type: "returnDraw",
+    sideName,
+    sourceName: card.name
+  };
+}
+
+function chooseReturnDrawIndex(hand) {
+  return hand
+    .map((card, index) => ({ card, index }))
+    .sort((a, b) => a.card.cost - b.card.cost || a.index - b.index)[0]?.index ?? -1;
+}
+
+function completeReturnDrawChoice(sideName, index, sourceName, { renderAfter = true } = {}) {
+  const owner = side(sideName);
+  const card = owner.hand[index];
+  if (!card) return;
+  owner.hand.splice(index, 1);
+  owner.deck.push(card);
+  owner.deck = shuffle(owner.deck);
+  addLog(`${label(sideName)}は${sourceName}で${card.name}をデッキに戻した。`);
+  draw(sideName, 1);
+  state.choice = null;
+  cleanup();
+  checkWinner();
+  if (renderAfter) render();
 }
 
 function movePiece(sideName, fromR, fromC, toR, toC) {
@@ -543,7 +586,7 @@ function triggerTrap(enteringSide, piece, r, c) {
 }
 
 function selectCard(index) {
-  if (state.active !== "player" || state.winner || state.animating) return;
+  if (state.choice || state.active !== "player" || state.winner || state.animating) return;
   if (state.suppressClick) {
     state.suppressClick = false;
     return;
@@ -560,7 +603,7 @@ function selectCard(index) {
 }
 
 function clickCell(boardSide, r, c) {
-  if (state.active !== "player" || state.winner || state.animating) return;
+  if (state.choice || state.active !== "player" || state.winner || state.animating) return;
   if (state.suppressClick) {
     state.suppressClick = false;
     return;
@@ -596,7 +639,7 @@ function clickCell(boardSide, r, c) {
 }
 
 async function endTurn() {
-  if (state.active !== "player" || state.winner || state.animating) return;
+  if (state.choice || state.active !== "player" || state.winner || state.animating) return;
   addLog("あなたのターン終了。");
   state.animating = true;
   render();
@@ -704,6 +747,7 @@ function render() {
   renderDetail();
   renderLog();
   renderBanner();
+  renderChoiceModal();
   renderDragArrow();
 }
 
@@ -717,7 +761,7 @@ function renderHud() {
     const over = i < orangeCount;
     return `<span class="pip${active ? "" : " empty"}${over ? " over" : ""}"></span>`;
   }).join("");
-  el.endTurn.disabled = state.active !== "player" || Boolean(state.winner) || state.animating;
+  el.endTurn.disabled = Boolean(state.choice) || state.active !== "player" || Boolean(state.winner) || state.animating;
   el.hint.textContent = hintText();
 }
 
@@ -803,7 +847,7 @@ function renderHand() {
   state.player.hand.forEach((card, index) => {
     const node = makeCardNode(card);
     node.classList.toggle("selected", state.selected?.type === "card" && state.selected.index === index);
-    const disabled = card.cost > state.player.ap || state.active !== "player" || Boolean(state.winner) || state.animating;
+    const disabled = Boolean(state.choice) || card.cost > state.player.ap || state.active !== "player" || Boolean(state.winner) || state.animating;
     node.classList.toggle("disabled", disabled);
     node.classList.toggle("insufficient-cost", card.cost > state.player.ap && state.active === "player" && !state.winner && !state.animating);
     node.draggable = false;
@@ -1101,6 +1145,48 @@ function renderBanner() {
   el.stage.append(banner);
 }
 
+function renderChoiceModal() {
+  document.querySelector(".choice-layer")?.remove();
+  if (!state.choice) return;
+  const choice = state.choice;
+  if (choice.type !== "returnDraw") return;
+  const owner = side(choice.sideName);
+  const layer = document.createElement("section");
+  layer.className = "choice-layer";
+  layer.innerHTML = `
+    <div class="choice-dialog" role="dialog" aria-modal="true" aria-labelledby="choiceTitle">
+      <div class="choice-copy">
+        <strong id="choiceTitle">${escapeHtml(choice.sourceName)}</strong>
+        <p>デッキに戻す手札を1枚選んでください。</p>
+      </div>
+      <div class="choice-card-grid"></div>
+    </div>
+  `;
+  const grid = layer.querySelector(".choice-card-grid");
+  owner.hand.forEach((card, index) => {
+    const button = document.createElement("div");
+    button.className = "choice-card";
+    button.tabIndex = 0;
+    button.setAttribute("role", "button");
+    button.setAttribute("aria-label", `${card.name}をデッキに戻す`);
+    const cardNode = makeCardNode(card);
+    cardNode.tabIndex = -1;
+    cardNode.setAttribute("aria-hidden", "true");
+    button.append(cardNode);
+    const name = document.createElement("span");
+    name.textContent = card.name;
+    button.append(name);
+    button.addEventListener("click", () => completeReturnDrawChoice(choice.sideName, index, choice.sourceName));
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      completeReturnDrawChoice(choice.sideName, index, choice.sourceName);
+    });
+    grid.append(button);
+  });
+  el.stage.append(layer);
+}
+
 function openFocusCardZoom() {
   if (state.animating) return;
   const focus = currentFocus();
@@ -1162,6 +1248,7 @@ function showDamagePopup(sideName, r, c, amount) {
 function hintText() {
   const selected = state.selected;
   if (state.winner) return `${state.winner}。リロードで再戦できます。`;
+  if (state.choice) return "召喚効果でデッキに戻す手札を選んでください。";
   if (!selected) return "カードを選ぶ、または自分の大将・ユニットを選んで移動できます。";
   if (selected.type === "piece") return "空きマスを選ぶと移動します。ユニットは距離ぶんAP消費、大将は1回無料です。";
   const card = state.player.hand[selected.index];
@@ -1177,12 +1264,12 @@ function selectedCell(sideName, r, c) {
 }
 
 function selectableCell(sideName, r, c) {
-  return !state.animating && state.active === "player" && sideName === "player" && Boolean(sideName && side(sideName).board[r][c].piece);
+  return !state.choice && !state.animating && state.active === "player" && sideName === "player" && Boolean(sideName && side(sideName).board[r][c].piece);
 }
 
 function targetableCell(sideName, r, c) {
   const selected = state.selected;
-  if (state.animating || state.active !== "player" || selected?.type !== "card") return false;
+  if (state.choice || state.animating || state.active !== "player" || selected?.type !== "card") return false;
   const card = state.player.hand[selected.index];
   return cardCanPlayAt(card, sideName, r, c);
 }
@@ -1205,7 +1292,7 @@ function cardDropHoverCell(sideName, r, c, valid) {
 
 function moveTargetCell(sideName, r, c) {
   const selected = state.selected;
-  if (state.animating || state.active !== "player" || selected?.type !== "piece" || (selected.side || "player") !== "player" || sideName !== "player") return false;
+  if (state.choice || state.animating || state.active !== "player" || selected?.type !== "piece" || (selected.side || "player") !== "player" || sideName !== "player") return false;
   const cell = side(sideName).board[r][c];
   if (cell.piece) return false;
   const piece = state.player.board[selected.r][selected.c].piece;
@@ -1216,7 +1303,7 @@ function moveTargetCell(sideName, r, c) {
 }
 
 function startHandCardDrag(event, index, node) {
-  if (event.button !== 0 || state.active !== "player" || state.winner || state.animating) return;
+  if (event.button !== 0 || state.choice || state.active !== "player" || state.winner || state.animating) return;
   const card = state.player.hand[index];
   if (!card || card.cost > state.player.ap) return;
   if (card.kind === "boost" && card.target === "none") return;
@@ -1315,7 +1402,7 @@ function cleanupHandCardDrag(resetSuppress = true) {
 }
 
 function startPieceDrag(event, sideName, r, c) {
-  if (event.button !== 0 || state.active !== "player" || state.winner || state.animating || sideName !== "player") return;
+  if (event.button !== 0 || state.choice || state.active !== "player" || state.winner || state.animating || sideName !== "player") return;
   const piece = side("player").board[r][c].piece;
   if (!piece) return;
   event.preventDefault();

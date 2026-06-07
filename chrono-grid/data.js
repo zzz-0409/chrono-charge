@@ -6,7 +6,8 @@ const ART = {
   witch: "assets/art/clockwork-witch.png",
   forest: "assets/art/forest-guardian.png",
   shadow: "assets/art/shadow-assassin.png",
-  omen: "assets/art/star-read-omen.png"
+  omen: "assets/art/star-read-omen.png",
+  starGuide: "assets/art/star-map-guide.png"
 };
 
 const CARD_FRAMES = {
@@ -150,6 +151,20 @@ const CARDS = {
     rarity: "silver",
     art: ART.omen,
     text: "[発動] 自分のデッキを1枚引く。"
+  },
+  starMapGuide: {
+    id: "starMapGuide",
+    name: "星図の先導者",
+    kind: "unit",
+    cost: 3,
+    atk: 2,
+    hp: 4,
+    pattern: "front",
+    rangeType: "variable",
+    effect: "summonReturnDraw",
+    rarity: "silver",
+    art: ART.starGuide,
+    text: "[変動]正面1マスに攻撃。\n[召喚]手札を1枚選んでデッキに戻し、その後デッキを1枚引く。"
   }
 };
 
@@ -157,7 +172,7 @@ const DECK = [
   "flameVanguard", "flameVanguard", "flameVanguard",
   "clockWitch", "clockWitch",
   "forestGuard", "forestGuard",
-  "shadowRaider", "shadowRaider",
+  "shadowRaider", "starMapGuide",
   "spikeTrap", "spikeTrap",
   "snareTrap",
   "hasteSeal",
