@@ -1,4 +1,4 @@
-const CACHE_VERSION = "chrono-drive-pwa-20260607-noflicker";
+const CACHE_VERSION = "chrono-drive-pwa-20260607-draw1";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -49,16 +49,17 @@ const APP_SHELL_URLS = [
   "/src/ui/pack-view.js?v=20260529notice",
   "/src/net/online-client.js?v=20260528rankedsystems",
   "/src/ui/duel-view.js?v=20260601cpurank",
-  "/src/main.js?v=20260607noflicker",
+  "/src/main.js?v=20260607draw1",
   "/chrono-grid/index.html",
   "/chrono-grid/style.css?v=20260607gridui2",
-  "/chrono-grid/data.js?v=20260607gridui2",
-  "/chrono-grid/game.js?v=20260607gridui2",
+  "/chrono-grid/data.js?v=20260607draw1",
+  "/chrono-grid/game.js?v=20260607draw1",
   "/chrono-grid/assets/art/battle-bg.png",
   "/chrono-grid/assets/art/flame-knight.png",
   "/chrono-grid/assets/art/clockwork-witch.png",
   "/chrono-grid/assets/art/forest-guardian.png",
   "/chrono-grid/assets/art/shadow-assassin.png",
+  "/chrono-grid/assets/art/star-read-omen.png",
   "/chrono-grid/assets/ui/card-frame-base-3slot-name-overlay.png",
   "/chrono-grid/assets/ui/card-frame-base-3slot-name-ornate-overlay.png",
   "/chrono-grid/assets/ui/card-frame-rarity-silver-overlay.png",

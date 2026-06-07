@@ -5,7 +5,8 @@ const ART = {
   flame: "assets/art/flame-knight.png",
   witch: "assets/art/clockwork-witch.png",
   forest: "assets/art/forest-guardian.png",
-  shadow: "assets/art/shadow-assassin.png"
+  shadow: "assets/art/shadow-assassin.png",
+  omen: "assets/art/star-read-omen.png"
 };
 
 const CARD_FRAMES = {
@@ -137,6 +138,18 @@ const CARDS = {
     rarity: "rainbow",
     art: ART.forest,
     text: "自分の大将かユニット1体に盾を付与し、次に受けるダメージを1軽減する。"
+  },
+  starReadOmen: {
+    id: "starReadOmen",
+    name: "星詠みの予兆",
+    kind: "boost",
+    cost: 1,
+    target: "none",
+    effect: "draw",
+    draw: 1,
+    rarity: "silver",
+    art: ART.omen,
+    text: "[発動] 自分のデッキを1枚引く。"
   }
 };
 
@@ -146,8 +159,9 @@ const DECK = [
   "forestGuard", "forestGuard",
   "shadowRaider", "shadowRaider",
   "spikeTrap", "spikeTrap",
-  "snareTrap", "snareTrap",
-  "hasteSeal", "hasteSeal",
+  "snareTrap",
+  "hasteSeal",
+  "starReadOmen", "starReadOmen",
   "starShield", "starShield"
 ];
 

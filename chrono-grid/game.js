@@ -428,6 +428,15 @@ function playCard(index, sideName, boardSide, r, c) {
   const card = owner.hand[index];
   if (!card || owner.ap < card.cost) return false;
 
+  if (card.kind === "boost" && card.target === "none") {
+    owner.ap -= card.cost;
+    owner.hand.splice(index, 1);
+    applyBoost(card, null, sideName);
+    cleanup();
+    checkWinner();
+    return true;
+  }
+
   if (card.kind === "unit") {
     if (boardSide !== sideName) return false;
     const cell = side(boardSide).board[r][c];
@@ -457,7 +466,7 @@ function playCard(index, sideName, boardSide, r, c) {
     if (card.id === "hasteSeal" && target.type !== "unit") return false;
     owner.ap -= card.cost;
     owner.hand.splice(index, 1);
-    applyBoost(card, target);
+    applyBoost(card, target, sideName);
   }
 
   cleanup();
@@ -465,7 +474,12 @@ function playCard(index, sideName, boardSide, r, c) {
   return true;
 }
 
-function applyBoost(card, target) {
+function applyBoost(card, target, sideName) {
+  if (card.effect === "draw") {
+    draw(sideName, card.draw || 1);
+    addLog(`${label(sideName)}は${card.name}でカードを${card.draw || 1}枚引いた。`);
+    return;
+  }
   if (card.id === "hasteSeal") {
     target.atk += 1;
     addLog(`${target.name}に加速刻印。攻撃力+1。`);
@@ -529,6 +543,11 @@ function selectCard(index) {
   }
   const card = state.player.hand[index];
   if (!card) return;
+  if (card.kind === "boost" && card.target === "none") {
+    if (playCard(index, "player", "player", 0, 0)) state.selected = null;
+    render();
+    return;
+  }
   state.selected = { type: "card", index };
   render();
 }
@@ -628,6 +647,7 @@ function preferredEnemyMoveTarget(piece) {
 }
 
 function enemyTarget(card) {
+  if (card.kind === "boost" && card.target === "none") return { side: "enemy", r: 0, c: 0 };
   if (card.kind === "unit") {
     const cell = emptyCells("enemy")[0];
     return cell ? { side: "enemy", ...cell } : null;
@@ -1162,6 +1182,7 @@ function targetableCell(sideName, r, c) {
 
 function cardCanPlayAt(card, boardSide, r, c) {
   if (!card || card.cost > state.player.ap || !inBounds(r, c)) return false;
+  if (card.kind === "boost" && card.target === "none") return false;
   const cell = side(boardSide).board[r][c];
   if (card.kind === "unit") return boardSide === "player" && !cell.piece;
   if (card.kind === "trap") return boardSide === "enemy" && !cell.piece && !cell.trap;
@@ -1191,6 +1212,7 @@ function startHandCardDrag(event, index, node) {
   if (event.button !== 0 || state.active !== "player" || state.winner || state.animating) return;
   const card = state.player.hand[index];
   if (!card || card.cost > state.player.ap) return;
+  if (card.kind === "boost" && card.target === "none") return;
   clearTimeout(dragHoldTimer);
   const ghost = node.cloneNode(true);
   ghost.classList.add("hand-card-ghost");
