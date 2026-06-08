@@ -168,8 +168,8 @@
 
   let toastTimer = 0;
   let hiddenViewsReleasedForDuel = false;
-  const GRID_REPLACEMENT_MODE = false;
-  const CHRONO_GRID_FRAME_VERSION = "20260607zoomtop";
+  const GRID_REPLACEMENT_MODE = true;
+  const CHRONO_GRID_FRAME_VERSION = "20260608online";
   const CHRONO_GRID_MAINTENANCE_TITLE = "メンテナンス中";
   const CHRONO_GRID_MAINTENANCE_TEXT = "現在はクロノグリッドへの移行作業中です。ゲストモードのCPU戦とデッキ編集だけ利用できます。";
   const DUEL_RECOVERY_KEY = "chrono.cpuDuelRecovery.v1";
@@ -184,6 +184,7 @@
   const normalizeView = (view) => {
     if (!GRID_REPLACEMENT_MODE) return view;
     if (view === "deckSelect" || view === "builder") return "chronoGridDeck";
+    if (view === "duelMenu") return "chronoGridMenu";
     if (view === "duel") return "chronoGridBattle";
     return view;
   };
@@ -195,7 +196,7 @@
 
   const setChronoGridFrame = (mode) => {
     if (!els.chronoGridFrame) return;
-    const safeMode = mode === "deck" ? "deck" : "battle";
+    const safeMode = mode === "deck" || mode === "menu" ? mode : "battle";
     const src = `chrono-grid/index.html?embedded=1&entry=${safeMode}&v=${CHRONO_GRID_FRAME_VERSION}`;
     if (els.chronoGridFrame.dataset.mode !== safeMode) {
       setChronoGridLoading(true);
@@ -207,7 +208,8 @@
   els.chronoGridFrame?.addEventListener("load", () => {
     try {
       const frameUrl = new URL(els.chronoGridFrame.contentWindow.location.href);
-      const loadedMode = frameUrl.searchParams.get("entry") === "deck" ? "deck" : "battle";
+      const entry = frameUrl.searchParams.get("entry");
+      const loadedMode = entry === "deck" || entry === "menu" ? entry : "battle";
       if (loadedMode !== els.chronoGridFrame.dataset.mode) return;
     } catch (error) {
       console.warn("Chrono Grid frame load check failed:", error);
@@ -228,9 +230,11 @@
     const showPackResult = view === "packResult";
     const showDuelMenu = view === "duelMenu";
     const showDuel = view === "duel";
+    const showChronoGridMenu = view === "chronoGridMenu";
     const showChronoGridBattle = view === "chronoGridBattle";
     const showChronoGridDeck = view === "chronoGridDeck";
-    const showChronoGrid = showChronoGridBattle || showChronoGridDeck;
+    const showChronoGrid = showChronoGridMenu || showChronoGridBattle || showChronoGridDeck;
+    if (showChronoGridMenu) setChronoGridFrame("menu");
     if (showChronoGridBattle) setChronoGridFrame("battle");
     if (showChronoGridDeck) setChronoGridFrame("deck");
     els.homeView.hidden = !showHome;
@@ -255,7 +259,7 @@
         ? "deckSelect"
         : showPack || showPackResult
         ? "pack"
-        : showDuelMenu || showDuel || showChronoGridBattle
+        : showDuelMenu || showDuel || showChronoGridMenu || showChronoGridBattle
           ? "duelMenu"
           : "home";
     document.querySelectorAll("[data-nav-view]").forEach((button) => {

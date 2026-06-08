@@ -2563,8 +2563,14 @@ syncAccountFromServer().finally(() => {
   renderDeckPresetScreen();
 });
 if (EMBEDDED_MODE) {
-  hideModeSelect();
-  if (ENTRY_MODE === "deck") openDeckPresetScreen();
+  if (ENTRY_MODE === "deck") {
+    hideModeSelect();
+    openDeckPresetScreen();
+  } else if (ENTRY_MODE === "menu") {
+    showModeSelect();
+  } else {
+    hideModeSelect();
+  }
 } else if (location.hash !== "#deck") {
   showModeSelect();
 }
