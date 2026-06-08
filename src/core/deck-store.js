@@ -34,6 +34,7 @@
   const ROYAL_FINISH = "royal";
   const ROYAL_RATE = 0.01;
   const ROYAL_PACK_RATE = 0.001;
+  const GRANT_FULL_COLLECTION_TO_ACCOUNTS = true;
   const AUTO_BUILD_THEMES = {
     star: "星導",
     black: "黒機",
@@ -460,7 +461,9 @@
         presents: [],
         lastLoginBonusDate: "",
         loginBonus: normalizeLoginBonusRecord(),
-        collection: this.initialCollection(mainDeck, driveDeck),
+        collection: GRANT_FULL_COLLECTION_TO_ACCOUNTS
+          ? this.fullCollection()
+          : this.initialCollection(mainDeck, driveDeck),
         collectionRoyal: {},
         updatedAt: new Date().toISOString(),
         decks: {
@@ -927,6 +930,7 @@
 
     minimumOwnedCount(id, finish = "normal") {
       if (finish === ROYAL_FINISH || !cards[id]) return 0;
+      if (GRANT_FULL_COLLECTION_TO_ACCOUNTS) return Math.max(0, Number(this.fullCollection()[id] || 0));
       return Math.max(0, Number(this.initialCollection(starterDeck, starterDriveDeck)[id] || 0));
     }
 
@@ -1222,7 +1226,7 @@
       return result;
     }
 
-    guestCollection() {
+    fullCollection() {
       const result = {};
       cardPool.forEach((card) => {
         if (!card?.id || card.driveKind || card.type === "環境") return;
@@ -1235,6 +1239,10 @@
       return result;
     }
 
+    guestCollection() {
+      return this.fullCollection();
+    }
+
     normalizeCollection(collection = {}, decks = {}, finish = "normal") {
       const result = {};
       Object.entries(collection || {}).forEach(([id, count]) => {
@@ -1244,7 +1252,10 @@
       });
 
       if (finish !== ROYAL_FINISH) {
-        Object.entries(this.initialCollection(starterDeck, starterDriveDeck)).forEach(([id, count]) => {
+        const minimumCollection = GRANT_FULL_COLLECTION_TO_ACCOUNTS
+          ? this.fullCollection()
+          : this.initialCollection(starterDeck, starterDriveDeck);
+        Object.entries(minimumCollection).forEach(([id, count]) => {
           result[id] = Math.max(result[id] || 0, Number(count) || 0);
         });
       }

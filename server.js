@@ -40,7 +40,9 @@ const chrono = loadChronoData();
 const cards = chrono.cards;
 const DECK_SIZE = chrono.DECK_SIZE || 40;
 const DRIVE_DECK_SIZE = chrono.DRIVE_DECK_SIZE || 10;
+const MAX_COPIES = chrono.MAX_COPIES || 3;
 const MAX_DRIVE_COPIES = chrono.MAX_DRIVE_COPIES || 1;
+const GRANT_FULL_COLLECTION_TO_ACCOUNTS = true;
 const SOSAI_PAIRS = [
   ["sosai_hikari", "sosai_mint"],
   ["sosai_nene", "sosai_ruri"],
@@ -3868,7 +3870,9 @@ function createDefaultAccountRecord(username, displayName = "Player") {
     presents: [],
     lastLoginBonusDate: "",
     loginBonus: sanitizeLoginBonusRecord({ updatedAt: now }),
-    collection: initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {}),
+    collection: GRANT_FULL_COLLECTION_TO_ACCOUNTS
+      ? fullCollection()
+      : initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {}),
     collectionRoyal: {},
     updatedAt: now,
     decks: {
@@ -3896,6 +3900,19 @@ function initialCollection(mainDeck = {}, driveDeck = {}) {
     if (isDriveCard(cards[id])) {
       result[id] = Math.max(result[id] || 0, Math.floor(Number(count) || 0));
     }
+  });
+  return result;
+}
+
+function fullCollection() {
+  const result = {};
+  (chrono.cardPool || []).forEach((card) => {
+    if (!card?.id || isDriveCard(card)) return;
+    result[card.id] = MAX_COPIES;
+  });
+  (chrono.drivePool || []).forEach((card) => {
+    if (!isDriveCard(card)) return;
+    result[card.id] = MAX_DRIVE_COPIES;
   });
   return result;
 }
@@ -4230,7 +4247,10 @@ function sanitizeCounts(source = {}) {
 
 function sanitizeCollection(source = {}) {
   const result = sanitizeCounts(source);
-  Object.entries(initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {})).forEach(([id, count]) => {
+  const minimumCollection = GRANT_FULL_COLLECTION_TO_ACCOUNTS
+    ? fullCollection()
+    : initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {});
+  Object.entries(minimumCollection).forEach(([id, count]) => {
     result[id] = Math.max(result[id] || 0, Number(count) || 0);
   });
   return result;

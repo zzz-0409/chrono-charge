@@ -168,7 +168,7 @@
 
   let toastTimer = 0;
   let hiddenViewsReleasedForDuel = false;
-  const GRID_REPLACEMENT_MODE = true;
+  const GRID_REPLACEMENT_MODE = false;
   const CHRONO_GRID_FRAME_VERSION = "20260607zoomtop";
   const CHRONO_GRID_MAINTENANCE_TITLE = "メンテナンス中";
   const CHRONO_GRID_MAINTENANCE_TEXT = "現在はクロノグリッドへの移行作業中です。ゲストモードのCPU戦とデッキ編集だけ利用できます。";
@@ -261,7 +261,7 @@
     document.querySelectorAll("[data-nav-view]").forEach((button) => {
       button.classList.toggle("active", button.dataset.navView === activeNavView);
     });
-    const accountEnabled = showHome && !GRID_REPLACEMENT_MODE;
+    const accountEnabled = !GRID_REPLACEMENT_MODE;
     els.loginButton.disabled = !accountEnabled;
     els.displayNameInput.disabled = !accountEnabled;
     els.saveDisplayNameButton.disabled = !accountEnabled;
