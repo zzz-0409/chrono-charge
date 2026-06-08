@@ -37,6 +37,7 @@ const DAILY_LOGIN_BONUS_GEMS = 1000;
 const LOGIN_BONUS_CYCLE_DAYS = 10;
 
 const chrono = loadChronoData();
+const chronoGrid = loadChronoGridData();
 const cards = chrono.cards;
 const DECK_SIZE = chrono.DECK_SIZE || 40;
 const DRIVE_DECK_SIZE = chrono.DRIVE_DECK_SIZE || 10;
@@ -55,12 +56,13 @@ const SOSAI_DRIVE_PAIR_IDS = [
 ];
 
 const rooms = new Map();
+const gridRooms = new Map();
 
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
     if (url.pathname === "/health") {
-      sendJson(res, 200, { ok: true, rooms: rooms.size });
+      sendJson(res, 200, { ok: true, rooms: rooms.size, gridRooms: gridRooms.size });
       return;
     }
     if (url.pathname.startsWith("/api/")) {
@@ -83,6 +85,13 @@ function loadChronoData() {
   const code = fs.readFileSync(path.join(ROOT, "src", "data", "cards.js"), "utf8");
   vm.runInNewContext(code, context, { filename: "cards.js" });
   return context.window.Chrono;
+}
+
+function loadChronoGridData() {
+  const context = { window: {} };
+  const code = fs.readFileSync(path.join(ROOT, "chrono-grid", "data.js"), "utf8");
+  vm.runInNewContext(code, context, { filename: "chrono-grid/data.js" });
+  return context.window.ChronoGridData || {};
 }
 
 function keepAliveUrls() {
@@ -118,6 +127,11 @@ function startKeepAlive() {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname.startsWith("/api/grid/")) {
+    await handleGridApi(req, res, url);
+    return;
+  }
+
   if (url.pathname === "/api/auth/register") {
     await handleRegisterApi(req, res);
     return;
@@ -247,6 +261,597 @@ async function handleApi(req, res, url) {
   }
 
   sendJson(res, 404, { error: "not found" });
+}
+
+async function handleGridApi(req, res, url) {
+  if (url.pathname === "/api/grid/rooms" && req.method === "POST") {
+    const body = await readJson(req);
+    const room = createGridRoom(
+      validateGridDeck(body.deck),
+      validateGridTrait(body.leaderTraitId),
+      normalizeAccountName(body.playerName || body.displayName || "Player"),
+    );
+    sendJson(res, 200, gridSessionPayload(room, "host"));
+    return;
+  }
+
+  if (url.pathname === "/api/grid/ranked/queue") {
+    await handleGridRankedQueueApi(req, res);
+    return;
+  }
+
+  if (url.pathname === "/api/grid/ranked/resume") {
+    await handleGridRankedResumeApi(req, res);
+    return;
+  }
+
+  if (url.pathname === "/api/grid/ranked/leaderboard") {
+    await handleRankedLeaderboardApi(req, res);
+    return;
+  }
+
+  const match = url.pathname.match(/^\/api\/grid\/rooms\/([A-Z0-9]{4,8})(?:\/(join|state|action))?$/);
+  if (!match) {
+    sendJson(res, 404, { error: "not found" });
+    return;
+  }
+
+  const room = gridRooms.get(match[1]);
+  if (!room) {
+    sendJson(res, 404, { error: "room not found" });
+    return;
+  }
+
+  const route = match[2];
+  if (route === "join" && req.method === "POST") {
+    if (room.mode === "ranked") {
+      sendJson(res, 403, { error: "use ranked matchmaking" });
+      return;
+    }
+    if (room.players.guest) {
+      sendJson(res, 409, { error: "room is full" });
+      return;
+    }
+    const body = await readJson(req);
+    room.players.guest = {
+      id: makeId(12),
+      name: normalizeAccountName(body.playerName || body.displayName || "Player"),
+      deck: validateGridDeck(body.deck),
+      leaderTraitId: validateGridTrait(body.leaderTraitId),
+      account: "",
+    };
+    startGridRoomGame(room);
+    sendJson(res, 200, gridSessionPayload(room, "guest", { matched: true }));
+    return;
+  }
+
+  if (route === "state" && req.method === "GET") {
+    const seat = getGridSeat(room, url.searchParams.get("playerId"));
+    if (!seat) {
+      sendJson(res, 403, { error: "invalid player" });
+      return;
+    }
+    await prepareGridRoomForSeat(room, seat);
+    sendJson(res, 200, gridRoomSnapshot(room, seat));
+    return;
+  }
+
+  if (route === "action" && req.method === "POST") {
+    const body = await readJson(req);
+    const seat = getGridSeat(room, body.playerId);
+    if (!seat) {
+      sendJson(res, 403, { error: "invalid player" });
+      return;
+    }
+    await applyGridState(room, seat, body.state || {});
+    sendJson(res, 200, gridRoomSnapshot(room, seat));
+    return;
+  }
+
+  sendJson(res, 404, { error: "not found" });
+}
+
+async function handleGridRankedQueueApi(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "method not allowed" });
+    return;
+  }
+  const auth = await authenticateRequest(req);
+  if (!auth) {
+    sendJson(res, 401, { error: "login required" });
+    return;
+  }
+
+  const body = await readJson(req);
+  cleanupGridRankedWaitingRooms();
+  removeGridRankedWaitingRoomsFor(auth.username);
+
+  const player = {
+    name: normalizeAccountName(body.playerName || body.displayName || auth.account.displayName || auth.username),
+    deck: validateGridDeck(body.deck),
+    leaderTraitId: validateGridTrait(body.leaderTraitId),
+    account: auth.username,
+  };
+  const rankedRecord = sanitizeRankedRecord(auth.account.ranked);
+  const waitingRoom = findGridRankedWaitingRoom(auth.username);
+  if (waitingRoom) {
+    waitingRoom.players.guest = {
+      id: makeId(12),
+      ...player,
+    };
+    waitingRoom.ranked.accounts.guest = auth.username;
+    waitingRoom.ranked.profiles.guest = rankedProfile({
+      username: auth.username,
+      name: player.name,
+      points: rankedRecord.points,
+    });
+    startGridRoomGame(waitingRoom);
+    sendJson(res, 200, gridSessionPayload(waitingRoom, "guest", { matched: true }));
+    return;
+  }
+
+  const room = createGridRoom(player.deck, player.leaderTraitId, player.name, {
+    mode: "ranked",
+    hostUsername: auth.username,
+    hostRankedPoints: rankedRecord.points,
+  });
+  sendJson(res, 200, gridSessionPayload(room, "host"));
+}
+
+async function handleGridRankedResumeApi(req, res) {
+  const auth = await authenticateRequest(req);
+  if (!auth) {
+    sendJson(res, 401, { error: "login required" });
+    return;
+  }
+  const found = findGridRankedRoomForAccount(auth.username);
+  if (!found) {
+    sendJson(res, 200, { room: null });
+    return;
+  }
+  if (req.method === "POST") {
+    const body = await readJson(req);
+    if (body.action === "abandon" && found.room.game && !found.room.game.finished) {
+      found.room.game.winner = found.seat === "host" ? "敗北" : "勝利";
+      found.room.game.finished = true;
+      found.room.ranked.finishReason = "forfeit";
+      await reportGridRankedResult(found.room);
+    }
+  } else if (req.method !== "GET") {
+    sendJson(res, 405, { error: "method not allowed" });
+    return;
+  }
+  await prepareGridRoomForSeat(found.room, found.seat);
+  sendJson(res, 200, { room: gridSessionPayload(found.room, found.seat, { resumed: true, finished: Boolean(found.room.game?.finished) }) });
+}
+
+function createGridRoom(deck, leaderTraitId, playerName = "Player", options = {}) {
+  let id = "";
+  do {
+    id = makeId(5);
+  } while (gridRooms.has(id));
+  const mode = options.mode === "ranked" ? "ranked" : "room";
+  const hostUsername = normalizeUsername(options.hostUsername);
+  const now = Date.now();
+  const room = {
+    id,
+    mode,
+    status: "waiting",
+    createdAt: now,
+    version: 1,
+    players: {
+      host: {
+        id: makeId(12),
+        name: normalizeAccountName(playerName),
+        account: hostUsername,
+        deck,
+        leaderTraitId,
+      },
+      guest: null,
+    },
+    game: null,
+    ranked: mode === "ranked"
+      ? {
+        accounts: { host: hostUsername, guest: "" },
+        profiles: {
+          host: rankedProfile({
+            username: hostUsername,
+            name: playerName,
+            points: rankedPointsValue(options.hostRankedPoints),
+          }),
+          guest: null,
+        },
+        results: null,
+        reported: false,
+        cpuSeat: "",
+      }
+      : null,
+  };
+  gridRooms.set(id, room);
+  return room;
+}
+
+function startGridRoomGame(room) {
+  if (!room.players.host || !room.players.guest) return;
+  room.status = "playing";
+  room.game = createGridGame(room.players.host, room.players.guest);
+  room.version += 1;
+}
+
+function createGridGame(host, guest) {
+  let id = 1;
+  const next = () => id++;
+  const game = {
+    mode: "online",
+    active: "player",
+    turn: 1,
+    completedTurns: 0,
+    selected: null,
+    drag: null,
+    cardDrag: null,
+    suppressClick: false,
+    animating: false,
+    logOpen: false,
+    winner: null,
+    finished: false,
+    choice: null,
+    log: [],
+    nextId: 1,
+    player: createGridSide(host.name, "自分の大将", 18, 2, 1, "player", host.leaderTraitId),
+    enemy: createGridSide(guest.name, "相手の大将", 18, 0, 1, "enemy", guest.leaderTraitId),
+  };
+  game.player.deck = shuffleGrid(host.deck.map((cardId) => createGridCard(cardId, "player", next)));
+  game.enemy.deck = shuffleGrid(guest.deck.map((cardId) => createGridCard(cardId, "enemy", next)));
+  gridDraw(game, "player", 5 + (gridLeaderTrait(game.player.leaderTraitId).bonusDraw || 0));
+  gridDraw(game, "enemy", 5 + (gridLeaderTrait(game.enemy.leaderTraitId).bonusDraw || 0));
+  startGridTurn(game, "player", true);
+  game.log.unshift("オンライン対戦を開始しました。");
+  game.nextId = id;
+  return game;
+}
+
+function createGridSide(label, leaderName, hp, leaderR, leaderC, sideName, leaderTraitId = "bulwark") {
+  const board = Array.from({ length: chronoGrid.BOARD || 3 }, () =>
+    Array.from({ length: chronoGrid.BOARD || 3 }, () => ({ piece: null, trap: null }))
+  );
+  const traitId = validateGridTrait(leaderTraitId);
+  board[leaderR][leaderC].piece = {
+    id: `leader-${sideName}`,
+    type: "leader",
+    name: "大将",
+    label: leaderName,
+    side: sideName,
+    r: leaderR,
+    c: leaderC,
+    hp,
+    leaderTraitId: traitId,
+    shield: 0,
+    art: sideName === "player" ? chronoGrid.ART?.forest : chronoGrid.ART?.witch,
+  };
+  return {
+    label,
+    leaderName,
+    hp,
+    maxHp: hp,
+    leaderTraitId: traitId,
+    maxAp: chronoGrid.START_AP || 1,
+    ap: chronoGrid.START_AP || 1,
+    hasStarted: false,
+    leaderMove: 1,
+    turnsStarted: 0,
+    hand: [],
+    deck: [],
+    board,
+  };
+}
+
+function createGridCard(cardId, owner, next) {
+  const card = chronoGrid.CARDS?.[cardId];
+  return { ...card, uid: `${owner}-${next()}`, owner };
+}
+
+function gridDraw(game, sideName, count = 1) {
+  const target = game[sideName];
+  for (let i = 0; i < count; i++) {
+    if (!target.deck.length) continue;
+    target.hand.push(target.deck.shift());
+  }
+}
+
+function startGridTurn(game, sideName, first = false) {
+  game.active = sideName;
+  const current = game[sideName];
+  current.turnsStarted += 1;
+  if (!current.hasStarted) {
+    current.maxAp = chronoGrid.START_AP || 1;
+    current.hasStarted = true;
+  } else {
+    current.maxAp = Math.min(chronoGrid.MAX_AP || 20, current.maxAp + (chronoGrid.AP_GAIN || 2));
+  }
+  current.ap = current.maxAp;
+  current.leaderMove = gridLeaderTrait(current.leaderTraitId).leaderMoves || 1;
+  if (!first) {
+    if (sideName === "player") game.turn += 1;
+    gridDraw(game, sideName, 1);
+  }
+}
+
+function gridLeaderTrait(id) {
+  return chronoGrid.LEADER_TRAITS?.[id] || chronoGrid.LEADER_TRAITS?.bulwark || {};
+}
+
+function gridSessionPayload(room, seat, extra = {}) {
+  return {
+    roomId: room.id,
+    playerId: room.players[seat]?.id,
+    seat,
+    mode: room.mode,
+    ranked: Boolean(room.ranked),
+    matched: room.status !== "waiting",
+    ...extra,
+  };
+}
+
+async function prepareGridRoomForSeat(room, seat) {
+  if (room.mode === "ranked" && room.status === "waiting" && shouldStartGridCpuFallback(room)) {
+    startGridCpuFallback(room);
+  }
+  if (room.game?.winner && !room.game.finished) room.game.finished = true;
+  if (room.game?.finished) await reportGridRankedResult(room);
+}
+
+function gridRoomSnapshot(room, seat) {
+  if (room.status === "waiting" || !room.game) {
+    const elapsedMs = Date.now() - Number(room.createdAt || Date.now());
+    const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+    return {
+      roomId: room.id,
+      mode: room.mode,
+      ranked: Boolean(room.ranked),
+      status: "waiting",
+      version: room.version,
+      seat,
+      matchingSeconds: elapsedSeconds,
+      cpuFallbackSeconds: room.mode === "ranked" ? Math.max(0, Math.ceil((RANKED_CPU_FALLBACK_MS - elapsedMs) / 1000)) : null,
+      message: room.mode === "ranked" ? `マッチング中 ${elapsedSeconds}秒` : `ルーム ${room.id}: 相手の参加待ち`,
+    };
+  }
+  const snapshot = seat === "host" ? cloneJson(room.game) : swapGridPerspective(room.game);
+  const activeSeat = room.game.active === "player" ? "host" : "guest";
+  return {
+    roomId: room.id,
+    mode: room.mode,
+    ranked: Boolean(room.ranked),
+    status: room.game.finished ? "finished" : "playing",
+    version: room.version,
+    seat,
+    activeSeat,
+    cpuSeat: room.ranked?.cpuSeat || "",
+    opponentCpu: Boolean(room.ranked?.cpuSeat && room.ranked.cpuSeat !== seat),
+    canAct: activeSeat === seat || Boolean(room.ranked?.cpuSeat && room.ranked.cpuSeat === activeSeat && seat !== room.ranked.cpuSeat),
+    rankedResult: room.game.finished && room.ranked?.results ? room.ranked.results[seat] || null : null,
+    state: snapshot,
+  };
+}
+
+async function applyGridState(room, seat, incomingState) {
+  if (!room.game || room.status === "waiting") throw new Error("room is not playing");
+  const activeSeat = room.game.active === "player" ? "host" : "guest";
+  const cpuControlled = Boolean(room.ranked?.cpuSeat && room.ranked.cpuSeat === activeSeat && seat !== room.ranked.cpuSeat);
+  if (activeSeat !== seat && !cpuControlled && !room.game.finished) throw new Error("not your turn");
+  const canonical = seat === "host" ? cloneJson(incomingState) : swapGridPerspective(incomingState);
+  canonical.mode = "online";
+  canonical.selected = null;
+  canonical.drag = null;
+  canonical.cardDrag = null;
+  canonical.animating = false;
+  canonical.logOpen = false;
+  canonical.finished = Boolean(canonical.finished || canonical.winner);
+  room.game = canonical;
+  room.version += 1;
+  if (room.game.finished) await reportGridRankedResult(room);
+}
+
+function swapGridPerspective(source) {
+  const copy = cloneJson(source);
+  const originalPlayer = copy.player;
+  copy.player = relabelGridSide(copy.enemy, "player");
+  copy.enemy = relabelGridSide(originalPlayer, "enemy");
+  copy.active = flipGridSide(copy.active);
+  copy.firstActive = flipGridSide(copy.firstActive);
+  copy.winner = invertGridWinner(copy.winner);
+  copy.selected = null;
+  copy.drag = null;
+  copy.cardDrag = null;
+  if (copy.choice?.sideName) copy.choice.sideName = flipGridSide(copy.choice.sideName);
+  return copy;
+}
+
+function relabelGridSide(side, sideName) {
+  const copy = cloneJson(side || {});
+  copy.board = Array.isArray(copy.board) ? copy.board.map((row) => row.map((cell) => ({
+    piece: cell?.piece ? { ...cell.piece, side: sideName } : null,
+    trap: cell?.trap ? { ...cell.trap, owner: flipGridSide(cell.trap.owner) } : null,
+  }))) : [];
+  ["hand", "deck"].forEach((zone) => {
+    copy[zone] = Array.isArray(copy[zone]) ? copy[zone].map((card) => ({ ...card, owner: sideName })) : [];
+  });
+  return copy;
+}
+
+function flipGridSide(sideName) {
+  if (sideName === "player") return "enemy";
+  if (sideName === "enemy") return "player";
+  return sideName;
+}
+
+function invertGridWinner(winner) {
+  const text = String(winner || "");
+  if (!text) return winner;
+  if (text.includes("勝利")) return "敗北";
+  if (text.includes("敗北")) return "勝利";
+  return winner;
+}
+
+function getGridSeat(room, playerId) {
+  if (room.players.host?.id === playerId) return "host";
+  if (room.players.guest?.id === playerId) return "guest";
+  return null;
+}
+
+function validateGridDeck(deck) {
+  if (!Array.isArray(deck)) throw new Error("deck is required");
+  const size = chronoGrid.DECK_TARGET_SIZE || 17;
+  if (deck.length !== size) throw new Error(`deck must be ${size} cards`);
+  const counts = {};
+  const valid = deck.map((id) => String(id || "")).filter((id) => chronoGrid.CARDS?.[id]);
+  if (valid.length !== size) throw new Error("deck contains unknown cards");
+  valid.forEach((id) => {
+    counts[id] = (counts[id] || 0) + 1;
+  });
+  if (Object.values(counts).some((count) => count > (chronoGrid.MAX_CARD_COPIES || 3))) {
+    throw new Error(`card copies must be ${chronoGrid.MAX_CARD_COPIES || 3} or less`);
+  }
+  return valid;
+}
+
+function validateGridTrait(id) {
+  const safe = String(id || "bulwark");
+  return chronoGrid.LEADER_TRAITS?.[safe] ? safe : "bulwark";
+}
+
+function cleanupGridRankedWaitingRooms() {
+  const now = Date.now();
+  for (const [id, room] of gridRooms.entries()) {
+    if (room.mode === "ranked" && room.status === "waiting" && now - Number(room.createdAt || now) > RANKED_WAITING_TTL_MS) {
+      gridRooms.delete(id);
+    }
+  }
+}
+
+function removeGridRankedWaitingRoomsFor(username) {
+  const normalized = normalizeUsername(username);
+  for (const [id, room] of gridRooms.entries()) {
+    if (room.mode === "ranked" && room.status === "waiting" && room.ranked?.accounts?.host === normalized) {
+      gridRooms.delete(id);
+    }
+  }
+}
+
+function findGridRankedWaitingRoom(username) {
+  const normalized = normalizeUsername(username);
+  for (const room of gridRooms.values()) {
+    if (room.mode !== "ranked" || room.status !== "waiting" || room.players.guest) continue;
+    if (room.ranked?.accounts?.host === normalized) continue;
+    return room;
+  }
+  return null;
+}
+
+function findGridRankedRoomForAccount(username) {
+  const normalized = normalizeUsername(username);
+  let best = null;
+  for (const room of gridRooms.values()) {
+    if (room.mode !== "ranked" || !room.ranked) continue;
+    for (const seat of ["host", "guest"]) {
+      if (normalizeUsername(room.ranked.accounts?.[seat]) !== normalized) continue;
+      if (room.status === "waiting" && !room.game) continue;
+      if (!best || Number(room.createdAt || 0) > Number(best.room.createdAt || 0)) best = { room, seat };
+    }
+  }
+  return best;
+}
+
+function shouldStartGridCpuFallback(room) {
+  return room.mode === "ranked"
+    && room.status === "waiting"
+    && !room.players.guest
+    && Date.now() - Number(room.createdAt || Date.now()) >= RANKED_CPU_FALLBACK_MS;
+}
+
+function startGridCpuFallback(room) {
+  const hostProfile = room.ranked?.profiles?.host || rankedProfile({ points: RANKED_INITIAL_POINTS, name: "Player" });
+  const cpuProfile = rankedCpuProfile(hostProfile.points);
+  room.players.guest = {
+    id: makeId(12),
+    name: cpuProfile.name,
+    account: "",
+    deck: shuffleGrid(Object.keys(chronoGrid.CARDS || {})).slice(0, chronoGrid.DECK_TARGET_SIZE || 17),
+    leaderTraitId: "bulwark",
+  };
+  room.players.guest.deck = fillGridDeck(room.players.guest.deck);
+  room.ranked.accounts.guest = "";
+  room.ranked.profiles.guest = rankedProfile(cpuProfile);
+  room.ranked.cpuSeat = "guest";
+  startGridRoomGame(room);
+}
+
+function fillGridDeck(source) {
+  const result = [];
+  const counts = {};
+  const pool = Object.keys(chronoGrid.CARDS || {});
+  [...source, ...(chronoGrid.DECK || []), ...pool].some((id) => {
+    if (!chronoGrid.CARDS?.[id]) return false;
+    counts[id] = counts[id] || 0;
+    if (counts[id] >= (chronoGrid.MAX_CARD_COPIES || 3)) return false;
+    counts[id] += 1;
+    result.push(id);
+    return result.length >= (chronoGrid.DECK_TARGET_SIZE || 17);
+  });
+  return result;
+}
+
+async function reportGridRankedResult(room) {
+  if (!room?.ranked || room.ranked.reported || !room.game?.finished) return;
+  const winnerSeat = gridWinnerSeat(room.game);
+  const beforeBySeat = {};
+  for (const seat of ["host", "guest"]) {
+    const username = normalizeUsername(room.ranked.accounts?.[seat]);
+    if (username) {
+      const account = await loadAccount(username);
+      beforeBySeat[seat] = sanitizeRankedRecord(account?.ranked);
+    } else {
+      beforeBySeat[seat] = sanitizeRankedRecord(room.ranked.profiles?.[seat]);
+    }
+  }
+  const results = {};
+  for (const seat of ["host", "guest"]) {
+    const opponentSeat = seat === "host" ? "guest" : "host";
+    const won = winnerSeat === seat;
+    const before = beforeBySeat[seat];
+    const opponentBefore = beforeBySeat[opponentSeat];
+    const after = rankedAfterResult(before, won, opponentBefore.points);
+    const username = normalizeUsername(room.ranked.accounts?.[seat]);
+    if (username) {
+      const account = sanitizeAccountRecord(username, await loadAccount(username));
+      account.ranked = after;
+      await saveAccount(username, account);
+    }
+    results[seat] = rankedResultPayload(before, after, won, opponentBefore);
+  }
+  room.ranked.results = results;
+  room.ranked.reported = true;
+  room.ranked.finishedAt = Date.now();
+}
+
+function gridWinnerSeat(game) {
+  const winner = String(game?.winner || "");
+  if (winner.includes("勝利")) return "host";
+  if (winner.includes("敗北")) return "guest";
+  return "";
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value || null));
+}
+
+function shuffleGrid(list) {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 async function handleRegisterApi(req, res) {
@@ -3874,6 +4479,7 @@ function createDefaultAccountRecord(username, displayName = "Player") {
       ? fullCollection()
       : initialCollection(chrono.starterDeck || {}, chrono.starterDriveDeck || {}),
     collectionRoyal: {},
+    grid: defaultGridProfile(now),
     updatedAt: now,
     decks: {
       main: {
@@ -3981,6 +4587,7 @@ function sanitizeAccountRecord(name, account = {}) {
     loginBonus: sanitizeLoginBonusRecord(account.loginBonus),
     collection: sanitizeCollection(account.collection),
     collectionRoyal: sanitizeCounts(account.collectionRoyal),
+    grid: sanitizeGridProfile(account.grid),
     updatedAt: String(account.updatedAt || new Date().toISOString()),
     decks: sanitizeDecks(account.decks),
   };
@@ -4007,6 +4614,7 @@ function mergeAccountRecord(name, current, incoming) {
     loginBonus: loginBonusState.loginBonus,
     collection: newer.collection,
     collectionRoyal: newer.collectionRoyal,
+    grid: mergeGridProfile(current.grid, incoming.grid),
     updatedAt: newer.updatedAt,
     decks: { ...(current.decks || {}), ...(incoming.decks || {}) },
     activeDeckId: incoming.activeDeckId || current.activeDeckId,
@@ -4254,6 +4862,66 @@ function sanitizeCollection(source = {}) {
     result[id] = Math.max(result[id] || 0, Number(count) || 0);
   });
   return result;
+}
+
+function defaultGridProfile(now = new Date().toISOString()) {
+  return {
+    activePresetId: "main",
+    presets: {
+      main: {
+        id: "main",
+        name: "メインデッキ",
+        deck: (chronoGrid.DECK || []).slice(0, chronoGrid.DECK_TARGET_SIZE || 17),
+        leaderTraitId: "bulwark",
+        updatedAt: now,
+      },
+    },
+  };
+}
+
+function sanitizeGridProfile(source = {}) {
+  const now = new Date().toISOString();
+  const result = {
+    activePresetId: sanitizeId(source.activePresetId || "main"),
+    presets: {},
+  };
+  Object.entries(source.presets || {}).forEach(([rawId, preset]) => {
+    const id = sanitizeId(rawId);
+    const deck = sanitizeGridDeckLoose(preset.deck);
+    if (deck.length !== (chronoGrid.DECK_TARGET_SIZE || 17)) return;
+    result.presets[id] = {
+      id,
+      name: String(preset.name || "デッキ").trim().slice(0, 32) || "デッキ",
+      deck,
+      leaderTraitId: validateGridTrait(preset.leaderTraitId),
+      updatedAt: String(preset.updatedAt || now),
+    };
+  });
+  if (Object.keys(result.presets).length === 0) return defaultGridProfile(now);
+  if (!result.presets[result.activePresetId]) result.activePresetId = Object.keys(result.presets)[0];
+  return result;
+}
+
+function sanitizeGridDeckLoose(deck = []) {
+  try {
+    return validateGridDeck(deck);
+  } catch {
+    return [];
+  }
+}
+
+function mergeGridProfile(current = {}, incoming = {}) {
+  const currentGrid = sanitizeGridProfile(current);
+  const incomingGrid = sanitizeGridProfile(incoming);
+  const presets = { ...currentGrid.presets };
+  Object.entries(incomingGrid.presets).forEach(([id, preset]) => {
+    const existing = presets[id];
+    if (!existing || String(preset.updatedAt || "") >= String(existing.updatedAt || "")) presets[id] = preset;
+  });
+  return sanitizeGridProfile({
+    activePresetId: incomingGrid.activePresetId || currentGrid.activePresetId,
+    presets,
+  });
 }
 
 function sanitizeDecks(source = {}) {

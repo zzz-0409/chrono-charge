@@ -31,6 +31,27 @@ const el = {
   modeSelect: document.querySelector("#modeSelect"),
   cpuModeButton: document.querySelector("#cpuModeButton"),
   onlineModeButton: document.querySelector("#onlineModeButton"),
+  rankedModeButton: null,
+  createRoomButton: null,
+  joinRoomButton: null,
+  roomCodeInput: null,
+  roomPanel: null,
+  gridAccountName: null,
+  gridRankStatus: null,
+  gridLoginOpenButton: null,
+  gridLogoutButton: null,
+  deckPresetScreen: null,
+  deckPresetGrid: null,
+  deckPresetBackButton: null,
+  deckPresetCreateButton: null,
+  gridAuthLayer: null,
+  gridAuthTitle: null,
+  gridAuthUsername: null,
+  gridAuthPassword: null,
+  gridAuthError: null,
+  gridAuthSwitchButton: null,
+  gridAuthCancelButton: null,
+  gridAuthSubmitButton: null,
   deckModeButton: document.querySelector("#deckModeButton"),
   modeNotice: document.querySelector("#modeNotice"),
   deckEditButton: document.querySelector("#deckEditButton"),
@@ -64,9 +85,32 @@ let deckEditorFocusId = null;
 let deckEditorLeaderTraitId = "bulwark";
 let deckEditorReturnToMode = false;
 let currentMode = "cpu";
+let authState = null;
+let gridProfile = null;
+let authMode = "login";
+let onlineSession = null;
+let onlinePollTimer = 0;
+let onlineFetchInFlight = false;
+let onlineSyncInFlight = false;
+let lastOnlineVersion = 0;
+let pendingRankedResult = null;
 const bootParams = new URLSearchParams(location.search);
 const EMBEDDED_MODE = bootParams.get("embedded") === "1";
 const ENTRY_MODE = bootParams.get("entry") || (location.hash === "#deck" ? "deck" : "menu");
+const AUTH_STORAGE_KEY = "chronoGridAuthV1";
+const PROFILE_STORAGE_KEY = "chronoGridProfileV1";
+const ONLINE_SESSION_KEY = "chronoGridOnlineSessionV1";
+const ONLINE_POLL_MS = 900;
+const RANKED_TIERS = [
+  { label: "マスター", min: 2600 },
+  { label: "ダイヤ", min: 2200 },
+  { label: "プラチナ", min: 1800 },
+  { label: "ゴールド", min: 1500 },
+  { label: "シルバー", min: 1200 },
+  { label: "ブロンズ", min: 0 }
+];
+authState = loadAuthState();
+gridProfile = loadGridProfile();
 const EFFECT_KEYWORD_HELP = {
   発動: "プレイしたときに発動する。",
   召喚: "場に出したときに発動する。",
@@ -81,8 +125,557 @@ if (EMBEDDED_MODE) {
   document.documentElement.classList.add("embedded-mode");
 }
 
+function setupMigrationUi() {
+  const panel = document.querySelector(".mode-panel");
+  if (!panel) return;
+  panel.querySelector("h1").textContent = "対戦モード選択";
+  el.cpuModeButton.querySelector("strong").textContent = "CPU対戦";
+  el.cpuModeButton.querySelector("span").textContent = "CPUが召喚・移動・強化を行います。";
+  el.onlineModeButton.querySelector("strong").textContent = "ルーム戦";
+  el.onlineModeButton.querySelector("span").textContent = "ルームを作成、またはIDを入力して参加します。";
+  el.deckModeButton.querySelector("strong").textContent = "デッキプリセット";
+  el.deckModeButton.querySelector("span").textContent = "カードと大将特性をプリセットごとに編集します。";
+  if (el.deckEditButton) el.deckEditButton.textContent = "デッキ";
+
+  const accountPanel = document.createElement("section");
+  accountPanel.className = "grid-account-panel";
+  accountPanel.innerHTML = `
+    <div>
+      <strong id="gridAccountName">ゲスト</strong>
+      <span id="gridRankStatus">ブロンズ 1000 RP</span>
+    </div>
+    <div class="grid-account-actions">
+      <button class="mini-action" id="gridLoginOpenButton" type="button">ログイン</button>
+      <button class="mini-action" id="gridLogoutButton" type="button" hidden>ログアウト</button>
+    </div>
+  `;
+  panel.insertBefore(accountPanel, panel.querySelector(".mode-actions"));
+
+  const rankedButton = document.createElement("button");
+  rankedButton.className = "mode-button";
+  rankedButton.id = "rankedModeButton";
+  rankedButton.type = "button";
+  rankedButton.innerHTML = `
+    <strong>ランク戦</strong>
+    <span>ログインしてRPを競います。待機後はCPU戦に切り替わります。</span>
+  `;
+  panel.querySelector(".mode-actions").insertBefore(rankedButton, el.onlineModeButton);
+
+  const roomPanel = document.createElement("section");
+  roomPanel.className = "room-panel";
+  roomPanel.id = "roomPanel";
+  roomPanel.hidden = true;
+  roomPanel.innerHTML = `
+    <div class="room-actions">
+      <button class="mini-action primary" id="createRoomButton" type="button">ルーム作成</button>
+      <label class="room-code-field">
+        <span>ROOM ID</span>
+        <input id="roomCodeInput" autocomplete="off" maxlength="8" inputmode="latin" placeholder="ABCDE">
+      </label>
+      <button class="mini-action" id="joinRoomButton" type="button">参加</button>
+    </div>
+  `;
+  panel.insertBefore(roomPanel, el.modeNotice);
+
+  const presetScreen = document.createElement("section");
+  presetScreen.className = "deck-preset-screen";
+  presetScreen.id = "deckPresetScreen";
+  presetScreen.setAttribute("aria-hidden", "true");
+  presetScreen.innerHTML = `
+    <button class="grid-back-button deck-preset-back" id="deckPresetBackButton" type="button" aria-label="戻る">
+      <span class="grid-back-icon"></span>
+    </button>
+    <div class="deck-preset-shell plate">
+      <header class="deck-preset-head">
+        <div>
+          <p class="mode-kicker">Deck Presets</p>
+          <h2>デッキプリセット</h2>
+        </div>
+        <button class="deck-action primary" id="deckPresetCreateButton" type="button">新規作成</button>
+      </header>
+      <div class="deck-preset-grid" id="deckPresetGrid"></div>
+    </div>
+  `;
+  el.stage.append(presetScreen);
+
+  const authLayer = document.createElement("section");
+  authLayer.className = "grid-auth-layer";
+  authLayer.id = "gridAuthLayer";
+  authLayer.hidden = true;
+  authLayer.innerHTML = `
+    <div class="grid-auth-dialog plate">
+      <h2 id="gridAuthTitle">ログイン</h2>
+      <label>ユーザー名<input id="gridAuthUsername" autocomplete="username"></label>
+      <label>パスワード<input id="gridAuthPassword" type="password" autocomplete="current-password"></label>
+      <p class="grid-auth-error" id="gridAuthError"></p>
+      <div class="grid-auth-actions">
+        <button class="mini-action" id="gridAuthSwitchButton" type="button">新規登録へ</button>
+        <button class="mini-action" id="gridAuthCancelButton" type="button">閉じる</button>
+        <button class="mini-action primary" id="gridAuthSubmitButton" type="button">ログイン</button>
+      </div>
+    </div>
+  `;
+  el.stage.append(authLayer);
+
+  Object.assign(el, {
+    rankedModeButton: rankedButton,
+    roomPanel,
+    createRoomButton: document.querySelector("#createRoomButton"),
+    joinRoomButton: document.querySelector("#joinRoomButton"),
+    roomCodeInput: document.querySelector("#roomCodeInput"),
+    gridAccountName: document.querySelector("#gridAccountName"),
+    gridRankStatus: document.querySelector("#gridRankStatus"),
+    gridLoginOpenButton: document.querySelector("#gridLoginOpenButton"),
+    gridLogoutButton: document.querySelector("#gridLogoutButton"),
+    deckPresetScreen: presetScreen,
+    deckPresetGrid: document.querySelector("#deckPresetGrid"),
+    deckPresetBackButton: document.querySelector("#deckPresetBackButton"),
+    deckPresetCreateButton: document.querySelector("#deckPresetCreateButton"),
+    gridAuthLayer: authLayer,
+    gridAuthTitle: document.querySelector("#gridAuthTitle"),
+    gridAuthUsername: document.querySelector("#gridAuthUsername"),
+    gridAuthPassword: document.querySelector("#gridAuthPassword"),
+    gridAuthError: document.querySelector("#gridAuthError"),
+    gridAuthSwitchButton: document.querySelector("#gridAuthSwitchButton"),
+    gridAuthCancelButton: document.querySelector("#gridAuthCancelButton"),
+    gridAuthSubmitButton: document.querySelector("#gridAuthSubmitButton")
+  });
+}
+
+function loadAuthState() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || "null");
+    return parsed?.token && parsed?.username ? parsed : null;
+  } catch {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    return null;
+  }
+}
+
+function saveAuthState(auth) {
+  authState = auth?.token && auth?.username ? auth : null;
+  if (authState) localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState));
+  else localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function defaultGridProfile() {
+  return {
+    activePresetId: "main",
+    presets: {
+      main: {
+        id: "main",
+        name: "メインデッキ",
+        deck: [...DECK],
+        leaderTraitId: "bulwark",
+        updatedAt: new Date().toISOString()
+      }
+    }
+  };
+}
+
+function loadGridProfile() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY) || "null");
+    return normalizeGridProfile(parsed);
+  } catch {
+    localStorage.removeItem(PROFILE_STORAGE_KEY);
+    return defaultGridProfile();
+  }
+}
+
+function saveGridProfile(options = {}) {
+  gridProfile = normalizeGridProfile(gridProfile);
+  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(gridProfile));
+  if (options.remote !== false) syncGridProfile();
+}
+
+function normalizeGridProfile(source) {
+  const base = defaultGridProfile();
+  const profile = source && typeof source === "object" ? source : base;
+  const presets = {};
+  Object.entries(profile.presets || {}).forEach(([rawId, preset]) => {
+    const id = sanitizePresetId(rawId);
+    const deck = sanitizeDeckIds(Array.isArray(preset.deck) ? preset.deck : []);
+    if (deck.length !== DECK_TARGET_SIZE) return;
+    presets[id] = {
+      id,
+      name: normalizePresetName(preset.name || "デッキ"),
+      deck,
+      leaderTraitId: LEADER_TRAITS[preset.leaderTraitId] ? preset.leaderTraitId : "bulwark",
+      updatedAt: preset.updatedAt || new Date().toISOString()
+    };
+  });
+  if (!Object.keys(presets).length) return base;
+  const activePresetId = presets[profile.activePresetId] ? profile.activePresetId : Object.keys(presets)[0];
+  return { activePresetId, presets };
+}
+
+function activePreset() {
+  gridProfile = normalizeGridProfile(gridProfile);
+  return gridProfile.presets[gridProfile.activePresetId] || Object.values(gridProfile.presets)[0];
+}
+
+function applyActivePresetToStorage() {
+  const preset = activePreset();
+  saveDeckIds(preset.deck);
+  saveLeaderTraitId(preset.leaderTraitId);
+}
+
+function updateActivePresetFromEditor() {
+  const preset = activePreset();
+  preset.deck = sanitizeDeckIds(deckEditorIds);
+  preset.leaderTraitId = LEADER_TRAITS[deckEditorLeaderTraitId] ? deckEditorLeaderTraitId : "bulwark";
+  preset.updatedAt = new Date().toISOString();
+  saveGridProfile();
+}
+
+function sanitizePresetId(id) {
+  return String(id || "main").replace(/[^a-zA-Z0-9_-]/g, "_") || "main";
+}
+
+function normalizePresetName(name) {
+  return String(name || "デッキ").trim().replace(/\s+/g, " ").slice(0, 32) || "デッキ";
+}
+
+function authHeaders() {
+  return {
+    Authorization: `Bearer ${authState?.token || ""}`,
+    "X-Account-Username": authState?.username || ""
+  };
+}
+
+function rankLabel(points) {
+  const value = Math.max(0, Math.floor(Number(points) || 1000));
+  const tier = RANKED_TIERS.find((entry) => value >= entry.min) || RANKED_TIERS[RANKED_TIERS.length - 1];
+  return `${tier.label} ${value} RP`;
+}
+
+function renderAccountPanel(account = authState?.account) {
+  if (!el.gridAccountName) return;
+  const loggedIn = Boolean(authState?.token);
+  el.gridAccountName.textContent = loggedIn ? (account?.displayName || authState.username) : "ゲスト";
+  el.gridRankStatus.textContent = rankLabel(account?.ranked?.points || authState?.account?.ranked?.points || 1000);
+  el.gridLoginOpenButton.hidden = loggedIn;
+  el.gridLogoutButton.hidden = !loggedIn;
+}
+
+async function syncGridProfile() {
+  if (!authState?.token || location.protocol === "file:") return;
+  try {
+    const response = await fetch("/api/account", {
+      method: "PUT",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ account: { grid: gridProfile, updatedAt: new Date().toISOString() } })
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data.account) {
+      authState.account = data.account;
+      saveAuthState(authState);
+      renderAccountPanel(data.account);
+    }
+  } catch {
+    // Remote profile sync is best-effort.
+  }
+}
+
+async function syncAccountFromServer() {
+  if (!authState?.token || location.protocol === "file:") {
+    renderAccountPanel();
+    return;
+  }
+  try {
+    const response = await fetch("/api/account", { headers: authHeaders(), cache: "no-store" });
+    if (response.status === 401) {
+      saveAuthState(null);
+      renderAccountPanel();
+      return;
+    }
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data.account) {
+      authState.account = data.account;
+      saveAuthState(authState);
+      if (data.account.grid) {
+        gridProfile = normalizeGridProfile(data.account.grid);
+        saveGridProfile({ remote: false });
+      }
+      renderAccountPanel(data.account);
+    }
+  } catch {
+    renderAccountPanel();
+  }
+}
+
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, {
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  return data;
+}
+
+function openAuthDialog(mode = "login") {
+  authMode = mode;
+  renderAuthDialog();
+  el.gridAuthLayer.hidden = false;
+  el.gridAuthUsername.focus();
+}
+
+function closeAuthDialog() {
+  el.gridAuthLayer.hidden = true;
+  el.gridAuthError.textContent = "";
+  el.gridAuthPassword.value = "";
+}
+
+function renderAuthDialog() {
+  const register = authMode === "register";
+  el.gridAuthTitle.textContent = register ? "新規登録" : "ログイン";
+  el.gridAuthSubmitButton.textContent = register ? "登録" : "ログイン";
+  el.gridAuthSwitchButton.textContent = register ? "ログインへ" : "新規登録へ";
+  el.gridAuthPassword.autocomplete = register ? "new-password" : "current-password";
+}
+
+async function submitAuthDialog() {
+  const username = el.gridAuthUsername.value.trim();
+  const password = el.gridAuthPassword.value;
+  el.gridAuthError.textContent = "";
+  if (!username || password.length < 4) {
+    el.gridAuthError.textContent = "ユーザー名と4文字以上のパスワードを入力してください。";
+    return;
+  }
+  try {
+    const data = await requestJson(authMode === "register" ? "/api/auth/register" : "/api/auth/login", {
+      method: "POST",
+      body: { username, password, displayName: username }
+    });
+    saveAuthState({ username: data.account.username, token: data.token, account: data.account });
+    if (data.account.grid) {
+      gridProfile = normalizeGridProfile(data.account.grid);
+      saveGridProfile({ remote: false });
+      applyActivePresetToStorage();
+    } else {
+      await syncGridProfile();
+    }
+    renderAccountPanel(data.account);
+    renderDeckPresetScreen();
+    closeAuthDialog();
+    el.modeNotice.textContent = `${data.account.displayName || username}でログインしました。`;
+  } catch (error) {
+    el.gridAuthError.textContent = authMode === "register"
+      ? "登録できませんでした。別のユーザー名を試してください。"
+      : "ログインできませんでした。";
+  }
+}
+
+async function logoutAccount() {
+  try {
+    if (authState?.token) await requestJson("/api/auth/logout", { method: "POST", headers: authHeaders() });
+  } catch {
+    // Logout is local even when the server cannot be reached.
+  }
+  saveAuthState(null);
+  renderAccountPanel();
+  el.modeNotice.textContent = "ログアウトしました。";
+}
+
+function requireOnline() {
+  if (location.protocol !== "file:") return true;
+  el.modeNotice.textContent = "オンライン対戦は node server.js で起動してから使用できます。";
+  return false;
+}
+
+function currentOnlinePayload() {
+  const deck = loadPlayerDeckIds();
+  if (deck.length !== DECK_TARGET_SIZE) {
+    el.modeNotice.textContent = `デッキを${DECK_TARGET_SIZE}枚にしてください。`;
+    openDeckPresetScreen();
+    return null;
+  }
+  return {
+    deck,
+    leaderTraitId: loadLeaderTraitId(),
+    playerName: authState?.account?.displayName || authState?.username || "Player"
+  };
+}
+
+function saveOnlineSession(session) {
+  onlineSession = session || null;
+  if (onlineSession) localStorage.setItem(ONLINE_SESSION_KEY, JSON.stringify(onlineSession));
+  else localStorage.removeItem(ONLINE_SESSION_KEY);
+}
+
+async function createRoomOnline() {
+  if (!requireOnline()) return;
+  const payload = currentOnlinePayload();
+  if (!payload) return;
+  try {
+    const session = await requestJson("/api/grid/rooms", { method: "POST", body: payload });
+    saveOnlineSession(session);
+    startOnlinePolling();
+    hideModeSelect();
+    el.modeNotice.textContent = `ルーム ${session.roomId} を作成しました。`;
+  } catch (error) {
+    el.modeNotice.textContent = error.message || "ルーム作成に失敗しました。";
+  }
+}
+
+async function joinRoomOnline() {
+  if (!requireOnline()) return;
+  const payload = currentOnlinePayload();
+  const roomId = el.roomCodeInput.value.trim().toUpperCase();
+  if (!payload || !roomId) {
+    el.modeNotice.textContent = "参加するルームIDを入力してください。";
+    return;
+  }
+  try {
+    const session = await requestJson(`/api/grid/rooms/${roomId}/join`, { method: "POST", body: payload });
+    saveOnlineSession(session);
+    startOnlinePolling();
+    hideModeSelect();
+  } catch (error) {
+    el.modeNotice.textContent = error.message || "ルーム参加に失敗しました。";
+  }
+}
+
+async function startRankedOnline() {
+  if (!requireOnline()) return;
+  if (!authState?.token) {
+    el.modeNotice.textContent = "ランク戦にはログインが必要です。";
+    openAuthDialog("login");
+    return;
+  }
+  const payload = currentOnlinePayload();
+  if (!payload) return;
+  try {
+    const session = await requestJson("/api/grid/ranked/queue", {
+      method: "POST",
+      headers: authHeaders(),
+      body: payload
+    });
+    saveOnlineSession(session);
+    startOnlinePolling();
+    hideModeSelect();
+  } catch (error) {
+    el.modeNotice.textContent = error.message || "ランク戦の開始に失敗しました。";
+  }
+}
+
+function startOnlinePolling() {
+  stopOnlinePolling();
+  lastOnlineVersion = 0;
+  fetchOnlineState();
+  onlinePollTimer = setInterval(fetchOnlineState, ONLINE_POLL_MS);
+}
+
+function stopOnlinePolling() {
+  clearInterval(onlinePollTimer);
+  onlinePollTimer = 0;
+  onlineFetchInFlight = false;
+}
+
+async function fetchOnlineState() {
+  if (!onlineSession || onlineFetchInFlight) return;
+  onlineFetchInFlight = true;
+  try {
+    const query = new URLSearchParams({ playerId: onlineSession.playerId });
+    const snapshot = await requestJson(`/api/grid/rooms/${onlineSession.roomId}/state?${query}`);
+    if (snapshot.status === "waiting") {
+      el.modeNotice.textContent = snapshot.cpuFallbackSeconds !== null
+        ? `${snapshot.message} / CPU切替まで ${snapshot.cpuFallbackSeconds}秒`
+        : snapshot.message;
+      return;
+    }
+    if (snapshot.version !== lastOnlineVersion || snapshot.status === "finished") {
+      applyOnlineSnapshot(snapshot);
+    }
+    if (snapshot.opponentCpu && snapshot.activeSeat === snapshot.cpuSeat && !state.animating && !state.winner) {
+      runOnlineCpuTurn();
+    }
+  } catch (error) {
+    el.modeNotice.textContent = error.message || "オンライン状態を取得できません。";
+  } finally {
+    onlineFetchInFlight = false;
+  }
+}
+
+function applyOnlineSnapshot(snapshot) {
+  if (!snapshot?.state) return;
+  lastOnlineVersion = snapshot.version || lastOnlineVersion;
+  currentMode = "online";
+  state = snapshot.state;
+  state.mode = "online";
+  state.selected = null;
+  state.drag = null;
+  state.cardDrag = null;
+  state.animating = false;
+  state.logOpen = Boolean(state.logOpen);
+  nextId = Math.max(Number(state.nextId) || nextId || 1, nextId || 1);
+  pendingRankedResult = snapshot.rankedResult || pendingRankedResult;
+  hideModeSelect();
+  render();
+  if (state.winner && pendingRankedResult) {
+    renderAccountPanel({ ...(authState?.account || {}), ranked: { points: pendingRankedResult.pointsAfter } });
+  }
+}
+
+let onlineSyncTimer = 0;
+function markOnlineChanged(force = false) {
+  if (state?.mode !== "online" || !onlineSession) return;
+  clearTimeout(onlineSyncTimer);
+  if (force) {
+    syncOnlineState();
+    return;
+  }
+  onlineSyncTimer = setTimeout(syncOnlineState, 80);
+}
+
+async function syncOnlineState() {
+  if (!onlineSession || onlineSyncInFlight || !state) return;
+  onlineSyncInFlight = true;
+  try {
+    state.nextId = nextId;
+    state.finished = Boolean(state.winner);
+    const snapshot = await requestJson(`/api/grid/rooms/${onlineSession.roomId}/action`, {
+      method: "POST",
+      body: {
+        playerId: onlineSession.playerId,
+        state
+      }
+    });
+    lastOnlineVersion = snapshot.version || lastOnlineVersion;
+    pendingRankedResult = snapshot.rankedResult || pendingRankedResult;
+  } catch (error) {
+    el.modeNotice.textContent = error.message || "対戦状態を送信できません。";
+  } finally {
+    onlineSyncInFlight = false;
+  }
+}
+
+async function runOnlineCpuTurn() {
+  if (!onlineSession || state?.mode !== "online" || state.active !== "enemy" || state.winner) return;
+  state.animating = true;
+  render();
+  await enemyAction();
+  if (!state.winner) await startTurn("player");
+  state.animating = false;
+  render();
+  markOnlineChanged(true);
+}
+
 function createGame(mode = currentMode) {
   currentMode = mode;
+  if (mode !== "online") {
+    stopOnlinePolling();
+    saveOnlineSession(null);
+  }
+  applyActivePresetToStorage();
   setGridSettingsOpen(false);
   nextId = 1;
   state = {
@@ -154,11 +747,16 @@ function createCard(id, owner) {
 }
 
 function loadPlayerDeckIds() {
+  const preset = activePreset();
+  const deck = sanitizeDeckIds(preset?.deck || []);
+  if (deck.length === DECK_TARGET_SIZE) return deck;
   const saved = readSavedDeckIds();
   return saved.length ? saved : [...DECK];
 }
 
 function loadLeaderTraitId() {
+  const preset = activePreset();
+  if (LEADER_TRAITS[preset?.leaderTraitId]) return preset.leaderTraitId;
   const saved = localStorage.getItem(LEADER_TRAIT_STORAGE_KEY);
   return LEADER_TRAITS[saved] ? saved : "bulwark";
 }
@@ -482,6 +1080,7 @@ function playCard(index, sideName, boardSide, r, c) {
 
   cleanup();
   checkWinner();
+  markOnlineChanged();
   return true;
 }
 
@@ -540,6 +1139,7 @@ function completeReturnDrawChoice(sideName, index, sourceName, { renderAfter = t
   state.choice = null;
   cleanup();
   checkWinner();
+  markOnlineChanged();
   if (renderAfter) render();
 }
 
@@ -571,6 +1171,7 @@ function movePiece(sideName, fromR, fromC, toR, toC) {
   triggerTrap(sideName, piece, toR, toC);
   cleanup();
   checkWinner();
+  markOnlineChanged();
   return true;
 }
 
@@ -647,6 +1248,12 @@ async function endTurn() {
   state.animating = true;
   render();
   await startTurn("enemy");
+  if (state.mode === "online") {
+    state.animating = false;
+    render();
+    markOnlineChanged(true);
+    return;
+  }
   if (!state.winner && state.mode === "cpu") await enemyAction();
   if (!state.winner) await startTurn("player");
   state.animating = false;
@@ -876,6 +1483,7 @@ function openDeckEditor({ returnToMode = false } = {}) {
 function closeDeckEditor({ restart = true } = {}) {
   deckEditorIds = saveDeckIds(deckEditorIds);
   deckEditorLeaderTraitId = saveLeaderTraitId(deckEditorLeaderTraitId);
+  updateActivePresetFromEditor();
   if (EMBEDDED_MODE && ENTRY_MODE === "deck") {
     renderDeckEditor();
     el.deckEditorStatus.textContent = `${deckEditorIds.length} / ${DECK_TARGET_SIZE} saved`;
@@ -898,6 +1506,7 @@ function resetDeckEditor() {
   deckEditorLeaderTraitId = "bulwark";
   saveDeckIds(deckEditorIds);
   saveLeaderTraitId(deckEditorLeaderTraitId);
+  updateActivePresetFromEditor();
   renderDeckEditor();
 }
 
@@ -908,6 +1517,7 @@ function addDeckCard(id) {
   if (!CARDS[id] || (counts[id] || 0) >= MAX_CARD_COPIES) return;
   deckEditorIds.push(id);
   saveDeckIds(deckEditorIds);
+  updateActivePresetFromEditor();
   renderDeckEditor();
 }
 
@@ -917,7 +1527,119 @@ function removeDeckCard(id) {
   if (index < 0) return;
   deckEditorIds.splice(index, 1);
   saveDeckIds(deckEditorIds);
+  updateActivePresetFromEditor();
   renderDeckEditor();
+}
+
+function openDeckPresetScreen() {
+  hideModeSelect();
+  el.deckEditor?.classList.remove("open");
+  el.deckEditor?.setAttribute("aria-hidden", "true");
+  el.deckPresetScreen?.classList.add("open");
+  el.deckPresetScreen?.setAttribute("aria-hidden", "false");
+  renderDeckPresetScreen();
+}
+
+function closeDeckPresetScreen() {
+  el.deckPresetScreen?.classList.remove("open");
+  el.deckPresetScreen?.setAttribute("aria-hidden", "true");
+  if (!EMBEDDED_MODE) showModeSelect();
+}
+
+function renderDeckPresetScreen() {
+  if (!el.deckPresetGrid) return;
+  gridProfile = normalizeGridProfile(gridProfile);
+  el.deckPresetGrid.innerHTML = "";
+  Object.values(gridProfile.presets)
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))
+    .forEach((preset) => {
+      const counts = deckCounts(preset.deck);
+      const aceId = preset.deck.find((id) => CARDS[id]?.kind === "unit") || preset.deck[0];
+      const card = CARDS[aceId] || Object.values(CARDS)[0];
+      const node = document.createElement("article");
+      node.className = "deck-preset-card";
+      node.classList.toggle("selected", preset.id === gridProfile.activePresetId);
+      node.innerHTML = `
+        <div class="deck-preset-art" style="background-image: url('${card.art}')"></div>
+        <div class="deck-preset-info">
+          <strong>${escapeHtml(preset.name)}</strong>
+          <span>${preset.deck.length}枚 / ${escapeHtml(LEADER_TRAITS[preset.leaderTraitId]?.name || "")}</span>
+          <small>${Object.keys(counts).length}種 / ${escapeHtml(card.name)}</small>
+        </div>
+        <div class="deck-preset-actions">
+          <button class="mini-action primary" type="button" data-action="use">使用</button>
+          <button class="mini-action" type="button" data-action="edit">編集</button>
+          <button class="mini-action" type="button" data-action="copy">複製</button>
+          <button class="mini-action danger" type="button" data-action="delete">削除</button>
+        </div>
+      `;
+      node.querySelector("[data-action='use']").addEventListener("click", () => useDeckPreset(preset.id));
+      node.querySelector("[data-action='edit']").addEventListener("click", () => editDeckPreset(preset.id));
+      node.querySelector("[data-action='copy']").addEventListener("click", () => copyDeckPreset(preset.id));
+      node.querySelector("[data-action='delete']").addEventListener("click", () => deleteDeckPreset(preset.id));
+      el.deckPresetGrid.append(node);
+    });
+}
+
+function useDeckPreset(id) {
+  if (!gridProfile.presets[id]) return;
+  gridProfile.activePresetId = id;
+  saveGridProfile();
+  applyActivePresetToStorage();
+  renderDeckPresetScreen();
+  el.modeNotice.textContent = `${gridProfile.presets[id].name}を使用デッキにしました。`;
+}
+
+function editDeckPreset(id) {
+  if (!gridProfile.presets[id]) return;
+  gridProfile.activePresetId = id;
+  saveGridProfile();
+  applyActivePresetToStorage();
+  el.deckPresetScreen?.classList.remove("open");
+  el.deckPresetScreen?.setAttribute("aria-hidden", "true");
+  openDeckEditor();
+}
+
+function createDeckPreset() {
+  const id = `deck_${Date.now().toString(36)}`;
+  gridProfile.presets[id] = {
+    id,
+    name: `デッキ ${Object.keys(gridProfile.presets).length + 1}`,
+    deck: [...DECK],
+    leaderTraitId: "bulwark",
+    updatedAt: new Date().toISOString()
+  };
+  gridProfile.activePresetId = id;
+  saveGridProfile();
+  editDeckPreset(id);
+}
+
+function copyDeckPreset(id) {
+  const source = gridProfile.presets[id];
+  if (!source) return;
+  const copyId = `deck_${Date.now().toString(36)}`;
+  gridProfile.presets[copyId] = {
+    ...source,
+    id: copyId,
+    name: `${source.name} コピー`.slice(0, 32),
+    deck: [...source.deck],
+    updatedAt: new Date().toISOString()
+  };
+  gridProfile.activePresetId = copyId;
+  saveGridProfile();
+  renderDeckPresetScreen();
+}
+
+function deleteDeckPreset(id) {
+  if (!gridProfile.presets[id] || Object.keys(gridProfile.presets).length <= 1) {
+    el.modeNotice.textContent = "最後のプリセットは削除できません。";
+    return;
+  }
+  delete gridProfile.presets[id];
+  if (gridProfile.activePresetId === id) gridProfile.activePresetId = Object.keys(gridProfile.presets)[0];
+  saveGridProfile();
+  applyActivePresetToStorage();
+  renderDeckPresetScreen();
 }
 
 function renderDeckEditor() {
@@ -1005,6 +1727,7 @@ function renderLeaderTraitPicker() {
     `;
     button.addEventListener("click", () => {
       deckEditorLeaderTraitId = saveLeaderTraitId(trait.id);
+      updateActivePresetFromEditor();
       renderDeckEditor();
     });
     options.append(button);
@@ -1110,6 +1833,7 @@ async function attackSelectedUnit() {
     await fireUnit(live.piece);
     cleanup();
     checkWinner();
+    markOnlineChanged();
   }
   state.animating = false;
   render();
@@ -1576,6 +2300,7 @@ async function movePieceByRoute(sideName, fromR, fromC, route) {
   triggerTrap(sideName, piece, piece.r, piece.c);
   cleanup();
   checkWinner();
+  markOnlineChanged();
   return true;
 }
 
@@ -1748,6 +2473,7 @@ function retireBattle() {
   state.animating = false;
   state.winner = "敗北";
   addLog("リタイアしました。");
+  markOnlineChanged(true);
   render();
 }
 
@@ -1762,6 +2488,7 @@ function navigateHost(view) {
 function returnFromDeckEditor() {
   deckEditorIds = saveDeckIds(deckEditorIds);
   deckEditorLeaderTraitId = saveLeaderTraitId(deckEditorLeaderTraitId);
+  updateActivePresetFromEditor();
   if (EMBEDDED_MODE) {
     navigateHost("home");
     return;
@@ -1769,11 +2496,32 @@ function returnFromDeckEditor() {
   closeDeckEditor();
 }
 
+setupMigrationUi();
+
 el.endTurn.addEventListener("click", endTurn);
 el.cpuModeButton.addEventListener("click", startCpuMode);
-el.onlineModeButton.addEventListener("click", showOnlineNotice);
-el.deckModeButton.addEventListener("click", () => openDeckEditor({ returnToMode: true }));
-el.deckEditButton.addEventListener("click", openDeckEditor);
+el.onlineModeButton.addEventListener("click", () => {
+  el.roomPanel.hidden = !el.roomPanel.hidden;
+  el.modeNotice.textContent = el.roomPanel.hidden ? "" : "ルームを作るか、IDを入力して参加してください。";
+});
+el.rankedModeButton?.addEventListener("click", startRankedOnline);
+el.createRoomButton?.addEventListener("click", createRoomOnline);
+el.joinRoomButton?.addEventListener("click", joinRoomOnline);
+el.gridLoginOpenButton?.addEventListener("click", () => openAuthDialog("login"));
+el.gridLogoutButton?.addEventListener("click", logoutAccount);
+el.gridAuthCancelButton?.addEventListener("click", closeAuthDialog);
+el.gridAuthSwitchButton?.addEventListener("click", () => {
+  authMode = authMode === "login" ? "register" : "login";
+  renderAuthDialog();
+});
+el.gridAuthSubmitButton?.addEventListener("click", submitAuthDialog);
+el.gridAuthPassword?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") submitAuthDialog();
+});
+el.deckModeButton.addEventListener("click", openDeckPresetScreen);
+el.deckEditButton.addEventListener("click", openDeckPresetScreen);
+el.deckPresetBackButton?.addEventListener("click", closeDeckPresetScreen);
+el.deckPresetCreateButton?.addEventListener("click", createDeckPreset);
 el.deckBackButton?.addEventListener("click", returnFromDeckEditor);
 el.deckCloseButton.addEventListener("click", () => closeDeckEditor());
 el.deckResetButton.addEventListener("click", resetDeckEditor);
@@ -1810,9 +2558,13 @@ window.addEventListener("resize", () => {
 });
 
 createGame("cpu");
+renderAccountPanel();
+syncAccountFromServer().finally(() => {
+  renderDeckPresetScreen();
+});
 if (EMBEDDED_MODE) {
   hideModeSelect();
-  if (ENTRY_MODE === "deck") openDeckEditor();
+  if (ENTRY_MODE === "deck") openDeckPresetScreen();
 } else if (location.hash !== "#deck") {
   showModeSelect();
 }
